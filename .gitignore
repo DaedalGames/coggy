@@ -1,0 +1,20 @@
+# Rust build output
+/target/
+**/*.rs.bk
+*.pdb
+
+# Bench output. Committed results live under docs/measurements/ deliberately.
+/bench-out/
+
+# Agent tooling
+.codegraph/
+.omo/
+.re0/
+
+# Other toolchains
+node_modules/
+
+# Local scratch and OS noise
+*.local*
+*.log
+.DS_Store

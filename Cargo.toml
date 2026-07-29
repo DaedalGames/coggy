@@ -1,0 +1,30 @@
+[workspace]
+resolver = "3"
+members = ["sessionbench"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+# Edition 2024 itself needs only 1.85. The binding constraint is sysinfo 0.37,
+# which declares rust-version 1.88 — so that is the real floor. Do not lower
+# this without checking every dependency's declared rust-version first; a
+# pinned rust-toolchain.toml hides violations by construction.
+rust-version = "1.88"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/DaedalGames/coggy"
+authors = ["Daedal Games"]
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = "0.37"
+portable-pty = "0.9"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+# No panic = "abort" here on purpose. A panicking measurement thread must not
+# take the whole run with it — a failed session is data to report, not a reason
+# to lose the other 199 readings.

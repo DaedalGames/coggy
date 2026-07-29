@@ -1,0 +1,8 @@
+[toolchain]
+# Tracks latest stable deliberately, rather than pinning a version. The cost is
+# that codegen changes between releases can move measurements, so every report
+# records the toolchain it was produced with. Reproducibility comes from
+# recording what ran, not from freezing what may run.
+channel = "stable"
+components = ["rustfmt", "clippy"]
+targets = ["x86_64-pc-windows-msvc"]

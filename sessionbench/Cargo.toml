@@ -1,0 +1,34 @@
+[package]
+name = "sessionbench"
+description = "The concurrent session scaling benchmark for Windows-native terminals."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+# lib/bin split, following contour/termbench-pro: measurement backends stay
+# testable without going through the CLI.
+[lib]
+name = "sessionbench"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sessionbench"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sysinfo.workspace = true
+portable-pty.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }

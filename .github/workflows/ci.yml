@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Windows-only is deliberate. ConPTY, Job Objects, and Defender are the
+  # subject matter, so a green build on Linux would prove nothing.
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      # -D warnings goes here rather than in RUSTFLAGS, which would apply it to
+      # dependencies too and let a warning in someone else's crate fail our CI.
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      # Compiles every target, so a separate build step would add nothing. Also
+      # covers tests/docs.rs, which resolves every cross-document link and
+      # anchor — doc integrity is a test rather than a separate tool, so the
+      # repository stays pure Rust with no second toolchain.
+      - name: Test
+        run: cargo test --all-features
+
+      - name: Smoke-run the binary
+        run: cargo run -p sessionbench -- doctor
+
+  # A declared rust-version that CI never exercises is a guess. The local
+  # toolchain tracks latest stable and will happily satisfy an MSRV that real
+  # 1.88 users cannot meet, so this job pins the declared floor and nothing
+  # else. If it fails, either a dependency raised its MSRV or ours is wrong --
+  # fix the number, do not delete the job.
+  msrv:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Check against declared MSRV
+        run: cargo check --all-targets
