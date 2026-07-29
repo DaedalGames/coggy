@@ -57,6 +57,14 @@ cargo run -p sessionbench -- doctor
 
 `doctor` reports the machine and which axes are actually available. Run it before trusting any result: the Defender axis needs elevation, and a run without it silently measures five axes out of six while still printing a redline. A redline missing an axis is not a smaller result — it is a wrong one.
 
+```
+cargo run -p sessionbench -- observe --duration 300 -- <command>
+```
+
+`observe` runs one session to completion and records what holding it costs — RSS over time, process and conhost counts, output volume, and Defender's CPU split between startup and steady state. It writes `samples.jsonl` and `run.json` under `bench-out/`, then closes with a linear projection to 100 sessions. That projection is a floor rather than a forecast, and it is useful for exactly that reason: a floor that already breaks a condition settles the question without running the ramp.
+
+Add `--pty` to give the session a pseudoconsole instead of pipes. Running one workload both ways is the direct measurement behind [Decision 1](../docs/PLAN.md#four-core-decisions), since the difference between the two is one conhost per session, resident for as long as the session lives.
+
 ## What we measure against
 
 A benchmark that only measures `coggyd` is marketing. At minimum, these run on identical hardware.
@@ -78,6 +86,7 @@ Tuning `coggyd` against these results makes the gate grade a bucket it drew itse
 1. **Freeze the as-is baseline at M0.** Measure it before `coggyd` exists and never remeasure. If hardware changes, every target gets remeasured together.
 2. **Workloads know nothing about `coggyd`.** Payloads are pure stdout generators and real agent CLI sessions. A workload that takes a COGGY-specific path is banned.
 3. **Distrust one axis improving while five stay flat.** redline is a conjunction of four conditions, so optimizing a single axis cannot raise it. If it rose anyway, the cost moved somewhere we are not looking.
+4. **Give every run a directory Defender has not seen.** Real-time scanning costs far less the second time a file is written, so re-running a workload over the same paths measures the cache rather than the workload. Two otherwise identical runs differed threefold on this axis before the rule existed, and the second one looked like the improvement.
 
 **Those three rules are what buy credibility, not the repo boundary** — so this stays inside the COGGY repo. The evidence agrees: `alacritty/vtebench` split out and has not moved since January 2025 while Alacritty ships continuously, whereas Ghostty keeps its benchmarks in `src/benchmark/` and is the healthiest of the three. Splitting early buys a second CI and a sync problem.
 

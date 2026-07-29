@@ -10,8 +10,10 @@
 pub mod axes;
 pub mod host;
 pub mod machine;
+pub mod observe;
 pub mod provenance;
 pub mod redline;
+pub mod tree;
 
 /// Label and value pairs a report renders as an aligned block.
 ///
