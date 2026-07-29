@@ -21,16 +21,12 @@ Windows-only is deliberate: ConPTY, Job Objects, and Defender are the subject ma
 
 ## What gets closed
 
-Each of these is a way the project dies, with the reasoning in [PLAN's anti-patterns](docs/PLAN.md#anti-patterns-these-kill-the-project).
+A PR that assumes away any of [PLAN's anti-patterns](docs/PLAN.md#anti-patterns-these-kill-the-project) gets closed. If you think one is wrong, open an issue arguing against the entry in PLAN — not a PR that quietly works around it.
 
-- A UI, a pane, or a renderer before M2
-- A hand-written VT parser
-- A reimplementation of engine control that an official MCP already provides
-- Retry, repair, or verification verdicts inside the daemon — it knows only whether a session is alive
-- Anything assuming `git worktree`; game projects carry hundreds of GB of binary assets
-- A new crate not justified by a measurement, without a matching amendment to [PLAN's architecture](docs/PLAN.md#architecture)
+Two more apply only to contributions:
 
-If you think one is wrong, open an issue arguing against the entry in PLAN. Do not open a PR that quietly assumes it away.
+- **A new crate not justified by a measurement**, without a matching amendment to [PLAN's architecture](docs/PLAN.md#architecture).
+- **A hand-written version of something that already exists.** Name the prior art you checked, its licence, and what you changed. [Working rules](CLAUDE.md#never-build-what-already-exists) has the order to check in.
 
 ## The one rule that matters
 

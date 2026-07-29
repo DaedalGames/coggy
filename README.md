@@ -36,7 +36,8 @@ See [sessionbench/README.md](sessionbench/README.md) for the metric definition, 
 |---|---|
 | [ROADMAP.md](ROADMAP.md) | What order it happens in, and the gate that closes each milestone |
 | [sessionbench/README.md](sessionbench/README.md) | The benchmark: metric, axes, comparison set, report format |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to work on it |
+| [CLAUDE.md](CLAUDE.md) | How to approach the work: reuse before building, measure before optimizing |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute: setup, conventions, what gets closed |
 | [docs/PLAN.md](docs/PLAN.md) | What is true: architecture, scope boundary, constraints |
 
 Claims in PLAN are marked **[measured]** or **[assumed]**, so an assumption cannot be quietly designed around.

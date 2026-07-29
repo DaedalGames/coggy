@@ -123,15 +123,9 @@ Attach the four official MCP servers from [the semantic layer reference](docs/PL
 
 ## Non-Goals
 
-Ordered by the milestone at which each temptation first appears.
+The seven ways to lose live in [PLAN's anti-patterns](docs/PLAN.md#anti-patterns-these-kill-the-project), with the reasoning attached to each. One list rather than three, because a rule restated in three documents is a rule that drifts in two of them.
 
-- **We will not skip M0.** Optimize without measuring and you will rewrite it all in Rust and lag exactly as much.
-- **We will not hand-write a VT parser.** Crates exist. Burn three weeks here and the project is over.
-- **We will not assume git worktrees.** Game projects carry hundreds of GB of binary assets. Every existing multiplexer breaks here.
-- **We will not build UI before M2.** A screen looks like progress, but the bottleneck is in the daemon.
-- **We will not put generation, verification, or repair verdicts in the daemon.** The moment they land, COGGY stops being infrastructure and becomes harness v2 — and dies with the harness at its next rewrite.
-- **We will not reinvent engine control.** We consume only.
-- **We will not build pricing or a landing page now.** Run it internally for six months before deciding whether to spin it out.
+They are ordered by the milestone at which each temptation first appears, which makes most of them look like a schedule. Only two actually expire: **UI**, released at M2, and **productizing**, after six months of internal use. The other five are permanent, and the two worth naming twice are engine control, which the vendors already own, and generation logic, which belongs to the harness.
 
 ## Decision Principle
 
