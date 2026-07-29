@@ -95,7 +95,9 @@ Machine-readable and human-readable are separate artifacts.
 
 - **`sessionbench.json`** — the raw record: six axes per target per session count. Canonical, not a derivative.
 - **`sessionbench.md`** — for humans: the redline on the first line, six curves below it, hardware table last.
-- Headline format: `redline: 84 sessions (RSS) · Windows Terminal + pwsh 7 · 16C/64GB · Defender on`
+- Headline format: `redline: 84 sessions (RSS) · Windows Terminal + pwsh 7 · 16C/64GiB · Defender on`
+
+Memory is reported in **GiB, and as the figure the operating system calls usable** rather than the number on the box. Condition 2 is a fraction of it, so the 7% between GiB and GB is enough to move a verdict, and a machine sold as 32GB has about 31 GiB to give.
 
 **A redline quoted without its target, session count, and hardware is not quotable.** The moment a bare number circulates, the benchmark has become marketing.
 

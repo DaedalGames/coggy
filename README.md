@@ -19,7 +19,7 @@ Terminal benchmarks measure one session at a time. None of them plots the scalin
 It reports **redline**: the largest concurrent session count a machine sustains, always paired with the condition that stopped it.
 
 ```
-redline: 84 sessions (RSS) · Windows Terminal + pwsh 7 · 16C/64GB · Defender on
+redline: 84 sessions (RSS) · Windows Terminal + pwsh 7 · 16C/64GiB · Defender on
 ```
 
 Requires Rust 1.88 or newer on Windows.
