@@ -48,6 +48,15 @@ use crate::tree::{ArmedTree, Membership, SessionTree};
 /// moments of a rung are a spike that belongs to nothing being asked about.
 const SPINUP_FRACTION: f64 = 1.0 / 3.0;
 
+/// Fewest measured samples a rung needs before its verdict means anything.
+///
+/// A saturated machine can starve the sampler badly enough that a fifteen
+/// second hold yields one reading forty seconds late. Everything derived from
+/// that reads as a catastrophic collapse — zero work, zero cores — and the
+/// first ramp run reported exactly that as a broken condition. A rung that
+/// could not be measured is not a rung that failed.
+const MIN_SAMPLES_PER_RUNG: usize = 5;
+
 /// Everything a ramp needs before it starts.
 pub struct RampConfig {
     pub label: String,
@@ -57,6 +66,37 @@ pub struct RampConfig {
     pub max_sessions: u32,
     pub mode: SessionMode,
     pub command: Vec<String>,
+}
+
+/// What one tick of the instrument cost.
+///
+/// A scaling benchmark has to know its own overhead, because the one failure it
+/// cannot detect from the outside is the observer becoming the bottleneck. The
+/// first ramp against a saturating workload spent seventy-five seconds on a
+/// fifteen second hold, and without this there was no way to say which part of
+/// the tick had eaten it.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct TickCost {
+    /// Walking every process on the machine.
+    pub refresh_ms: u64,
+    /// Checking for finished sessions and restarting them.
+    pub replace_ms: u64,
+    /// Reading the job's members and their memory.
+    pub sample_ms: u64,
+    /// Serialising the sample and flushing it to disk.
+    pub write_ms: u64,
+}
+
+impl TickCost {
+    fn total_ms(&self) -> u64 {
+        self.refresh_ms + self.replace_ms + self.sample_ms + self.write_ms
+    }
+
+    fn keep_worse(&mut self, other: TickCost) {
+        if other.total_ms() > self.total_ms() {
+            *self = other;
+        }
+    }
 }
 
 /// One rung of the ladder.
@@ -78,6 +118,17 @@ pub struct Step {
     pub worst_replacement_secs: Option<f64>,
     /// Units a session reported starting but never wrote a line for.
     pub dropped_units: u64,
+    /// Wall-clock the rung actually took, which exceeds the hold when the
+    /// machine could not keep the sampler running.
+    pub elapsed_secs: f64,
+    /// The most expensive tick of the rung, broken down.
+    pub worst_tick: TickCost,
+    /// Why this rung supports no verdict, when it supports none.
+    ///
+    /// Takes precedence over `broken`: a rung the instrument could not measure
+    /// has not failed, and reporting it as a break would put a redline on the
+    /// board that describes the observer rather than the machine.
+    pub inconclusive: Option<String>,
     /// Conditions that broke here. Empty means the rung held.
     pub broken: Vec<LimitingCondition>,
 }
@@ -140,22 +191,30 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         fs::create_dir_all(&step_dir)?;
 
         let mut step = hold(config, &step_dir, sessions, &mut tree, &mut sampler, budget)?;
-        if sessions == 1 {
-            solo_units_per_sec = step.units_per_session_per_sec;
-        }
-
-        // The work-rate condition only means anything against the solo figure,
-        // so it is checked here rather than inside the hold.
-        if solo_units_per_sec > 0.0
-            && solo_units_per_sec / step.units_per_session_per_sec.max(f64::EPSILON)
-                > WORK_RATE_BUDGET_FACTOR
-        {
-            step.broken.push(LimitingCondition::WorkRate);
+        if step.inconclusive.is_none() {
+            if sessions == 1 {
+                solo_units_per_sec = step.units_per_session_per_sec;
+            }
+            // The work-rate condition only means anything against the solo
+            // figure, so it is checked here rather than inside the hold.
+            if solo_units_per_sec > 0.0
+                && solo_units_per_sec / step.units_per_session_per_sec.max(f64::EPSILON)
+                    > WORK_RATE_BUDGET_FACTOR
+            {
+                step.broken.push(LimitingCondition::WorkRate);
+            }
         }
 
         print_step(&step, solo_units_per_sec);
+        let unmeasurable = step.inconclusive.is_some();
         let broke = step.broken.first().copied();
         steps.push(step);
+
+        // No redline: the ladder stopped because the instrument ran out, not
+        // because the machine did.
+        if unmeasurable {
+            break;
+        }
 
         if let Some(condition) = broke {
             // The redline is the rung before the break, which is zero when even
@@ -216,15 +275,33 @@ fn hold(
     let mut measured: Vec<Sample> = Vec::new();
     let mut units_at_spinup = None;
     let mut last: Option<Sample> = None;
+    let mut worst_tick = TickCost::default();
 
     while started.elapsed() < config.hold {
-        std::thread::sleep(config.interval);
-        sampler.refresh();
-        pool.replace_finished(config, step_dir, tree)?;
+        // Paced from the top of each tick rather than sleeping a full interval
+        // after the work: under load the work is the interval, and adding one
+        // on top turns a fifteen second hold into forty.
+        let tick = Instant::now();
+        let mut cost = TickCost::default();
 
+        let at = Instant::now();
+        let tracked = tree.known_pids();
+        sampler.refresh(tracked.as_deref());
+        cost.refresh_ms = at.elapsed().as_millis() as u64;
+
+        let at = Instant::now();
+        pool.replace_finished(config, step_dir, tree)?;
+        cost.replace_ms = at.elapsed().as_millis() as u64;
+
+        let at = Instant::now();
         let sample = sampler.sample(tree, &pool.aggregate_output(), started.elapsed());
+        cost.sample_ms = at.elapsed().as_millis() as u64;
+
+        let at = Instant::now();
         writeln!(samples_file, "{}", serde_json::to_string(&sample)?)?;
         samples_file.flush()?;
+        cost.write_ms = at.elapsed().as_millis() as u64;
+        worst_tick.keep_worse(cost);
 
         if started.elapsed() >= spinup {
             if units_at_spinup.is_none() {
@@ -233,6 +310,10 @@ fn hold(
             measured.push(sample.clone());
         }
         last = Some(sample);
+
+        if let Some(rest) = config.interval.checked_sub(tick.elapsed()) {
+            std::thread::sleep(rest);
+        }
     }
 
     let (units_start, at) = units_at_spinup.unwrap_or((pool.total_units(), started.elapsed()));
@@ -245,16 +326,27 @@ fn hold(
     pool.shut_down(sampler, last.as_ref())?;
     let dropped_units = count_dropped_units(step_dir)?;
 
+    let elapsed_secs = started.elapsed().as_secs_f64();
+    let inconclusive = (measured.len() < MIN_SAMPLES_PER_RUNG).then(|| {
+        format!(
+            "{} sample(s) over {elapsed_secs:.1}s of a {:.1}s hold — the sampler could not keep up, so nothing here describes the machine",
+            measured.len(),
+            config.hold.as_secs_f64(),
+        )
+    });
+
     let total_rss_bytes = median(measured.iter().map(|s| s.rss_bytes)).unwrap_or(0);
     let mut broken = Vec::new();
-    if total_rss_bytes > budget {
-        broken.push(LimitingCondition::Rss);
-    }
-    if dropped_units > 0 {
-        broken.push(LimitingCondition::OutputDrop);
-    }
-    if worst_replacement_secs.is_some_and(|s| s > REPLACEMENT_BUDGET_SECS as f64) {
-        broken.push(LimitingCondition::ReplacementLag);
+    if inconclusive.is_none() {
+        if total_rss_bytes > budget {
+            broken.push(LimitingCondition::Rss);
+        }
+        if dropped_units > 0 {
+            broken.push(LimitingCondition::OutputDrop);
+        }
+        if worst_replacement_secs.is_some_and(|s| s > REPLACEMENT_BUDGET_SECS as f64) {
+            broken.push(LimitingCondition::ReplacementLag);
+        }
     }
 
     Ok(Step {
@@ -274,6 +366,9 @@ fn hold(
         replacements,
         worst_replacement_secs,
         dropped_units,
+        elapsed_secs,
+        worst_tick,
+        inconclusive,
         broken,
     })
 }
@@ -451,10 +546,19 @@ fn print_step(step: &Step, solo: f64) {
         step.session_cores + step.defender_cores,
         step.processes,
     );
-    if step.broken.is_empty() {
-        println!("      held");
-    } else {
-        println!("      BROKE: {:?}", step.broken);
+    let tick = &step.worst_tick;
+    println!(
+        "      worst tick {} ms = refresh {} + replace {} + sample {} + write {}",
+        tick.total_ms(),
+        tick.refresh_ms,
+        tick.replace_ms,
+        tick.sample_ms,
+        tick.write_ms
+    );
+    match (&step.inconclusive, step.broken.is_empty()) {
+        (Some(reason), _) => println!("      INCONCLUSIVE: {reason}"),
+        (None, true) => println!("      held"),
+        (None, false) => println!("      BROKE: {:?}", step.broken),
     }
 }
 

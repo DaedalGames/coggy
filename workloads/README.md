@@ -24,9 +24,14 @@ The comparison is always **the same workload, solo against concurrent**, so a un
 
 | Workload | A unit is | Shaped for |
 |---|---|---|
+| [cpu-spin](cpu-spin/) | one chain of mixing rounds | Finding the core ceiling, and isolating it from anything the disk is doing |
 | [file-write](file-write/) | one file written | Sessions that hold memory and write continuously, which is what generation does to a disk |
 
-`file-write` defaults to holding 80 MiB resident and writing sixty 64 KiB files at 900 ms intervals, which is roughly the footprint and write rate of an agent CLI session. Its steady memory reproduces to 0.01 MiB across runs, which is what made [the first measurement](../docs/measurements/2026-07-30-conhost-and-defender.md) able to resolve a difference of 8.6 MiB.
+**The pair is the point.** When per-session work rate falls, the cores went either to sessions competing with each other or to Defender scanning what they wrote, and a workload that writes files always mixes the two. `cpu-spin` touches no disk, so running the same ramp against both makes the difference between them the scanning term — measured rather than inferred.
+
+`file-write` defaults to holding 80 MiB resident and writing sixty 64 KiB files at 900 ms intervals, which is roughly the footprint and write rate of an agent CLI session. Its steady memory reproduces to 0.01 MiB across runs, which is what let [the first measurement](../docs/measurements/2026-07-30-conhost-and-defender.md) resolve a difference of 8.6 MiB.
+
+`cpu-spin` holds the same memory and never sleeps, so it reaches the core ceiling far sooner than anything realistic would. That is deliberate: it is the harsher of the two on purpose, and the redline it produces is a floor for the machine rather than a forecast for the workload.
 
 ## Adding one
 

@@ -385,18 +385,25 @@ fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
         None => "Defender unknown",
     };
 
+    let unmeasurable = report.steps.last().and_then(|s| s.inconclusive.as_ref());
     println!();
-    match &report.redline {
-        Some(redline) => println!(
+    match (&report.redline, unmeasurable) {
+        (Some(redline), _) => println!(
             "redline: {} sessions ({:?}) · {target} · {} · {} · {defender}",
             redline.sessions,
             redline.limited_by,
             report.mode.label(),
             report.machine.label(),
         ),
-        // Not a redline. The ladder ran out with every condition still holding,
-        // which locates the ceiling above what was tried rather than at it.
-        None => println!(
+        // Not a redline, and not a smaller one either. The ladder stopped
+        // because the instrument ran out rather than because the machine did.
+        (None, Some(reason)) => println!(
+            "no redline: the ramp stopped at {} sessions without a usable reading — {reason}",
+            report.steps.last().map(|s| s.sessions).unwrap_or(0),
+        ),
+        // The ladder ran out with every condition still holding, which locates
+        // the ceiling above what was tried rather than at it.
+        (None, None) => println!(
             "no redline reached: every rung up to {} sessions held · {target} · {} · {} · {defender}",
             report.steps.last().map(|s| s.sessions).unwrap_or(0),
             report.mode.label(),

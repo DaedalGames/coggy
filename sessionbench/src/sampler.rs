@@ -43,6 +43,8 @@ pub struct Sample {
 
 pub struct Sampler {
     sys: System,
+    /// Defender's pid, so it can be refreshed by name only once.
+    defender: Option<Pid>,
 }
 
 impl Sampler {
@@ -51,29 +53,57 @@ impl Sampler {
     /// sysinfo reports usage as the delta between two refreshes, so a sampler
     /// used immediately would report every process at zero.
     pub fn new() -> Self {
-        let mut sampler = Self { sys: System::new() };
-        sampler.refresh();
+        let mut sampler = Self {
+            sys: System::new(),
+            defender: None,
+        };
+        sampler.refresh(None);
         sampler
     }
 
     /// Re-reads the machine. Call once per tick, however many sessions are up.
-    pub fn refresh(&mut self) {
+    ///
+    /// `tracked` is the exact set to refresh, which is what keeps a tick from
+    /// costing more as the ramp climbs. Reading the whole process table
+    /// instead took 98 ms at one session, 150 ms at ten, and **eighty seconds
+    /// at twenty-five** — the instrument became the bottleneck and reported the
+    /// collapse as the machine's. `None` falls back to the full table, which
+    /// the parent-walk membership has no way to avoid.
+    pub fn refresh(&mut self, tracked: Option<&[Pid]>) {
         self.sys.refresh_memory();
-        self.sys.refresh_processes_specifics(
-            ProcessesToUpdate::All,
-            true,
-            ProcessRefreshKind::nothing().with_cpu().with_memory(),
-        );
+        let kind = ProcessRefreshKind::nothing().with_cpu().with_memory();
+
+        match (tracked, self.defender) {
+            (Some(pids), Some(defender)) => {
+                let mut list = Vec::with_capacity(pids.len() + 1);
+                list.extend_from_slice(pids);
+                list.push(defender);
+                self.sys
+                    .refresh_processes_specifics(ProcessesToUpdate::Some(&list), true, kind);
+                // Defender restarting changes its pid, and a targeted refresh
+                // would never notice. Losing it drops back to a full walk on
+                // the next tick rather than silently reporting no scanning.
+                if self.sys.process(defender).is_none() {
+                    self.defender = None;
+                }
+            }
+            _ => {
+                self.sys
+                    .refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
+                self.defender = self
+                    .sys
+                    .processes()
+                    .iter()
+                    .find(|(_, p)| p.name().eq_ignore_ascii_case(DEFENDER_PROCESS))
+                    .map(|(pid, _)| *pid);
+            }
+        }
     }
 
     /// Samples one session against the current refresh.
     pub fn sample(&self, tree: &mut SessionTree, output: &Output, elapsed: Duration) -> Sample {
         let members = tree.sample(&self.sys);
-        let defender = self
-            .sys
-            .processes()
-            .values()
-            .find(|p| p.name().eq_ignore_ascii_case(DEFENDER_PROCESS));
+        let defender = self.defender.and_then(|pid| self.sys.process(pid));
 
         Sample {
             t_ms: elapsed.as_millis() as u64,
@@ -95,7 +125,8 @@ impl Sampler {
 
     /// Refreshes and samples in one call, for a run watching a single session.
     pub fn take(&mut self, tree: &mut SessionTree, output: &Output, elapsed: Duration) -> Sample {
-        self.refresh();
+        let tracked = tree.known_pids();
+        self.refresh(tracked.as_deref());
         self.sample(tree, output, elapsed)
     }
 
@@ -105,7 +136,12 @@ impl Sampler {
     /// sample is the list of what to finish off.
     pub fn reap(&mut self, last: Option<&Sample>) {
         let Some(sample) = last else { return };
-        self.refresh();
+        let pids: Vec<Pid> = sample
+            .members
+            .iter()
+            .map(|m| Pid::from_u32(m.pid))
+            .collect();
+        self.refresh(Some(&pids));
         for member in &sample.members {
             if let Some(process) = self.sys.process(Pid::from_u32(member.pid)) {
                 process.kill();

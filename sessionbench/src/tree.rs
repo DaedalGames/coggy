@@ -85,12 +85,6 @@ pub struct ProcessSample {
 pub struct ArmedTree {
     observer: Pid,
     job: Option<win32job::Job>,
-    /// Processes already in the job before the session started.
-    ///
-    /// The provenance and Defender queries shell out, and although both have
-    /// exited by the time sampling begins, excluding them by identity beats
-    /// relying on that.
-    baseline: HashSet<usize>,
     /// Why the job is unavailable, when it is.
     pub fallback_reason: Option<String>,
 }
@@ -100,31 +94,31 @@ impl ArmedTree {
     /// step fails.
     pub fn arm(observer: Pid) -> Self {
         match Self::join_job() {
-            Ok((job, baseline)) => Self {
+            Ok(job) => Self {
                 observer,
                 job: Some(job),
-                baseline,
                 fallback_reason: None,
             },
             Err(reason) => Self {
                 observer,
                 job: None,
-                baseline: HashSet::new(),
                 fallback_reason: Some(reason),
             },
         }
     }
 
-    fn join_job() -> Result<(win32job::Job, HashSet<usize>), String> {
+    fn join_job() -> Result<win32job::Job, String> {
         let job = win32job::Job::create().map_err(|e| format!("creating a job object: {e}"))?;
         job.assign_current_process()
             .map_err(|e| format!("joining the job object: {e}"))?;
-        let baseline = job
-            .query_process_id_list()
-            .map_err(|e| format!("reading the job's process list: {e}"))?
-            .into_iter()
-            .collect();
-        Ok((job, baseline))
+        // Deliberately no baseline of pre-existing members. The provenance and
+        // Defender queries shell out before any session starts and have exited
+        // by the first sample, so the job's live list never contains them —
+        // while a remembered set of their pids would silently delete a session
+        // that Windows later handed one of those numbers to.
+        job.query_process_id_list()
+            .map_err(|e| format!("reading the job's process list: {e}"))?;
+        Ok(job)
     }
 
     pub fn membership(&self) -> Membership {
@@ -151,7 +145,6 @@ impl ArmedTree {
             roots: HashSet::new(),
             observer: self.observer,
             job: self.job,
-            baseline: self.baseline,
             walked: HashMap::new(),
         }
     }
@@ -164,7 +157,6 @@ pub struct SessionTree {
     roots: HashSet<Pid>,
     observer: Pid,
     job: Option<win32job::Job>,
-    baseline: HashSet<usize>,
     /// Start times of members found by walking, keyed by pid. Unused when the
     /// job object is available.
     walked: HashMap<Pid, u64>,
@@ -174,6 +166,17 @@ impl SessionTree {
     /// Adds a session that has just been spawned.
     pub fn add_root(&mut self, pid: Pid) {
         self.roots.insert(pid);
+    }
+
+    /// The processes this tree will sample, when that is knowable without
+    /// reading the whole process table.
+    ///
+    /// The job object answers it from the kernel for the cost of one call,
+    /// which is what lets a tick refresh only what it measures. `None` under
+    /// the parent-walk fallback, where membership is derived *from* the table
+    /// and so cannot be known before reading it.
+    pub fn known_pids(&self) -> Option<Vec<Pid>> {
+        self.job.as_ref().map(|_| self.job_members())
     }
 
     /// Samples every process currently belonging to the session or pool.
@@ -225,7 +228,6 @@ impl SessionTree {
             .and_then(|job| job.query_process_id_list().ok())
             .unwrap_or_default()
             .into_iter()
-            .filter(|pid| !self.baseline.contains(pid))
             .map(|pid| Pid::from_u32(pid as u32))
             .filter(|pid| *pid != self.observer)
             .collect()
