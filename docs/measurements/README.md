@@ -4,17 +4,19 @@ What the instrument found, in the order it found it. Each record holds the numbe
 
 ## What M0 concluded
 
-Five findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that owns it; nothing here is stated that is not measured there.
+Six findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that owns it; nothing here is stated that is not measured there.
 
 1. **None of the costs this project was designed around is the bottleneck.** Processes are cheap in memory — [dropping conhost returns 3.9% of the budget at a hundred sessions](2026-07-30-120002-first-redlines.md#what-dropping-conhost-is-worth-at-any-session-weight). Defender was [overstated by two orders of magnitude](2026-07-30-142218-defender-at-scale.md). Output has [three to four orders of headroom](2026-07-30-145414-output-path.md). [PLAN's own escape clause fired](../PLAN.md#residency-not-spawning) on that result.
 
-2. **What binds is sessions competing for cores**, at `redline = 2ηC/d` — inversely with the share of its time a session computes, proportionally with the machine's logical processors. [Derived rather than fitted](2026-07-30-154348-duty-is-derivable.md), and checked against a rung predicted before it was run.
+2. **What binds is sessions competing for cores**, at `redline = 2ηC/d` — inversely with the cores a session demands, proportionally with the machine's logical processors. [Derived rather than fitted](2026-07-30-154348-duty-is-derivable.md), and checked against a rung predicted before it was run.
 
-3. **`η` is memory, not scheduling.** Ten sessions received every core they asked for, ran a fifth slower anyway, and left six cores idle doing it — so `η` belongs to the workload as much as the machine and has to be measured rather than assumed.
+3. **A real session demands more than one core, and that is where the ceiling bites.** A turn's tool work takes [2.63 cores while it builds](2026-07-31-015246-what-a-session-costs.md), so a hundred of them want 286 against sixteen and 31.6 GiB against a 22 GiB budget — both conditions, not one. Where the answer lands between 12 and 195 sessions turns on how long the session waits between builds, which no measurement here supplies.
 
-4. **A redline from one ladder is worth ±12.5%**, from rungs that each reproduce within 2%. [The search was the noisy part, not the measuring](2026-07-30-164912-redline-reproducibility.md); solving the budget on a fitted slope brings the same seven runs to 2.3%.
+4. **`η` is memory, not scheduling.** Ten sessions received every core they asked for, ran a fifth slower anyway, and left six cores idle doing it — so `η` belongs to the workload as much as the machine and has to be measured rather than assumed.
 
-5. **A ramp changes the machine it measures.** A rung ran 4.8% slower at the end of one ladder than at its start, dragging the fitted redline down 3.9%. Every ramp now repeats a rung as a control, and [the rule that follows](../../CLAUDE.md) is to do nothing else on the box while one runs.
+5. **A redline from one ladder is worth ±12.5%**, from rungs that each reproduce within 2%. [The search was the noisy part, not the measuring](2026-07-30-164912-redline-reproducibility.md); solving the budget on a fitted slope brings the same seven runs to 2.3%.
+
+6. **A ramp changes the machine it measures.** A rung ran 4.8% slower at the end of one ladder than at its start, dragging the fitted redline down 3.9%. Every ramp now repeats a rung as a control, and [the rule that follows](../../CLAUDE.md) is to do nothing else on the box while one runs.
 
 **What none of this settles is [G0](../../ROADMAP.md#current-priority-m0--attribution)**, which wants a real generation session this machine has never had. It is now two scalars and a ladder rather than a whole measurement — [the steps are written down](../../sessionbench/README.md#running-gate-g0-on-a-configured-machine).
 
@@ -28,6 +30,7 @@ Five findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that 
 | [Defender at scale](2026-07-30-142218-defender-at-scale.md) | **Withdraws the cost estimated in the first record.** Fifty sessions writing 1,875 MiB a minute used 0.9 cores where the earlier figure demanded 51. |
 | [The output path](2026-07-30-145414-output-path.md) | A hundred streams at half a gigabyte a second cost 1.7 cores of sixteen. The ceiling is about 7 GiB/s aggregate, and it is bandwidth rather than processors. |
 | [The duty relation is derivable](2026-07-30-154348-duty-is-derivable.md) | **Supersedes the 84% share above.** The constant 25 was `2ηC` — with the processor count in it, which is what lets the relation speak for other hardware. Two ramps at different duties agree on `η` to within 0.4%, and a rung predicted in advance landed. |
+| [What an agent session actually costs](2026-07-31-015246-what-a-session-costs.md) | The first reading of `d` from something other than a workload built to demand exactly one. A building session takes 2.63 cores, so the relation runs the other way from where it was exercised — and a hundred such sessions break both the core and the memory condition. |
 | [How much the redline moves between identical runs](2026-07-30-164912-redline-reproducibility.md) | **Puts an error bar on every number above.** Seven identical runs gave 30, 31, 31, 31, 33, 34, 34 — the ladder is reproducible to ±13% from rungs that each reproduce within 2%. Solving the budget on a fitted slope instead brings the same seven to 2.3%. |
 
 ## The pattern these share

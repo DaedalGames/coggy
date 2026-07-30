@@ -34,6 +34,8 @@ The bottleneck is neither CPU nor RAM in the usual sense. It is **what 100 simul
 
 That is the finding M0 exists to produce, and it is not the one this section was written expecting.
 
+**[measured]** The hundred above is a demand figure — sessions needed to clear a thousand games a day. Against it now sits a capacity figure: a session doing an agent turn's tool work [takes 2.63 cores while it builds](measurements/2026-07-31-015246-what-a-session-costs.md), so a hundred of them want 286 cores against sixteen and 31.6 GiB against a 22 GiB budget. **Both conditions break, and the gap between the two figures is the whole of what COGGY is for.** How wide the gap is depends on how much of a turn is build rather than wait, which swings the ceiling between twelve sessions and two hundred — and a game engine's build runs for minutes, which puts it at the narrow end.
+
 **[measured]** Windows Terminal is already C++ with a GPU renderer, so the lag is not a language problem.
 
 ### Residency, not spawning
