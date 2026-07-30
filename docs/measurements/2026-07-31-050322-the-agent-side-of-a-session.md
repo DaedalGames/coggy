@@ -8,9 +8,11 @@ Taken from the agent process driving this repository, alive for 25.1 hours.
 
 | | |
 |---|---|
-| **Resident** | **576 to 586 MiB**, stable across samples |
+| **Resident** | **559 to 586 MiB**, stable across samples |
+| **Private commit** | **1,096 MiB** — nearly twice the resident figure |
 | **Cores, lifetime mean** | **0.112** — 10,128 CPU-seconds over 25.1 hours |
 | Cores, during an active turn | 0.394, 0.447, 0.415 |
+| Handles / threads | 322 / 36 |
 
 The lifetime mean is the figure that matters. A turn is a burst against long stretches of waiting on a model, and 0.112 is what that averages to over a day of ordinary use.
 
@@ -21,7 +23,11 @@ The lifetime mean is the figure that matters. A turn is a burst against long str
 | Agent CLI, resident | 0.580 GiB | **58 GiB** | a 21.97 GiB budget |
 | Agent CLI, cores | 0.112 | 11.2 | 16 available |
 
-**Memory breaks at about 38 sessions on the agent alone**, before an engine is opened. Cores are comfortable: `2ηC/d` with `d = 0.112` gives well over two hundred, so the [duty relation](2026-07-30-154348-duty-is-derivable.md) says the CPU side is not what stops this.
+**Memory breaks at about 38 sessions on the agent alone**, before an engine is opened.
+
+**And the condition measures the smaller of two numbers.** `sessionbench`'s RSS condition reads the working set — what a process holds in physical memory now — while the commit charge is what it has reserved and Windows must be able to back. At 1,096 MiB against 559, a hundred sessions reserve **110 GiB** where the condition sees 58. Paging keeps the resident figure low and does not make the reservation go away, so the ceiling this arithmetic gives is the optimistic one.
+
+Cores are comfortable: `2ηC/d` with `d = 0.112` gives well over two hundred, so the [duty relation](2026-07-30-154348-duty-is-derivable.md) says the CPU side is not what stops this.
 
 Set beside the engine, the two costs behave differently. **The CLI's 580 MiB is held for the session's whole life; the engine's 1.865 GiB only while it cooks.** A hundred sessions therefore pay 58 GiB always and the cooking share on top, which is why the agent is the floor and the engine is what lands on it.
 
