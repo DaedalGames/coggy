@@ -4,7 +4,7 @@ What the instrument found, in the order it found it. Each record holds the numbe
 
 ## What M0 concluded
 
-Eight findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that owns it; nothing here is stated that is not measured there.
+Nine findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that owns it; nothing here is stated that is not measured there.
 
 1. **Against synthetic sessions, none of the costs this project was designed around is the bottleneck.** Processes are cheap in memory — [dropping conhost returns 3.9% of the budget at a hundred sessions](2026-07-30-120002-first-redlines.md#what-dropping-conhost-is-worth-at-any-session-weight). Defender was [overstated by two orders of magnitude](2026-07-30-142218-defender-at-scale.md). Output has [three to four orders of headroom](2026-07-30-145414-output-path.md). [PLAN's own escape clause fired](../PLAN.md#residency-not-spawning) on that result — and finding 7 is what it looks like once the sessions stop being synthetic.
 
@@ -21,6 +21,8 @@ Eight findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that
 7. **Against a real engine, memory binds first — which reverses finding 1.** An [Unreal session holds 1.69 GiB steady and peaks at 3.40](2026-07-31-022200-an-unreal-session.md), eighty-five times the synthetic workload, and the RSS condition trips at thirteen sessions where work rate would not until twenty. The condition M0 retired as slack is the one that stops the machine, and a blank template is the floor rather than a typical case.
 
 8. **A machine builds one engine project at a time.** [Unreal serialises build actions per installation](2026-07-31-034150-unreal-builds-serialise.md), so ten sessions ran one compiler between them and the capacity figures above describe a queue rather than a crowd. Epic ships the answer inside the engine — Unreal Build Accelerator — which makes it something to consume.
+
+9. **And between builds a session holds nine megabytes, which settles findings 3 and 7.** [An engine build leaves nothing behind](2026-07-31-035111-between-builds.md) — 8.97 MiB at rest against 3.27 GiB while compiling, less than the synthetic workload that stood in for it. The memory and core figures that reversed M0 were taken from the moment a session is least like itself, and that moment is both transient and serialised. **What limits a hundred engine sessions is the build queue, not the machine.**
 
 **What none of this settles is [G0](../../ROADMAP.md#current-priority-m0--attribution)**, which wants a real generation session this machine has never had. It is now two scalars and a ladder rather than a whole measurement — [the steps are written down](../../sessionbench/README.md#running-gate-g0-on-a-configured-machine).
 

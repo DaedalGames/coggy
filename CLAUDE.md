@@ -31,6 +31,8 @@ The project's own reason for existing. [M0](ROADMAP.md#current-priority-m0--attr
 - **A KPI that restates an existing record is a view of it, not a second record.** Fold what is new — usually the cost of the change — into the record that owns the measurement, and do not create the file.
 - A number that contradicts the plan rewrites the plan, never the other way around.
 - **A conclusion drawn from a stand-in is a conclusion about the stand-in.** M0 spent a day establishing that memory had orders of headroom and cores were what bound the machine. Both were true of a workload holding 20 MiB and [false of an engine holding 1.69 GiB](docs/measurements/2026-07-31-022200-an-unreal-session.md), which reversed which condition trips first. Synthetic workloads exist to isolate one variable, and the moment their answer gets quoted as a fact about the real thing, name the workload in the same sentence.
+
+  The same holds for rules rather than numbers: **an invariant only exercised by things that cannot break it has not been exercised.** [The workload contract](workloads/README.md#the-contract) forbids shared paths and the ramp handed every session one directory, which three synthetic workloads never noticed because each names its files uniquely. The contract was correct and unenforced for as long as nothing needed it.
 - Claims in PLAN are marked **[measured]** or **[assumed]**. If you turn one into the other, edit the marker in the same change.
 
 ### Do not degrade the machine you are measuring

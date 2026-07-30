@@ -38,7 +38,9 @@ That is the finding M0 exists to produce, and it is not the one this section was
 
 **[measured]** **Memory is what binds, not cores** — the reverse of what the four costs above concluded, because they were measured against sessions holding 20 MiB. RSS trips at thirteen sessions where work rate would not until twenty. A blank template is the smallest thing an engine can build; a generated game carries assets, shaders and a cook, all of which move both figures up.
 
-**[measured]** **And a machine builds one of them at a time.** [Unreal serialises build actions per engine installation](measurements/2026-07-31-034150-unreal-builds-serialise.md), so ten sessions compile no faster than one and the capacity figures above describe a queue rather than a crowd. Epic's own answer is Unreal Build Accelerator, which ships in the engine — [something to consume](../CLAUDE.md) rather than route around.
+**[measured]** **And a machine builds one of them at a time.** [Unreal serialises build actions per engine installation](measurements/2026-07-31-034150-unreal-builds-serialise.md), so ten sessions compile no faster than one. Epic's own answer is Unreal Build Accelerator, which ships in the engine — [something to consume](../CLAUDE.md) rather than route around.
+
+**[measured]** **Between builds the same session holds nine megabytes.** [An engine build leaves nothing resident](measurements/2026-07-31-035111-between-builds.md), so a hundred sessions at rest come to 897 MiB and the figures above describe the moment a session is least like itself. **The constraint is the build queue rather than the machine** — which puts it inside the governor's reach and outside the redline's.
 
 **[measured]** Windows Terminal is already C++ with a GPU renderer, so the lag is not a language problem.
 
