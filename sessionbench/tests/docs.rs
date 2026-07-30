@@ -12,6 +12,19 @@
 //!
 //! It lives as a test rather than a separate tool so `cargo test` covers it and
 //! the repository stays one crate with no extra toolchain.
+//!
+//! **Why this is not `lychee`,** which is the maintained Rust link checker and
+//! was the obvious thing to take instead. Its own documentation describes the
+//! fragments it generates as *similar to* GitHub's auto-generated anchors,
+//! without stating the rules. These documents are read on GitHub, so "similar"
+//! passes links that GitHub breaks — and the one divergence already found here,
+//! that GitHub does not collapse runs of whitespace, is exactly that shape.
+//! What lychee is unambiguously better at is the external URLs this test skips
+//! entirely; it belongs in CI for those the moment CI can run again.
+//!
+//! Known gap: GitHub disambiguates repeated headings within a file by
+//! appending `-1`, `-2`, and this does not. A link to the second of two
+//! identical headings would resolve against the first and pass.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;

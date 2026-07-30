@@ -104,6 +104,13 @@ enum Command {
         #[arg(long, default_value_t = 200)]
         max_sessions: u32,
 
+        /// How tight to narrow the bracket before reporting a redline.
+        ///
+        /// The ladder is coarse and only locates the interval the ceiling
+        /// falls in; each halving of that interval costs one more hold.
+        #[arg(long, default_value_t = sessionbench::redline::DEFAULT_RESOLUTION)]
+        resolution: u32,
+
         /// Give every session a pseudoconsole instead of pipes.
         #[arg(long)]
         pty: bool,
@@ -160,6 +167,7 @@ fn main() -> anyhow::Result<()> {
             interval,
             hold,
             max_sessions,
+            resolution,
             pty,
             command,
         } => {
@@ -174,6 +182,7 @@ fn main() -> anyhow::Result<()> {
                 interval: Duration::from_secs_f64(interval),
                 hold: Duration::from_secs_f64(hold),
                 max_sessions,
+                resolution,
                 mode,
                 command,
             };
@@ -388,13 +397,21 @@ fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
     let unmeasurable = report.steps.last().and_then(|s| s.inconclusive.as_ref());
     println!();
     match (&report.redline, unmeasurable) {
-        (Some(redline), _) => println!(
-            "redline: {} sessions ({:?}) · {target} · {} · {} · {defender}",
-            redline.sessions,
-            redline.limited_by,
-            report.mode.label(),
-            report.machine.label(),
-        ),
+        (Some(redline), _) => {
+            println!(
+                "redline: {} sessions ({:?}) · {target} · {} · {} · {defender}",
+                redline.sessions,
+                redline.limited_by,
+                report.mode.label(),
+                report.machine.label(),
+            );
+            if !redline.limited_by.is_edge() {
+                println!(
+                    "  {:?} is a budget across a slope, not an edge — this count moves if the budget does",
+                    redline.limited_by
+                );
+            }
+        }
         // Not a redline, and not a smaller one either. The ladder stopped
         // because the instrument ran out rather than because the machine did.
         (None, Some(reason)) => println!(

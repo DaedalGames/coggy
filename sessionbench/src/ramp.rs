@@ -14,10 +14,18 @@
 //! and the machine gets easier as that happens — so the number would drift
 //! upward exactly when the machine was struggling most.
 //!
-//! Climbing rather than bisecting, for the same reason vtebench and every soak
-//! test do: the breaking point is observed on the way past it, and a bisection
-//! would have to assume the conditions are monotonic in N when contention is
-//! the thing being measured.
+//! Climb to bracket, then refine inside the bracket. The climb is what makes
+//! the break an observation rather than an assumption; the refinement is what
+//! turns "somewhere above ten and at or below twenty-five" into a number.
+//!
+//! An earlier version of this file climbed and stopped, on the argument that
+//! bisecting would assume the conditions behave monotonically in the session
+//! count. That argument is wrong: it applies to bisecting the whole range, not
+//! to halving an interval whose two ends have both been observed. Standard
+//! capacity practice is exactly this — ramp until compliant runs bracket a
+//! candidate region, then narrow it — and the cost of not doing it showed up
+//! in the first real run, which reported a redline of ten when the ceiling was
+//! somewhere in the eleven-to-twenty-five range.
 
 use std::collections::BTreeSet;
 use std::fs::{self, File};
@@ -64,6 +72,8 @@ pub struct RampConfig {
     pub interval: Duration,
     pub hold: Duration,
     pub max_sessions: u32,
+    /// How tight the bracket must be before the redline is reported.
+    pub resolution: u32,
     pub mode: SessionMode,
     pub command: Vec<String>,
 }
@@ -152,6 +162,8 @@ pub struct RampReport {
     pub started_unix: u64,
     pub interval_ms: u64,
     pub hold_ms: u64,
+    /// How tight the bracket was narrowed before the redline was reported.
+    pub resolution: u32,
     /// Per-session rate at one session, which every later rung is read against.
     pub solo_units_per_sec: f64,
     pub steps: Vec<Step>,
@@ -186,58 +198,56 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
     let mut tree = armed.attach_pool();
     let mut sampler = Sampler::new();
 
-    let mut steps: Vec<Step> = Vec::new();
-    let mut solo_units_per_sec = 0.0;
-    let mut redline = None;
+    let mut search = Search {
+        config,
+        tree: &mut tree,
+        sampler: &mut sampler,
+        budget,
+        solo_units_per_sec: 0.0,
+        steps: Vec::new(),
+    };
 
+    // Climb until a rung breaks. This is what makes the break an observation:
+    // both ends of the interval it leaves behind have been measured.
+    let mut held_at = 0;
+    let mut bracket = None;
     for sessions in RAMP_STEPS.into_iter().filter(|n| *n <= config.max_sessions) {
-        println!("\nholding {sessions} session(s) for {:?}", config.hold);
-        let step_dir = config.out_dir.join(format!("step-{sessions:03}"));
-        fs::create_dir_all(&step_dir)?;
-
-        let mut step = hold(config, &step_dir, sessions, &mut tree, &mut sampler, budget)?;
-        if step.inconclusive.is_none() {
-            if sessions == 1 {
-                solo_units_per_sec = step.units_per_session_per_sec;
+        match search.measure(sessions)? {
+            Outcome::Held => held_at = sessions,
+            Outcome::Broke(condition) => {
+                bracket = Some((held_at, sessions, condition));
+                break;
             }
-            // The work-rate condition only means anything against the solo
-            // figure, so it is checked here rather than inside the hold.
-            if solo_units_per_sec > 0.0
-                && solo_units_per_sec / step.units_per_session_per_sec.max(f64::EPSILON)
-                    > WORK_RATE_BUDGET_FACTOR
-            {
-                step.broken.push(LimitingCondition::WorkRate);
-            }
-        }
-
-        print_step(&step, solo_units_per_sec);
-        let unmeasurable = step.inconclusive.is_some();
-        let broke = step.broken.first().copied();
-        steps.push(step);
-
-        // No redline: the ladder stopped because the instrument ran out, not
-        // because the machine did.
-        if unmeasurable {
-            break;
-        }
-
-        if let Some(condition) = broke {
-            // The redline is the rung before the break, which is zero when even
-            // one session could not be sustained.
-            let last_good = steps
-                .iter()
-                .rev()
-                .skip(1)
-                .find(|s| s.broken.is_empty())
-                .map(|s| s.sessions)
-                .unwrap_or(0);
-            redline = Some(Redline {
-                sessions: last_good,
-                limited_by: condition,
-            });
-            break;
+            // The ladder stopped because the instrument ran out, not because
+            // the machine did, so there is nothing to bracket.
+            Outcome::Unmeasurable => break,
         }
     }
+
+    // Refine inside the bracket. Halving an interval whose ends have both been
+    // observed assumes nothing about behaviour outside it, which is the whole
+    // difference between this and bisecting the range from the start.
+    let mut redline = None;
+    if let Some((mut held, mut broke, mut condition)) = bracket {
+        while broke - held > config.resolution.max(1) {
+            let probe = held + (broke - held) / 2;
+            match search.measure(probe)? {
+                Outcome::Held => held = probe,
+                Outcome::Broke(next) => {
+                    broke = probe;
+                    condition = next;
+                }
+                Outcome::Unmeasurable => break,
+            }
+        }
+        redline = Some(Redline {
+            sessions: held,
+            limited_by: condition,
+        });
+    }
+
+    let solo_units_per_sec = search.solo_units_per_sec;
+    let steps = search.steps;
 
     let report = RampReport {
         label: config.label.clone(),
@@ -252,6 +262,7 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         started_unix,
         interval_ms: config.interval.as_millis() as u64,
         hold_ms: config.hold.as_millis() as u64,
+        resolution: config.resolution.max(1),
         solo_units_per_sec,
         steps,
         redline,
@@ -262,6 +273,66 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         serde_json::to_string_pretty(&report)?,
     )?;
     Ok(report)
+}
+
+/// What one rung said.
+#[derive(Debug, Clone, Copy)]
+enum Outcome {
+    Held,
+    Broke(LimitingCondition),
+    Unmeasurable,
+}
+
+/// The climb and the refinement, sharing one job, one sampler, and one solo
+/// figure to read every later rung against.
+struct Search<'a> {
+    config: &'a RampConfig,
+    tree: &'a mut SessionTree,
+    sampler: &'a mut Sampler,
+    budget: u64,
+    solo_units_per_sec: f64,
+    steps: Vec<Step>,
+}
+
+impl Search<'_> {
+    /// Runs one rung and records it.
+    fn measure(&mut self, sessions: u32) -> Result<Outcome> {
+        println!("\nholding {sessions} session(s) for {:?}", self.config.hold);
+        let step_dir = self.config.out_dir.join(format!("step-{sessions:03}"));
+        fs::create_dir_all(&step_dir)?;
+
+        let mut step = hold(
+            self.config,
+            &step_dir,
+            sessions,
+            self.tree,
+            self.sampler,
+            self.budget,
+        )?;
+
+        if step.inconclusive.is_none() {
+            if sessions == 1 {
+                self.solo_units_per_sec = step.units_per_session_per_sec;
+            }
+            // The work-rate condition only means anything against the solo
+            // figure, so it is checked here rather than inside the hold.
+            if self.solo_units_per_sec > 0.0
+                && self.solo_units_per_sec / step.units_per_session_per_sec.max(f64::EPSILON)
+                    > WORK_RATE_BUDGET_FACTOR
+            {
+                step.broken.push(LimitingCondition::WorkRate);
+            }
+        }
+
+        print_step(&step, self.solo_units_per_sec);
+        let outcome = match (step.inconclusive.is_some(), step.broken.first().copied()) {
+            (true, _) => Outcome::Unmeasurable,
+            (false, Some(condition)) => Outcome::Broke(condition),
+            (false, None) => Outcome::Held,
+        };
+        self.steps.push(step);
+        Ok(outcome)
+    }
 }
 
 /// Holds `sessions` alive for one hold window and measures what it cost.

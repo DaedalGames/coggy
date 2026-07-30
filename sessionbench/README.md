@@ -19,7 +19,11 @@ Condition 1 is the one that matters, and it is the reason the other three exist.
 
 The conditions target **residency, not process creation.** Agent sessions here live for hours, so the machine spends essentially all of its time holding sessions rather than starting them. Spawn cost enters only through condition 4, which asks whether steady-state churn keeps up — not whether a cold start is fast. See [what this deliberately does not measure](#what-this-deliberately-does-not-measure).
 
-Find it by **monotonic ramp, not binary search.** Step N through 1, 10, 25, 50, 75, 100, 150, 200, holding each step until RSS plateaus before advancing. The redline is the last N before any one condition first breaks, and the condition that broke is recorded with it.
+Find it by **climbing to a bracket, then narrowing it.** Step N through 1, 10, 25, 50, 75, 100, 150, 200, holding each rung long enough to settle. The first rung that breaks leaves an interval whose two ends have both been measured, and the redline is found by halving that interval alone — which assumes nothing about behaviour outside it, unlike bisecting the range from the start. The condition that broke is recorded with the count.
+
+The climb on its own is not enough, and this is measured rather than argued: a ceiling that sits at 25 reads as 10 from the coarse rungs, because 10 is simply the last one tried before 25 failed.
+
+**A redline limited by work rate, RSS, or replacement lag is a budget drawn across a slope,** and moves if the budget moves. Only dropped output is an edge. On one machine the per-session work rate ran 1.96× solo at 25 sessions and 2.03× at 26, so the whole answer turned on where the 2× line was drawn — which is worth knowing about a number before quoting it.
 
 **redline is a pair, not a scalar:** `84 / RSS`, never bare `84`. A redline without its limiting cause cannot be reproduced, and the cause is what says where to optimize next.
 

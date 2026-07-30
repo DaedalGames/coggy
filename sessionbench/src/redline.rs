@@ -43,12 +43,35 @@ pub enum LimitingCondition {
     ReplacementLag,
 }
 
-/// Session counts the ramp steps through.
+impl LimitingCondition {
+    /// Whether the condition is an edge or a budget drawn across a slope.
+    ///
+    /// Only dropped output is an edge: its tolerance is zero, so it is absent
+    /// and then present. The other three are budgets over quantities that
+    /// degrade smoothly, which means a redline limited by one of them sits
+    /// wherever that budget was drawn and moves when it moves. Load-testing
+    /// practice prefers the edge as the abort trigger for exactly this reason,
+    /// and a report that does not say which kind it hit invites its number to
+    /// be read as sharper than it is.
+    pub fn is_edge(self) -> bool {
+        matches!(self, LimitingCondition::OutputDrop)
+    }
+}
+
+/// Session counts the ramp climbs through to bracket the redline.
 ///
-/// Monotonic increase rather than binary search: each step holds until memory
-/// plateaus before advancing, so the breaking point is observed rather than
-/// interpolated.
+/// Coarse on purpose: these rungs find *which interval* the ceiling falls in,
+/// and the ramp then refines inside that interval alone. Climbing is what
+/// locates the bracket, since a search that started by bisecting the whole
+/// range would be assuming the conditions behave monotonically across it —
+/// but refining *within* an observed bracket assumes nothing of the kind, and
+/// skipping that refinement is how a ceiling at sixteen gets reported as ten.
 pub const RAMP_STEPS: [u32; 8] = [1, 10, 25, 50, 75, 100, 150, 200];
+
+/// How tight the bracket must be before the redline is reported.
+///
+/// One session is exact and costs one hold per halving of the interval.
+pub const DEFAULT_RESOLUTION: u32 = 1;
 
 /// Share of physical memory total RSS may occupy before
 /// [`LimitingCondition::Rss`] trips.
