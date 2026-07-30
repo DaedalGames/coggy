@@ -97,6 +97,16 @@ enum Command {
         #[arg(long, default_value_t = 90.0, value_name = "SECONDS")]
         duration: f64,
 
+        /// How many watched/excluded pairs to run, alternating.
+        ///
+        /// One pair cannot separate the exclusion from whatever else the
+        /// machine was doing: background activity here drifted by three times
+        /// the signal in twenty seconds. Pairs run adjacent in time so slow
+        /// drift lands on both halves, and the spread across pairs is what
+        /// says whether the mean means anything.
+        #[arg(long, default_value_t = 3)]
+        repeats: u32,
+
         #[arg(long)]
         pty: bool,
 
@@ -200,9 +210,10 @@ fn main() -> anyhow::Result<()> {
             out,
             interval,
             duration,
+            repeats,
             pty,
             command,
-        } => exclusion_delta(label, out, interval, duration, pty, command),
+        } => exclusion_delta(label, out, interval, duration, repeats, pty, command),
         Command::Ramp {
             label,
             out,
@@ -252,6 +263,7 @@ fn exclusion_delta(
     out: PathBuf,
     interval: f64,
     duration: f64,
+    repeats: u32,
     pty: bool,
     command: Vec<String>,
 ) -> anyhow::Result<()> {
@@ -262,52 +274,107 @@ fn exclusion_delta(
     };
     let root = out.join(format!("{}-{label}-{}", stamp(), mode.label()));
     let scratch_root = root.join("scratch");
-
-    let half = |name: &str| ObserveConfig {
-        label: format!("{label}-{name}"),
-        out_dir: root.join(name),
-        scratch: scratch_root.join(name),
-        interval: Duration::from_secs_f64(interval),
-        mode,
-        max_duration: Some(Duration::from_secs_f64(duration)),
-        command: command.clone(),
-    };
-    // Defender is one machine-wide process, so a baseline taken with nothing
-    // running is the only way to tell its work from the room's. Without it a
-    // run reports whatever else touched the disk as the workload's scanning
-    // cost — which is how an earlier attempt produced an 84% saving that did
-    // not reproduce, and then a negative one.
-    let mut sampler = Sampler::new();
     let tick = Duration::from_secs_f64(interval);
-    println!("measuring Defender with nothing running");
-    let idle_before = sampler.watch_defender(IDLE_BASELINE, tick);
-    println!("  {}", describe_idle(idle_before));
+    let mut sampler = Sampler::new();
+    let mut pairs = Vec::new();
 
-    println!(
-        "\nscanned half — Defender watching {}",
-        scratch_root.display()
-    );
-    let scanned = observe::run(&half("scanned"))?;
+    for pair in 1..=repeats.max(1) {
+        // Fresh directories every time. Scanning charges far less the second
+        // time a file is written, so a reused path would credit whichever half
+        // went second with the cache's work.
+        let half = |name: &str| ObserveConfig {
+            label: format!("{label}-{name}-{pair}"),
+            out_dir: root.join(format!("{pair:02}-{name}")),
+            scratch: scratch_root.join(format!("{pair:02}-{name}")),
+            interval: tick,
+            mode,
+            max_duration: Some(Duration::from_secs_f64(duration)),
+            command: command.clone(),
+        };
 
-    println!("\nadding a Defender path exclusion for the run's scratch root");
-    let held = HeldExclusion::add(&scratch_root).map_err(|e| anyhow::anyhow!(e))?;
-    println!("  excluded {}", held.path());
-    let idle_between = sampler.watch_defender(IDLE_BASELINE, tick);
-    println!("  idle again: {}", describe_idle(idle_between));
+        println!("\n=== pair {pair} of {repeats} ===");
+        let idle_watched = sampler.watch_defender(IDLE_BASELINE, tick);
+        println!("idle: {}", describe_idle(idle_watched));
+        let watched = observe::run(&half("watched"))?;
 
-    let excluded = observe::run(&half("excluded"));
+        let held = HeldExclusion::add(&scratch_root).map_err(|e| anyhow::anyhow!(e))?;
+        let idle_excluded = sampler.watch_defender(IDLE_BASELINE, tick);
+        println!(
+            "idle: {}  (exclusion in place)",
+            describe_idle(idle_excluded)
+        );
+        let excluded = observe::run(&half("excluded"));
 
-    // Removed before anything else, including before the second half's result
-    // is examined. The drop guard would catch it, but a machine should not be
-    // left unprotected for the length of a report.
-    let mut held = held;
-    let removal = held.remove();
-    println!("exclusion removed");
-    let excluded = excluded?;
-    removal.map_err(|e| anyhow::anyhow!(e))?;
+        // Removed before the half's result is even examined. The drop guard
+        // would catch it, but a machine should not sit unprotected for the
+        // length of a report.
+        let mut held = held;
+        let removal = held.remove();
+        let excluded = excluded?;
+        removal.map_err(|e| anyhow::anyhow!(e))?;
 
-    print_exclusion_delta(&scanned, &excluded, idle_before, idle_between, &root);
+        let pair = Pair {
+            watched,
+            excluded,
+            idle_watched,
+            idle_excluded,
+        };
+        println!("  {}", pair.describe());
+        pairs.push(pair);
+    }
+
+    print_exclusion_delta(&pairs, &root);
     Ok(())
+}
+
+/// One watched run and the excluded run that followed it, with the idle
+/// baseline each was measured against.
+///
+/// Paired and adjacent in time on purpose: background drift that a single
+/// comparison cannot separate from the exclusion lands on both halves of a
+/// pair, and what survives across pairs is what the exclusion did.
+struct Pair {
+    watched: RunReport,
+    excluded: RunReport,
+    idle_watched: Option<f64>,
+    idle_excluded: Option<f64>,
+}
+
+impl Pair {
+    /// Defender's steady rate for a run, in seconds per minute.
+    fn rate(report: &RunReport) -> Option<f64> {
+        report
+            .summary
+            .defender
+            .as_ref()
+            .and_then(|cost| cost.steady_cpu_seconds_per_min)
+    }
+
+    /// What the workload itself cost, with the room's share taken off.
+    fn attributable(during: Option<f64>, idle: Option<f64>) -> Option<f64> {
+        Some(during? - idle? * 60.0)
+    }
+
+    /// Seconds per minute the exclusion saved. Negative means it cost.
+    fn saving(&self) -> Option<f64> {
+        let watched = Self::attributable(Self::rate(&self.watched), self.idle_watched)?;
+        let excluded = Self::attributable(Self::rate(&self.excluded), self.idle_excluded)?;
+        Some(watched - excluded)
+    }
+
+    /// How far the two idle baselines moved. Noise the pair could not cancel.
+    fn drift(&self) -> Option<f64> {
+        Some((self.idle_excluded? - self.idle_watched?).abs() * 60.0)
+    }
+
+    fn describe(&self) -> String {
+        format!(
+            "saved {} · baselines moved {}",
+            self.saving()
+                .map_or("—".into(), |v| format!("{v:+.2} s/min")),
+            self.drift().map_or("—".into(), |v| format!("{v:.2} s/min")),
+        )
+    }
 }
 
 /// How long to watch Defender with nothing running, before each half.
@@ -323,86 +390,71 @@ fn describe_idle(cores: Option<f64>) -> String {
     }
 }
 
-fn print_exclusion_delta(
-    scanned: &RunReport,
-    excluded: &RunReport,
-    idle_before: Option<f64>,
-    idle_between: Option<f64>,
-    out_dir: &std::path::Path,
-) {
-    let rate = |report: &RunReport| {
-        report
-            .summary
-            .defender
-            .as_ref()
-            .and_then(|cost| cost.steady_cpu_seconds_per_min)
-    };
-    let idle_rate = |cores: Option<f64>| cores.map(|c| c * 60.0);
-    // What the workload itself cost, with the room's share taken off.
-    let attributable = |during: Option<f64>, idle: Option<f64>| Some(during? - idle?);
+fn print_exclusion_delta(pairs: &[Pair], out_dir: &std::path::Path) {
+    let savings: Vec<f64> = pairs.iter().filter_map(Pair::saving).collect();
+    let drifts: Vec<f64> = pairs.iter().filter_map(Pair::drift).collect();
 
-    let scanned_own = attributable(rate(scanned), idle_rate(idle_before));
-    let excluded_own = attributable(rate(excluded), idle_rate(idle_between));
-
-    block(
-        "defender exclusion delta",
-        vec![
+    let mut rows: Rows = pairs
+        .iter()
+        .enumerate()
+        .map(|(index, pair)| {
             (
-                "idle before",
-                format!("{:.2} s/min", idle_rate(idle_before).unwrap_or(0.0)),
-            ),
-            (
-                "scanned",
+                "pair",
                 format!(
-                    "{:.2} units/s · Defender {:.2} s/min · {} attributable",
-                    scanned.summary.work_units_per_sec,
-                    rate(scanned).unwrap_or(0.0),
-                    scanned_own.map_or("—".into(), |v| format!("{v:.2} s/min")),
+                    "{}  {}  ·  {:.2} against {:.2} units/s",
+                    index + 1,
+                    pair.describe(),
+                    pair.watched.summary.work_units_per_sec,
+                    pair.excluded.summary.work_units_per_sec,
                 ),
-            ),
-            (
-                "idle between",
-                format!("{:.2} s/min", idle_rate(idle_between).unwrap_or(0.0)),
-            ),
-            (
-                "excluded",
-                format!(
-                    "{:.2} units/s · Defender {:.2} s/min · {} attributable",
-                    excluded.summary.work_units_per_sec,
-                    rate(excluded).unwrap_or(0.0),
-                    excluded_own.map_or("—".into(), |v| format!("{v:.2} s/min")),
-                ),
-            ),
-            (
-                "work rate",
-                match scanned.summary.work_units_per_sec {
-                    solo if solo > 0.0 => format!(
-                        "{:+.1}% with the exclusion",
-                        (excluded.summary.work_units_per_sec / solo - 1.0) * 100.0
-                    ),
-                    _ => "no baseline to compare against".into(),
-                },
-            ),
-            (
-                "what the exclusion bought",
-                match (scanned_own, excluded_own) {
-                    (Some(before), Some(after)) => format!("{:+.2} s per minute", after - before),
-                    _ => "one half had no steady state".into(),
-                },
-            ),
-        ],
-    );
+            )
+        })
+        .collect();
 
-    // The baselines are the verdict on the verdict. A machine that was busy
-    // between the halves has already invalidated the number above it.
-    if let (Some(before), Some(between)) = (idle_rate(idle_before), idle_rate(idle_between)) {
-        let drift = (between - before).abs();
-        let signal = scanned_own.map(f64::abs).unwrap_or(0.0);
-        if drift > signal * 0.25 {
-            println!(
-                "\nWARNING: the idle baselines differ by {drift:.2} s/min against a signal of {signal:.2} s/min.\n         Something else was using the disk, and the delta above is describing it."
-            );
-        }
+    if savings.is_empty() {
+        rows.push(("verdict", "no pair produced a steady state".into()));
+        block("defender exclusion delta", rows);
+        println!("\nwritten to {}", out_dir.display());
+        return;
+    }
+
+    let mean = savings.iter().sum::<f64>() / savings.len() as f64;
+    let low = savings.iter().copied().fold(f64::INFINITY, f64::min);
+    let high = savings.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let worst_drift = drifts.iter().copied().fold(0.0, f64::max);
+
+    rows.push(("mean saving", format!("{mean:+.2} s per minute")));
+    rows.push((
+        "across pairs",
+        format!("{low:+.2} to {high:+.2} s per minute"),
+    ));
+    rows.push((
+        "worst baseline drift",
+        format!("{worst_drift:.2} s per minute"),
+    ));
+
+    // Two ways the answer is not an answer, and both are about the spread
+    // rather than the mean. A range that contains zero has not established a
+    // direction; a range wider than its own centre has not established a size.
+    // Averaging a noisy pair with another noisy pair produces a confident
+    // number and no more information, which is the failure worth naming.
+    let straddles_zero = low <= 0.0 && high >= 0.0;
+    let spread_exceeds_signal = (high - low) > mean.abs();
+    rows.push((
+        "verdict",
+        if straddles_zero || spread_exceeds_signal {
+            "inconclusive — the spread across pairs is larger than what separates them".into()
+        } else {
+            format!("the exclusion saves {mean:.2} s of Defender CPU per minute")
+        },
+    ));
+
+    block("defender exclusion delta", rows);
+
+    if straddles_zero || spread_exceeds_signal {
+        println!(
+            "\nA quieter machine or more pairs is the only fix. Background drift reached\n{worst_drift:.2} s/min here, and no amount of averaging separates a signal from noise\nthat moves further than the signal does."
+        );
     }
     println!("\nwritten to {}", out_dir.display());
 }
