@@ -25,6 +25,10 @@ The climb on its own is not enough, and this is measured rather than argued: a c
 
 **A redline limited by work rate, RSS, or replacement lag is a budget drawn across a slope,** and moves if the budget moves. Only dropped output is an edge. On one machine the per-session work rate ran 1.96× solo at 25 sessions and 2.03× at 26, so the whole answer turned on where the 2× line was drawn — which is worth knowing about a number before quoting it.
 
+**So for work rate the budget is solved on the slope rather than searched for.** Bisection lets one reading of one rung decide which way to search next, and near the budget a rung landing a percent to either side sends it in opposite directions: [seven identical runs](../docs/measurements/2026-07-30-redline-reproducibility.md) returned 30, 31, 31, 31, 33, 34 and 34 — a spread of 12.5% from rungs that each reproduced within 2%. Fitting `slowdown = b·N` through every saturated rung and solving `b·N = 2` uses all of them, so no single one can drag the answer, and the same seven then agree to 2.3%.
+
+The line goes through the origin because that is what the relation says: `slowdown = N·d/(η·C)` is linear in `N` with no constant term, so **the fitted slope is `η`** and the crossing is `2ηC/d`. Letting the intercept float made the answer less reproducible, which is what a parameter absorbing noise does. The climb and the refinement still run — they are what put rungs on both sides of the budget for the line to be drawn through.
+
 **redline is a pair, not a scalar:** `84 / RSS`, never bare `84`. A redline without its limiting cause cannot be reproduced, and the cause is what says where to optimize next.
 
 Different machines yielding different values is correct behavior, not noise. Every report carries its hardware: core count, RAM, disk, and Defender state.

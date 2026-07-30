@@ -41,6 +41,13 @@ pub fn ramp_markdown(report: &RampReport) -> String {
                 report.machine.label(),
                 defender_state(report.host.defender.realtime_protection),
             );
+            if let Some(fit) = &redline.fitted {
+                let _ = writeln!(
+                    out,
+                    "**Solved on the slope, not searched for.** A line through {} saturated rungs gains {:.4} slowdown per session and meets the 2x budget at {:.1}. The ladder's own search stopped at {}, and the gap between them is how flat the curve is where the budget cuts it — searching lets one rung decide, fitting lets all of them.\n",
+                    fit.rungs, fit.slowdown_per_session, fit.crossing, fit.ladder_sessions
+                );
+            }
             if !redline.limited_by.is_edge() {
                 let _ = writeln!(
                     out,

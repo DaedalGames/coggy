@@ -42,7 +42,7 @@ use crate::host::HostFacts;
 use crate::machine::Machine;
 use crate::provenance::Provenance;
 use crate::redline::{
-    LimitingCondition, RAMP_STEPS, REPLACEMENT_BUDGET_SECS, RSS_BUDGET_FRACTION, Redline,
+    self, LimitingCondition, RAMP_STEPS, REPLACEMENT_BUDGET_SECS, RSS_BUDGET_FRACTION, Redline,
     WORK_RATE_BUDGET_FACTOR,
 };
 use crate::sampler::{Sample, Sampler};
@@ -316,9 +316,33 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
                 Outcome::Unmeasurable => break,
             }
         }
+        // Only work rate. An edge is absent and then present, so there is
+        // nothing between two rungs to interpolate. RSS and replacement lag
+        // are slopes and could each be fitted, but against their own quantity
+        // and their own budget — fitting slowdown against the work-rate budget
+        // would answer a question nobody asked when one of those is what broke.
+        let fitted = (condition == LimitingCondition::WorkRate)
+            .then(|| {
+                let solo = search.solo_units_per_sec;
+                let rungs: Vec<(u32, f64)> = search
+                    .steps
+                    .iter()
+                    .filter(|step| {
+                        step.inconclusive.is_none() && step.units_per_session_per_sec > 0.0
+                    })
+                    .map(|step| (step.sessions, solo / step.units_per_session_per_sec))
+                    .collect();
+                redline::fit_crossing(&rungs, WORK_RATE_BUDGET_FACTOR, held)
+            })
+            .flatten();
+
         redline = Some(Redline {
-            sessions: held,
+            // The fit is drawn through every saturated rung, so it survives a
+            // single one landing off; `held` is whichever rung the search
+            // happened to stop on.
+            sessions: fitted.map_or(held, |fit| fit.crossing.floor() as u32),
             limited_by: condition,
+            fitted,
         });
     }
 

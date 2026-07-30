@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Daedal Games
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! A session that only computes: no files, no sleeping, no disk at all.
+//! A session that only computes: no files, no disk at all, and no waiting
+//! unless asked for one.
 //!
 //! This exists to separate two things the ramp otherwise cannot tell apart.
 //! When per-session work rate falls, the cores went either to the sessions
@@ -73,6 +74,19 @@ struct Args {
     /// well as an idle one.
     #[arg(long, default_value_t = 1.0)]
     duty: f64,
+
+    /// Wait a fixed span after each unit instead of a proportional one.
+    ///
+    /// The shape a generation session really has. `--duty` keeps its ratio
+    /// under load by stretching the pause to match a slower unit; a session
+    /// waiting on a model gets the same wait however loaded the machine is, so
+    /// its duty climbs as its compute slows.
+    ///
+    /// Solving both cases gives `slowdown = N·d/C` either way — the mechanism
+    /// cancels, provided the wait really releases the core. This flag is what
+    /// tests that, by pairing against a `--duty` run of the same solo duty.
+    #[arg(long, value_name = "MS", conflicts_with = "duty")]
+    wait_ms: Option<u64>,
 }
 
 fn main() -> std::io::Result<()> {
@@ -103,8 +117,10 @@ fn main() -> std::io::Result<()> {
         writeln!(stdout, "{unit} {state:016x}")?;
         stdout.flush()?;
 
-        if duty < 1.0 {
-            std::thread::sleep(computed.mul_f64((1.0 - duty) / duty));
+        match args.wait_ms {
+            Some(ms) => std::thread::sleep(Duration::from_millis(ms)),
+            None if duty < 1.0 => std::thread::sleep(computed.mul_f64((1.0 - duty) / duty)),
+            None => {}
         }
     }
     Ok(())

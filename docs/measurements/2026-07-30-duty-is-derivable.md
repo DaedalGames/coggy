@@ -87,7 +87,7 @@ The gate needs a redline for a session this machine cannot run. It now needs **t
 
 ## What is still assumed
 
-- **Both ramps waited by sleeping proportionally.** `cpu-spin` derives each pause from the unit that preceded it, so a session's duty holds under load. A generation session waits on a model for a fixed interval instead. Solving the fixed-wait case gives `slowdown = N·d/C` again — the waiting mechanism cancels, provided the wait genuinely releases the core — but that is algebra, and it has not been run.
+- ~~**Both ramps waited by sleeping proportionally.**~~ **Run, and it cancels.** `cpu-spin --wait-ms 4` gives the same solo duty with a pause that does not stretch under load, which is the shape of a session waiting on a model. Matched against the proportional ramp its rungs agree within 1.6% at every session count — 1.50× against 1.50× at 25, 1.99× against 2.01× at 34 — so the waiting mechanism does not move the curve. The two configurations' redlines came out 31 and 34, which looked like a difference until [three runs of each interleaved completely](2026-07-30-redline-reproducibility.md).
 - **`η` was measured on one working-set size.** 20 MiB per session is a knob, and a session that fits in cache should show `η` nearer 1.
 - **Memory never became the limiting condition.** At 100 sessions and quarter duty the ceiling was still work rate.
 

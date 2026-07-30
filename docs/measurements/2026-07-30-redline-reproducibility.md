@@ -1,0 +1,104 @@
+# How much the redline moves between identical runs · 2026-07-30
+
+Every measurement in this repository quotes a redline to the session, and until now no configuration had ever been run twice. The reproducibility of the headline number was unmeasured while every other conclusion rested on it.
+
+## What forced the question
+
+A matched pair of ramps — one waiting proportionally, one waiting a fixed 4 ms, at the same solo duty — returned **31** and **34**. That looked like the waiting mechanism mattering. Overlaying the rungs said otherwise:
+
+| Sessions | Proportional | Fixed wait |
+|---|---|---|
+| 25 | 1.50× | 1.50× |
+| 31 | 1.89× | 1.81× |
+| 34 | 2.01× | 1.99× |
+| 37 | 2.20× | 2.19× |
+
+The curves are the same. The redlines differ because rung 34 lands *on* the 2× budget, and 2.01 against 1.99 is a coin toss that the ladder then amplifies: one run bisected down into (31, 34) and stopped at 31, the other went up and stopped at 34.
+
+## Seven runs
+
+| Configuration | Ladder redline |
+|---|---|
+| Proportional duty 0.75 | 31, 34, 31, 33 |
+| Fixed wait 4 ms | 34, 30, 31 |
+
+**30, 31, 31, 31, 33, 34, 34 — mean 32.00, range 4 sessions, 12.5%.** The two configurations interleave completely, so the waiting mechanism does not move the redline and [the algebra that predicted it would not](2026-07-30-duty-is-derivable.md) survives.
+
+**The redline as the ladder computes it is reproducible to about ±13%, not to the session.** Every figure in the records before this one carries that spread unstated.
+
+## The instrument is precise; the estimator is not
+
+The rungs themselves reproduce far better than the redline drawn from them:
+
+| Quantity | Spread across runs |
+|---|---|
+| Rate at 25 sessions | 1.7% |
+| Rate at 37 sessions | 2.1% |
+| Solo rate | 1.9% |
+| **Ladder redline** | **12.6%** |
+
+So the noise is not in the measuring. It is in asking a noisy curve *where it crosses a line* and then trusting one reading of one rung to decide which way to search next. Bisection assumes the verdicts are monotone and exact; within a few percent of the budget they are neither.
+
+## Fitting the slope instead of hunting the crossing
+
+The [derivation](2026-07-30-duty-is-derivable.md) says `slowdown = N·d/(η·C)` — **linear in N, through the origin.** So the right estimator is not a search at all: fit the slope through the saturated rungs and solve it at the budget.
+
+Fitting `slowdown = b·N` and solving `b·N = 2` *is* `N = 2ηC/d`, with `b = d/(ηC)`. Measuring the slope is measuring `η`. The estimator and the model are the same object.
+
+Against the same runs, changing nothing but how the number is drawn from them:
+
+| Estimator | Mean | Range | Spread |
+|---|---|---|---|
+| Ladder bisection | 32.00 | 4.00 | **12.5%** |
+| Least squares, free intercept | 33.46 | 0.86 | 2.6% |
+| **Least squares through the origin** | **33.59** | **0.76** | **2.3%** |
+
+**Five times more reproducible from the same measurements.** The fit uses every rung, so no single one can drag the answer.
+
+The free intercept came out between +0.015 and +0.166 — unstable, and the derivation says it should be zero. Dropping it *improved* reproducibility, which is what happens when a parameter is absorbing noise rather than describing anything.
+
+The fitted value also agrees with what the duty relation predicts independently, `2 × 0.77 × 16 / 0.75 = 32.9`, to within 2.1% — closer than the ladder's mean managed.
+
+> The first six runs gave a spread of 1.0%, and this record said so. A seventh — taken by the instrument after the fit shipped, rather than by hand afterwards — came in at 34.06 and widened it to 2.3%. Six samples were not enough to quote a spread to one decimal, which is the same mistake in miniature as quoting a redline to the session.
+
+## An anomaly this does not explain
+
+Rung 32 read **slower than rung 34** in every run that measured it: 2.06, 2.07, 2.06 against 2.01, 1.99, 2.01. Three independent runs agreeing is not noise.
+
+Residuals against each run's own line, by position in the run, put the last-measured rung at **+0.075** where every earlier position sits near −0.02. Something about being measured late reads as slower.
+
+**But 32 was always the last rung measured**, so position and session count are perfectly confounded here, and two of the six runs break the pattern. Thermal accumulation over a fifteen-minute ramp is the obvious suspect; Defender working through the logs earlier rungs left behind is another; neither is measured. This is [the same confusion that cost the Defender estimate](2026-07-30-defender-at-scale.md), and it is recorded as open rather than resolved.
+
+The test that separates them: measure one rung at the start of a ramp and the same rung at the end. Same session count, different position. It needs a way to place an arbitrary rung early, which the fixed ladder does not currently offer.
+
+## What this changes
+
+- The fitted crossing replaces the bisection result when work rate is what broke. Dropped output stays a search, because it is an edge rather than a slope and nothing is being interpolated. RSS and replacement lag are slopes too and could each be fitted, but against their own quantity and their own budget.
+- Redlines already recorded stand as measurements but should be read as ±13% unless they were taken far from their budget.
+- `redline × duty ≈ 25` and everything derived from single ladders inherits that spread. The relation survives it, because the errors are scatter rather than bias — four samples at duty 0.75 average 32.25 against a prediction of 32.9, closer than any one of them.
+
+### Which conclusions this could have overturned, and did not
+
+A spread of ±13% swallows any finding that turned on two redlines differing by less than that. Every earlier record was checked for one:
+
+| Record | Rests on | Touched |
+|---|---|---|
+| [Pseudoconsole against pipes](2026-07-30-first-redlines.md) | Per-session RSS, reproducible to 0.01 MiB, and arithmetic over it. **Every rung held in both modes**, so no redline was produced to compare | No |
+| [Defender at scale](2026-07-30-defender-at-scale.md) | Work rate flat to three significant figures across a fiftyfold range. **Neither ramp reached a redline** | No |
+| [The output path](2026-07-30-output-path.md) | An aggregate throughput ceiling, and a redline whose neighbouring rungs sat at 1.77× and 2.30× — far enough from the budget that a few percent cannot move it | No |
+| [Duty and redline](2026-07-30-duty-and-redline.md) | A ratio across a fourfold range, where the spread is a tenth of the effect | No |
+
+**No conclusion in this repository was drawn from a redline difference small enough for this to reach.** That is luck rather than discipline: the comparisons that mattered happened to be made on quantities measured directly, and the redline was mostly used as a headline rather than as evidence.
+
+## Provenance
+
+| | |
+|---|---|
+| Machine | 16 physical / 16 logical cores · 31 GiB usable · Windows 11 (26200) |
+| sessionbench | 0.0.0 at commit `a978904`, clean tree, release build |
+| Workload | `cpu-spin --units 100000 --resident 20` with `--duty 0.75` and with `--wait-ms 4` |
+| Holds | 60 s per rung, first 20 s unmeasured · resolution 1 |
+| Order | The two configurations were interleaved so machine drift would land on both |
+| Defender | real-time protection on, no exclusions |
+
+Fits cover rungs from 25 sessions upward, which is where demand first exceeds the core count at this duty. Below that the machine is not saturated and the slowdown is not linear in N.

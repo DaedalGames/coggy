@@ -676,11 +676,24 @@ fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
                 report.mode.label(),
                 report.machine.label(),
             );
-            if !redline.limited_by.is_edge() {
-                println!(
+            match &redline.fitted {
+                Some(fit) => {
+                    println!(
+                        "  fitted at {:.1} through {} saturated rungs, gaining {:.4} slowdown per session",
+                        fit.crossing, fit.rungs, fit.slowdown_per_session
+                    );
+                    if fit.ladder_sessions != redline.sessions {
+                        println!(
+                            "  the ladder's own search stopped at {} — the gap is how flat the curve is where the budget cuts it",
+                            fit.ladder_sessions
+                        );
+                    }
+                }
+                None if !redline.limited_by.is_edge() => println!(
                     "  {:?} is a budget across a slope, not an edge — this count moves if the budget does",
                     redline.limited_by
-                );
+                ),
+                None => {}
             }
         }
         // Not a redline, and not a smaller one either. The ladder stopped

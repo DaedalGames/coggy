@@ -11,6 +11,7 @@ What the instrument found, in the order it found it. Each record holds the numbe
 | [Defender at scale](2026-07-30-defender-at-scale.md) | **Withdraws the cost estimated in the first record.** Fifty sessions writing 1,875 MiB a minute used 0.9 cores where the earlier figure demanded 51. |
 | [The output path](2026-07-30-output-path.md) | A hundred streams at half a gigabyte a second cost 1.7 cores of sixteen. The ceiling is about 7 GiB/s aggregate, and it is bandwidth rather than processors. |
 | [The duty relation is derivable](2026-07-30-duty-is-derivable.md) | **Supersedes the 84% share above.** The constant 25 was `2ηC` — with the core count in it, which is what lets the relation speak for other hardware. Two ramps at different duties agree on `η` to within 0.4%, and a rung predicted in advance landed. |
+| [How much the redline moves between identical runs](2026-07-30-redline-reproducibility.md) | **Puts an error bar on every number above.** Seven identical runs gave 30, 31, 31, 31, 33, 34, 34 — the ladder is reproducible to ±13% from rungs that each reproduce within 2%. Solving the budget on a fitted slope instead brings the same seven to 2.3%. |
 
 ## The pattern these share
 

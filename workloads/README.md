@@ -28,11 +28,13 @@ The comparison is always **the same workload, solo against concurrent**, so a un
 | [file-write](file-write/) | one file written | Sessions that hold memory and write continuously, which is what generation does to a disk |
 | [stdout-storm](stdout-storm/) | one large line written | The output path, and the condition that tolerates zero dropped bytes |
 
-**The pair is the point.** When per-session work rate falls, the cores went either to sessions competing with each other or to Defender scanning what they wrote, and a workload that writes files always mixes the two. `cpu-spin` touches no disk, so running the same ramp against both makes the difference between them the scanning term — measured rather than inferred.
+**Each exists to isolate one thing from another.** When per-session work rate falls, the cores went either to sessions competing with each other or to Defender scanning what they wrote, and a workload that writes files always mixes the two. `cpu-spin` touches no disk, so running the same ramp against it and against `file-write` makes the difference between them the scanning term — measured rather than inferred.
 
 `file-write` defaults to holding 80 MiB resident and writing sixty 64 KiB files at 900 ms intervals, which is roughly the footprint and write rate of an agent CLI session. Its steady memory reproduces to 0.01 MiB across runs, which is what let [the first measurement](../docs/measurements/2026-07-30-conhost-and-defender.md) resolve a difference of 8.6 MiB.
 
-`cpu-spin` holds the same memory and never sleeps, so it reaches the core ceiling far sooner than anything realistic would. That is deliberate: it is the harsher of the two on purpose, and the redline it produces is a floor for the machine rather than a forecast for the workload.
+`cpu-spin` holds the same memory and, left alone, never waits — so it reaches the core ceiling far sooner than anything realistic would. That is deliberate: flat out is the harshest case, and the redline it produces there is a floor for the machine rather than a forecast for the workload.
+
+**How it waits is the knob that turned that floor into a formula.** `--duty` sets the share of wall time spent computing, deriving each pause from the unit before it so the ratio survives a loaded machine. `--wait-ms` pauses for a fixed span instead, which is the shape of a session waiting on a model — its duty climbs as its compute slows. The two are mutually exclusive, and pairing them at equal solo duty is what [tests whether the mechanism matters](../docs/measurements/2026-07-30-duty-is-derivable.md).
 
 `stdout-storm` is the one whose payload *is* its output, which is what vtebench's format was taken for. It exists because the condition that tolerates zero dropped bytes had never seen bytes worth dropping: the other two emit about twenty per unit, so every run reported zero drops without the path ever being tested.
 
