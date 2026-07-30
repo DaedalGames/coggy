@@ -93,9 +93,13 @@ impl Output {
     ///
     /// A gap below the highest ordinal seen is output that went missing
     /// between the session and this process. Saturates at zero rather than
-    /// wrapping: a workload that does not number its lines leaves the highest
-    /// ordinal at nothing while the count climbs, and that is not a negative
-    /// drop.
+    /// wrapping, which covers two cases: a workload that does not number its
+    /// lines leaves the maximum at nothing while the count climbs, and a
+    /// reader catching the drain mid-line sees the count one ahead. Neither is
+    /// a negative drop.
+    ///
+    /// Safe to call while the drain is running, which is what the ramp does
+    /// every tick — see the ordering note on `Units::consume`.
     pub fn dropped_units(&self) -> u64 {
         self.highest_unit
             .load(Ordering::Relaxed)
@@ -160,11 +164,17 @@ impl Units {
     /// comes from the lines after it. A previous version compared a *set* of
     /// parsed ordinals against its own size, which turned that one unreadable
     /// line into a phantom drop and every `--pty` ramp into a redline of zero.
+    /// **The order of the two updates is the correctness.** The count goes up
+    /// first and the maximum second, per line, so a reader between them sees a
+    /// count that has run ahead — which subtracts to zero — rather than a
+    /// maximum that has. Batching the count to the end of the chunk instead
+    /// left the maximum ahead by up to a chunk's worth of lines, and a single
+    /// session pushing 1.36 GiB/s duly reported six phantom drops and a
+    /// redline of zero.
     fn consume(&self, chunk: &[u8], line_start: &mut Vec<u8>) {
-        let mut lines = 0u64;
         for byte in chunk {
             if *byte == b'\n' {
-                lines += 1;
+                self.count.fetch_add(1, Ordering::Relaxed);
                 if let Some(ordinal) = leading_ordinal(line_start) {
                     self.highest.fetch_max(ordinal, Ordering::Relaxed);
                 }
@@ -172,9 +182,6 @@ impl Units {
             } else if line_start.len() < 32 {
                 line_start.push(*byte);
             }
-        }
-        if lines > 0 {
-            self.count.fetch_add(lines, Ordering::Relaxed);
         }
     }
 }
@@ -506,5 +513,35 @@ mod tests {
     #[test]
     fn a_workload_that_numbers_nothing_reports_no_drops() {
         assert_eq!(count(b"hello\nworld\n", 64), (2, 0));
+    }
+
+    #[test]
+    fn a_reader_watching_a_live_drain_never_sees_a_phantom_drop() {
+        // What the ramp does every tick: read the counters while the drain is
+        // still filling them. The count must never trail the maximum, or a
+        // fast session reports drops it never had — which is exactly what a
+        // session pushing 1.36 GiB/s did before the two updates were ordered.
+        let output = Arc::new(Output::new());
+        let units = output.units_counters();
+        let watcher = Arc::clone(&output);
+
+        let reading = std::thread::spawn(move || {
+            let mut worst = 0;
+            for _ in 0..200_000 {
+                worst = worst.max(watcher.dropped_units());
+            }
+            worst
+        });
+
+        let mut carry = Vec::new();
+        let stream: Vec<u8> = (1..=20_000u64)
+            .flat_map(|n| format!("{n} payload\n").into_bytes())
+            .collect();
+        for chunk in stream.chunks(4096) {
+            units.consume(chunk, &mut carry);
+        }
+
+        assert_eq!(reading.join().expect("the watcher finished"), 0);
+        assert_eq!(output.dropped_units(), 0);
     }
 }
