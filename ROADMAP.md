@@ -40,7 +40,9 @@ Done on 2026-07-30 as far as a machine without the harness can take it, and [the
 
 **No pass/fail threshold attaches to the redline value itself.** The four conditions define what counts as *sustained*, not a bar COGGY must clear. Whatever as-is produces is the right answer: M0 locates the ceiling rather than beating it, and M1 carries the first target COGGY has to hit.
 
-**Attribution rule:** [Decision 1](docs/PLAN.md#four-core-decisions) claims that dropping conhost is worth half the project. If RSS turns out not to be the limiting condition, or if it is but conhost is not a material share of it, that claim is false and the decision gets rewritten before M1 begins. This binds.
+**Attribution rule — fired 2026-07-30.** [Decision 1](docs/PLAN.md#four-core-decisions) claimed that dropping conhost was worth half the project. If RSS turned out not to be the limiting condition, or if it was but conhost was not a material share of it, that claim was false and the decision had to be rewritten before M1 began. This bound, and it has been honoured: RSS is nowhere near limiting at a hundred sessions, [conhost buys no meaningful session count at any weight](docs/measurements/2026-07-30-first-redlines.md#what-dropping-conhost-is-worth-at-any-session-weight), and the decision now stands on process count instead. Pipes remain the default for a smaller and better-supported reason.
+
+The rule did not need G0 to fire. It was written expecting the as-is redline to settle it, and the arithmetic settled it first — which is the outcome a falsifiable claim is supposed to allow.
 
 ### Reading before M0
 

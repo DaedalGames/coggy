@@ -164,11 +164,13 @@ This is the **target state for M1–M5.** Exactly one crate exists today — `se
 
 **Decision 1. PTY is opt-in.** Most agent sessions need no interactive TTY. Default to direct pipes and grant a PTY only to sessions that demand one, and 100 conhost processes drop to zero.
 
-What that buys is **resident memory and the I/O paths attached to it, held for the life of every session** — not faster startup. Skipping a conhost saves its RSS for hours, and saving a few milliseconds of creation is rounding error against a 1.5-hour session.
+**Rewritten 2026-07-30 under [the attribution rule](../ROADMAP.md#current-priority-m0--attribution), which bound it to the measurement.** This decision claimed to be worth half the project on the strength of the memory a conhost holds. That claim is withdrawn.
 
-**[measured]** A conhost costs **8.6 MiB resident per session**, reproducing to 0.01 MiB across runs, so dropping a hundred of them returns 0.84 GiB.
+**[measured]** A conhost costs **8.6 MiB resident per session**, reproducing to 0.01 MiB across runs, and costs **nothing measurable in work rate** — a ladder to a hundred sessions ran at solo speed with a pseudoconsole and without, at every rung. Dropping a hundred of them returns 0.84 GiB against a budget only 41% used.
 
-**[assumed]** Whether that is worth having is still open, and it now rests on two conditions rather than on the saving itself: that RSS is what limits the machine, and that sessions are light enough for 8.6 MiB to be a large share of each. On the one machine measured so far the first is false — a projected hundred sessions sit at 41% of the RSS budget. The as-is redline settles it. Until then this remains the most dangerous belief in the document, having moved from unmeasured to measured and smaller than claimed.
+**[measured]** That saving never buys a meaningful number of sessions, at any session weight. conhost can only be a large share of a session's memory when the session is light, and a light session puts the RSS ceiling in the hundreds — far above where work rate breaks. When sessions are heavy enough for RSS to be the ceiling, conhost is a rounding error against them. [The arithmetic](measurements/2026-07-30-first-redlines.md#what-dropping-conhost-is-worth-at-any-session-weight) holds across every weight G0 could return, so this did not need to wait for it.
+
+**What survives is the process count.** A hundred sessions on pipes hold 100 processes; under pseudoconsoles they hold 200, and everything that iterates processes pays for it. This benchmark's own teardown was 400× slower under pseudoconsoles until that was found, and it was found by running it. Halving the process count is worth defaulting to pipes for. It is not worth half the project, and nothing downstream should be sequenced as though it were.
 
 **Decision 2. UI comes last.** No UI before M2. The harness drives batches through the CLI, so a headless daemon plus CLI is enough to run 1000. A UI is only needed when a human audits.
 

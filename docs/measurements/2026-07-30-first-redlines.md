@@ -68,6 +68,26 @@ The ladder ended before the machine did, so there is no redline here, only a flo
 
 So dropping conhost returns **0.87 GiB at a hundred sessions, 3.9% of the 22 GiB budget**, on a ladder whose top rung uses 41% of it. That is the second measurement to say the same thing the [conhost and Defender record](2026-07-30-conhost-and-defender.md) said at one session, now at the count the plan is sized around. What it also buys is a hundred fewer processes, which is not nothing — but it is not memory, and memory is what Decision 1 claims.
 
+## What dropping conhost is worth, at any session weight
+
+The measurements above are of two synthetic workloads, so the obvious objection is that a real generation session might be far heavier and put RSS back in front. The arithmetic answers that without needing the session.
+
+A session weighing **S** MiB alongside a conhost of 8.6 MiB fits `budget ÷ (S + 8.6)` times into a 22 GiB budget; without the conhost it fits `budget ÷ S` times. The sessions gained are:
+
+```
+22528 × 8.6 / (S × (S + 8.6))
+```
+
+| Session weight | RSS ceiling with conhost | Without | Sessions gained |
+|---|---|---|---|
+| 84 MiB (measured here) | 243 | 268 | **+25** |
+| 256 MiB | 85 | 88 | +3 |
+| 1 GiB | 21.8 | 22.0 | **+0.2** |
+
+**The two halves of the question are anti-correlated.** conhost can only be a large share of a session's memory when the session is light — and a light session puts the RSS ceiling in the hundreds, far above where work rate breaks, so the extra room is never reached. When sessions are heavy enough for RSS to be the real ceiling, conhost is a rounding error against them.
+
+There is no session weight at which dropping conhost buys a meaningful number of sessions. That conclusion does not wait on G0, because it holds across every weight G0 could return.
+
 ## What the instrument cost itself
 
 Worth its own line, because a scaling benchmark that quietly becomes the bottleneck reports that collapse as the machine's.
