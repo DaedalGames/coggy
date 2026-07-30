@@ -37,7 +37,10 @@ vergen = { version = "9", features = ["cargo", "rustc"] }
 
 [profile.release]
 lto = "thin"
-codegen-units = 1
+# No codegen-units = 1. It was here without a measurement behind it, cost 35% of
+# every incremental release build (8.3s against 5.4s), and moved the sampler's
+# worst tick by nothing at all — 35 to 48 ms either way. The instrument's time
+# is spent in system calls, which no amount of codegen tuning reaches.
 # No panic = "abort" here on purpose. A panicking measurement thread must not
 # take the whole run with it — a failed session is data to report, not a reason
 # to lose the other 199 readings.

@@ -144,23 +144,63 @@ impl Sampler {
         self.sample(tree, output, elapsed)
     }
 
-    /// Terminates whatever a session left behind after its root was killed.
+    /// Waits for a sample's processes to exit on their own, up to `grace`.
     ///
-    /// Killing the root does not take its children with it, and the last
-    /// sample is the list of what to finish off.
-    pub fn reap(&mut self, last: Option<&Sample>) {
-        let Some(sample) = last else { return };
+    /// Closing a pseudoconsole asks its host to leave, and at small counts they
+    /// all have by the time anything looks. At larger ones they are still on
+    /// their way out — and terminating a process that is already terminating
+    /// costs the better part of a second each, serially, which turned a rung's
+    /// teardown into a minute. Waiting is what killing was standing in for.
+    ///
+    /// Returns how long it waited and how many were still alive at the end.
+    pub fn wait_for_exit(&mut self, sample: &Sample, grace: Duration) -> (u64, usize) {
         let pids: Vec<Pid> = sample
             .members
             .iter()
             .map(|m| Pid::from_u32(m.pid))
             .collect();
+        let started = std::time::Instant::now();
+
+        loop {
+            self.refresh(Some(&pids));
+            let alive = pids
+                .iter()
+                .filter(|p| self.sys.process(**p).is_some())
+                .count();
+            if alive == 0 || started.elapsed() >= grace {
+                return (started.elapsed().as_millis() as u64, alive);
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }
+
+    /// Terminates whatever a session left behind after its root was killed.
+    ///
+    /// Killing the root does not take its children with it, and the last
+    /// sample is the list of what to finish off. Returns how long the refresh
+    /// and the kills took separately, because they are very different costs
+    /// and a rung's teardown is dominated by exactly one of them.
+    pub fn reap(&mut self, last: Option<&Sample>) -> (u64, u64) {
+        let Some(sample) = last else {
+            return (0, 0);
+        };
+        let pids: Vec<Pid> = sample
+            .members
+            .iter()
+            .map(|m| Pid::from_u32(m.pid))
+            .collect();
+
+        let at = std::time::Instant::now();
         self.refresh(Some(&pids));
+        let refresh_ms = at.elapsed().as_millis() as u64;
+
+        let at = std::time::Instant::now();
         for member in &sample.members {
             if let Some(process) = self.sys.process(Pid::from_u32(member.pid)) {
                 process.kill();
             }
         }
+        (refresh_ms, at.elapsed().as_millis() as u64)
     }
 
     /// Memory the operating system currently reports as free for new work.

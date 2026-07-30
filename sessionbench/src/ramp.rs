@@ -65,6 +65,13 @@ const SPINUP_FRACTION: f64 = 1.0 / 3.0;
 /// could not be measured is not a rung that failed.
 const MIN_SAMPLES_PER_RUNG: usize = 5;
 
+/// How long a rung waits for its sessions to leave before terminating them.
+///
+/// Generous because waiting is cheap and killing a process that is already
+/// terminating is not: at fifty pseudoconsole sessions, killing cost 66
+/// seconds where waiting costs whatever the hosts actually need.
+const EXIT_GRACE: Duration = Duration::from_secs(20);
+
 /// Everything a ramp needs before it starts.
 pub struct RampConfig {
     pub label: String,
@@ -109,6 +116,45 @@ impl TickCost {
     }
 }
 
+/// What ending a rung cost, stage by stage.
+///
+/// Teardown is instrumented for the same reason ticks are: it is the
+/// instrument's own time, it is invisible from the outside, and it does not
+/// scale the way the measured part does. A hundred pseudoconsole sessions took
+/// eleven minutes to shut down while seventy-five took seconds, and there was
+/// no way to say which stage from anything the report carried.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct TeardownCost {
+    /// Terminating each session's root process.
+    pub kill_ms: u64,
+    /// Waiting for the pseudoconsole hosts to leave once their handles closed.
+    pub settle_ms: u64,
+    /// Re-reading whatever did not leave.
+    pub reap_refresh_ms: u64,
+    /// Terminating it.
+    pub reap_kill_ms: u64,
+    /// How many were still alive when the grace period ran out.
+    pub stragglers: usize,
+    /// Reading every session log back to look for gaps.
+    pub scan_ms: u64,
+    /// Removing the directory the sessions wrote into.
+    pub scratch_ms: u64,
+    /// Releasing the pty handles, which is where a pseudoconsole is closed.
+    pub release_ms: u64,
+}
+
+impl TeardownCost {
+    pub fn total_ms(&self) -> u64 {
+        self.kill_ms
+            + self.release_ms
+            + self.settle_ms
+            + self.reap_refresh_ms
+            + self.reap_kill_ms
+            + self.scan_ms
+            + self.scratch_ms
+    }
+}
+
 /// One rung of the ladder.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Step {
@@ -133,6 +179,8 @@ pub struct Step {
     pub elapsed_secs: f64,
     /// The most expensive tick of the rung, broken down.
     pub worst_tick: TickCost,
+    /// What ending the rung cost, broken down.
+    pub teardown: TeardownCost,
     /// Why this rung supports no verdict, when it supports none.
     ///
     /// Takes precedence over `broken`: a rung the instrument could not measure
@@ -417,12 +465,42 @@ fn hold(
 
     let replacements = pool.replacements;
     let worst_replacement_secs = pool.worst_replacement_secs;
-    pool.shut_down(sampler, last.as_ref())?;
+
+    let mut teardown = TeardownCost::default();
+    let at = Instant::now();
+    pool.kill_all();
+    teardown.kill_ms = at.elapsed().as_millis() as u64;
+
+    let at = Instant::now();
+    // Released before the reap, not after. Terminating a pseudoconsole host
+    // while this process still holds its handle costs well over a second each,
+    // serially: at a hundred sessions that was four minutes of teardown for a
+    // thirty second rung. Closing the handles first asks the hosts to leave
+    // instead of killing them, and the release itself measures in single-digit
+    // milliseconds at every rung.
+    pool.release();
+    teardown.release_ms = at.elapsed().as_millis() as u64;
+
+    if let Some(sample) = last.as_ref() {
+        let (waited, stragglers) = sampler.wait_for_exit(sample, EXIT_GRACE);
+        teardown.settle_ms = waited;
+        teardown.stragglers = stragglers;
+    }
+
+    let (refresh_ms, kill_ms) = sampler.reap(last.as_ref());
+    teardown.reap_refresh_ms = refresh_ms;
+    teardown.reap_kill_ms = kill_ms;
+
+    let at = Instant::now();
     let dropped_units = count_dropped_units(step_dir)?;
+    teardown.scan_ms = at.elapsed().as_millis() as u64;
+
+    let at = Instant::now();
     // Errors ignored on purpose: a file still held by a session that has not
     // finished dying is not worth failing a measured rung over, and the next
     // run starts from a fresh output directory anyway.
     let _ = fs::remove_dir_all(scratch_dir(step_dir));
+    teardown.scratch_ms = at.elapsed().as_millis() as u64;
 
     let elapsed_secs = started.elapsed().as_secs_f64();
     let inconclusive = (measured.len() < MIN_SAMPLES_PER_RUNG).then(|| {
@@ -466,6 +544,7 @@ fn hold(
         dropped_units,
         elapsed_secs,
         worst_tick,
+        teardown,
         inconclusive,
         broken,
     })
@@ -548,14 +627,24 @@ impl Pool {
         )
     }
 
-    fn shut_down(&mut self, sampler: &mut Sampler, last: Option<&Sample>) -> Result<()> {
+    /// Terminates every session's root process.
+    ///
+    /// Their children survive this, which is what `Sampler::reap` is for.
+    fn kill_all(&mut self) {
         for slot in &mut self.slots {
             let _ = slot.session.kill();
         }
-        // Killing a root leaves its children behind, and the last sample is the
-        // list of everything the job still held.
-        sampler.reap(last);
-        Ok(())
+    }
+
+    /// Releases the pty handles.
+    ///
+    /// Separate from killing, and ordered after the reap, because a
+    /// pseudoconsole cannot close while its host is alive: the drain thread
+    /// holds a reader on it, and the reader cannot reach end-of-file until the
+    /// host exits. Dropping the handles first is how a rung ends up waiting on
+    /// two things that are each waiting on the other.
+    fn release(&mut self) {
+        self.slots.clear();
     }
 }
 
@@ -660,6 +749,19 @@ fn print_step(step: &Step, solo: f64) {
         tick.replace_ms,
         tick.sample_ms,
         tick.write_ms
+    );
+    let down = &step.teardown;
+    println!(
+        "      teardown {} ms = kill {} + release {} + settle {} + reap {}+{} + scan {} + scratch {} ({} straggler(s))",
+        down.total_ms(),
+        down.kill_ms,
+        down.release_ms,
+        down.settle_ms,
+        down.reap_refresh_ms,
+        down.reap_kill_ms,
+        down.scan_ms,
+        down.scratch_ms,
+        down.stragglers
     );
     match (&step.inconclusive, step.broken.is_empty()) {
         (Some(reason), _) => println!("      INCONCLUSIVE: {reason}"),
