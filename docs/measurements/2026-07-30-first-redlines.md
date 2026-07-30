@@ -51,6 +51,23 @@ Climbing alone would have reported **10**, because 10 was simply the last rung t
 
 The ladder ended before the machine did, so there is no redline here, only a floor: **above 100**.
 
+## The as-is shape — the same workload under a pseudoconsole
+
+[PLAN's as-is](../PLAN.md#why-this-exists) is a hundred shells each carrying the conhost ConPTY attaches, which is `--pty`. Running the identical ladder both ways is the comparison [Decision 1](../PLAN.md#four-core-decisions) rests on, and it had never been run past one session.
+
+| Sessions | Pseudoconsole | Pipes | Difference | Processes |
+|---|---|---|---|---|
+| 1 | 92.36 MiB | 84.16 MiB | 8.20 MiB | 2 against 1 |
+| 10 | 923.59 MiB | 841.59 MiB | 82.0 MiB | 20 against 10 |
+| 25 | 2.25 GiB | 2.05 GiB | 205 MiB | 50 against 25 |
+| 50 | 4.51 GiB | 4.11 GiB | 410 MiB | 100 against 50 |
+| 75 | 6.76 GiB | 6.16 GiB | 614 MiB | 150 against 75 |
+| **100** | **9.02 GiB** | **8.15 GiB** | **890 MiB** | **200 against 100** |
+
+**Every rung held in both modes, at solo work rate.** The conhost cost is linear at roughly 8.7 MiB per session and shows up in memory only — the per-session rate was 1.10 to 1.12 units/s whichever way the session was wired, at every count.
+
+So dropping conhost returns **0.87 GiB at a hundred sessions, 3.9% of the 22 GiB budget**, on a ladder whose top rung uses 41% of it. That is the second measurement to say the same thing the [conhost and Defender record](2026-07-30-conhost-and-defender.md) said at one session, now at the count the plan is sized around. What it also buys is a hundred fewer processes, which is not nothing — but it is not memory, and memory is what Decision 1 claims.
+
 ## What the instrument cost itself
 
 Worth its own line, because a scaling benchmark that quietly becomes the bottleneck reports that collapse as the machine's.

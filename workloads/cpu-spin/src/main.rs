@@ -59,9 +59,20 @@ struct Args {
     #[arg(long, default_value_t = 80, value_name = "MIB")]
     resident: usize,
 
-    /// Wait between units, for approximating a session that is not flat out.
-    #[arg(long, default_value_t = 0, value_name = "MS")]
-    interval: u64,
+    /// Share of wall-clock time spent computing, from just above 0 to 1.
+    ///
+    /// A generation session is not flat out. It waits on a model, works, and
+    /// waits again, and how much of the time it spends on each is the single
+    /// number standing between the bracket this benchmark already produces —
+    /// 25 sessions flat out, above 100 mostly waiting — and an answer for a
+    /// real one. Measure a real session's duty, run this at that value, and
+    /// the ramp reads off the redline.
+    ///
+    /// Self-calibrating: each unit is timed and the wait is derived from what
+    /// that unit actually cost, so the ratio holds on a machine under load as
+    /// well as an idle one.
+    #[arg(long, default_value_t = 1.0)]
+    duty: f64,
 }
 
 fn main() -> std::io::Result<()> {
@@ -74,8 +85,14 @@ fn main() -> std::io::Result<()> {
     let mut state = 0x243F_6A88_85A3_08D3_u64;
     let mut last_touch = Instant::now();
 
+    // Clamped rather than rejected: a duty of zero is a session that never
+    // works, which is not a session.
+    let duty = args.duty.clamp(0.01, 1.0);
+
     for unit in 1..=args.units {
+        let working = Instant::now();
         state = spin(state, args.iterations);
+        let computed = working.elapsed();
         if last_touch.elapsed() >= TOUCH_INTERVAL {
             touch(&mut held, unit as usize);
             last_touch = Instant::now();
@@ -86,8 +103,8 @@ fn main() -> std::io::Result<()> {
         writeln!(stdout, "{unit} {state:016x}")?;
         stdout.flush()?;
 
-        if args.interval > 0 {
-            std::thread::sleep(Duration::from_millis(args.interval));
+        if duty < 1.0 {
+            std::thread::sleep(computed.mul_f64((1.0 - duty) / duty));
         }
     }
     Ok(())
