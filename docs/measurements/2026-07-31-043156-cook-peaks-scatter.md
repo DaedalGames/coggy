@@ -1,4 +1,4 @@
-# Concurrent cook peaks scatter, so the redline is eleven rather than six · 2026-07-31 04:31:56
+# Concurrent cook peaks scatter, so the ceiling follows the steady figure · 2026-07-31 04:31:56
 
 A cooking session holds 1.93 GiB steady and peaks at 5.02. Whether concurrent sessions reach their peaks together is the difference between a governor that counts sessions and one that has to schedule them, and none of the four redline conditions asks it — alignment is a property of a crowd and cannot be read from one session.
 
@@ -15,9 +15,9 @@ A cooking session holds 1.93 GiB steady and peaks at 5.02. Whether concurrent se
 
 Better than that, the busiest sample divides to **1.94 GiB a session** — the single-session *steady* figure of 1.93, not its peak. And the total swinging from 2.50 to 7.76 within twenty seconds is sessions sitting in different phases at every moment, which is what scattering looks like.
 
-## Which sets the redline at eleven
+## Which sets the ceiling by the steady figure
 
-Concurrent cooks sum to their steady figure rather than their peak, so the memory ceiling is `21.97 ÷ 1.93` — **about eleven sessions**, and the six that aligned peaks would have implied does not happen.
+Concurrent cooks sum to their steady figure rather than their peak, so the memory ceiling follows from the steady figure, which [four readings later put at 1.865 GiB and twelve sessions](2026-07-31-045604-an-error-bar-for-the-engine.md) — and the six that aligned peaks would have implied does not happen.
 
 **The governor counts.** It does not need to stagger cooks to keep their peaks apart, which is a materially smaller thing to build than the alternative.
 

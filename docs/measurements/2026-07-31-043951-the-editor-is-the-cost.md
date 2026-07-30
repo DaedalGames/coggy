@@ -1,6 +1,6 @@
 # The editor is the cost, not the content · 2026-07-31 04:39:51
 
-Every engine figure so far comes from the smallest project Unreal can make. Each record says so and calls its number a floor, but PLAN carries "the engine redline lands near eleven" without that qualifier — which is [the synthetic-workload mistake](../../CLAUDE.md) one level up. Twenty megabytes of synthetic session gave *memory is cheap*; a template with no content gave *eleven sessions*.
+Every engine figure so far comes from the smallest project Unreal can make. Each record says so and calls its number a floor, but PLAN carried its engine ceiling without that qualifier — which is [the synthetic-workload mistake](../../CLAUDE.md) one level up. Twenty megabytes of synthetic session gave *memory is cheap*; a template with no content gave *eleven sessions*.
 
 ## Ten times the assets, one and a half percent
 
@@ -14,7 +14,7 @@ Every engine figure so far comes from the smallest project Unreal can make. Each
 
 **The cost is the editor loading itself.** A tenfold difference in asset count moves the steady figure by 1.5%, which is at or below what a median over eight samples resolves.
 
-So the redline of eleven is a property of running the editor, and it holds for any project small enough that the editor still dominates. What that threshold is, this does not say.
+So the ceiling — [twelve sessions, once four readings had been taken](2026-07-31-045604-an-error-bar-for-the-engine.md) — is a property of running the editor, and it holds for any project small enough that the editor still dominates. What that threshold is, this does not say.
 
 ## The conhosts belonged to the build check
 

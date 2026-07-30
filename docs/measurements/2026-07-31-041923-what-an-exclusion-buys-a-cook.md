@@ -1,6 +1,6 @@
 # What a Defender exclusion buys a cook · 2026-07-31 04:19:23
 
-The engine redline sits near eleven sessions, set by a cook holding 1.93 GiB. A cook also writes thousands of small files in bursts, which is real-time scanning's worst case — so that ceiling might have been describing an unconfigured machine rather than Unreal. This is the check, and it is the first time [the sixth axis](../../sessionbench/README.md#the-six-axes) has been pointed at a workload heavy enough to answer with something other than *inconclusive*.
+The engine ceiling sits near [twelve sessions](2026-07-31-045604-an-error-bar-for-the-engine.md), set by a cook holding a little under 2 GiB. A cook also writes thousands of small files in bursts, which is real-time scanning's worst case — so that ceiling might have been describing an unconfigured machine rather than Unreal. This is the check, and it is the first time [the sixth axis](../../sessionbench/README.md#the-six-axes) has been pointed at a workload heavy enough to answer with something other than *inconclusive*.
 
 ## The reading
 
@@ -15,7 +15,7 @@ Two pairs, each an idle baseline, a watched cook, another idle baseline and an e
 
 ## It does not move the ceiling, and the reason is structural
 
-The redline for a cooking session is **memory**: 1.93 GiB steady against a 21.97 GiB budget is about eleven sessions. **An exclusion returns CPU, not memory.** Saving 0.034 cores per session leaves that arithmetic untouched, so the eleven stands as a fact about Unreal rather than about Windows Defender.
+The ceiling for a cooking session is **memory**: a little under 2 GiB steady against a 21.97 GiB budget. **An exclusion returns CPU, not memory.** Saving 0.034 cores per session leaves that arithmetic untouched, so the ceiling stands as a fact about Unreal rather than about Windows Defender.
 
 Work rate says the same thing from the other side. The two halves came out 12.22 against 11.77 in one pair and 9.85 against 10.07 in the other — **the sign flips**, so cooking is not measurably faster with its output hidden from the scanner.
 

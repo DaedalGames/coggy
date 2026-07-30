@@ -1,6 +1,6 @@
 # The build lock reaches cooking, and this machine ran out of room · 2026-07-31 04:28:02
 
-A cooking session holds 1.93 GiB steady and peaks at 5.02, so ten of them come to 19 GiB on the medians and 50 on the peaks. Whether those peaks land together is what puts the engine redline at eleven or at six, and it decides whether a governor counts sessions or schedules them. Ramping concurrent cooks was meant to settle it. Two things stopped it, and both are worth more than the number would have been.
+A cooking session holds 1.93 GiB steady and peaks at 5.02, so ten of them come to 19 GiB on the medians and 50 on the peaks. Whether those peaks land together decides whether a governor counts sessions or schedules them. Ramping concurrent cooks was meant to settle it. Two things stopped it, and both are worth more than the number would have been.
 
 ## Cooking takes the build lock on the way in
 
@@ -28,10 +28,10 @@ That is a condition on the reading rather than a fact about the engine, and it i
 |---|---|
 | Cooks contend at startup | **Measured** — the lock message, from ten sessions that never cooked |
 | Two cooks run concurrently past that point | [Measured](2026-07-31-040348-cooking-is-the-governed-state.md) — two editors for a full test |
-| Ten cooks, peaks aligned or scattered | **Unmeasured**, and needs about 25 GiB free rather than 8.7 |
-| Whether the redline is eleven or six | **Unmeasured**, and it is the difference between a governor that counts and one that schedules |
+| Whether peaks align | [Settled twenty minutes later](2026-07-31-043156-cook-peaks-scatter.md), by four sessions rather than ten — they scatter |
+| Ten cooks specifically | **Unmeasured**, and the shared shader cache is the reason it might differ from four |
 
-The workload is fixed and the ramp is one command. What it needs is a machine with its memory free — the same condition [G0 has been waiting on](../../ROADMAP.md#current-priority-m0--attribution), arriving from a different direction.
+The ten-session ramp turned out not to be what the question needed. Four sessions answered it on the same machine minutes afterwards, which is [the lesson this record was written one step too early to know](../../CLAUDE.md): shrink the measurement before blaming the machine.
 
 ## Provenance
 
