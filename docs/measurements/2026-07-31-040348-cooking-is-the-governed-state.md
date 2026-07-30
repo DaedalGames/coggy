@@ -14,7 +14,7 @@ Builds serialise, so no amount of scheduling changes how many happen at once. Se
 | Peak conhost | 19 |
 | Cores | 1.64 session + 0.32 Defender |
 
-The 47 processes are shader compile workers, which appear during the first cook and not afterwards once their results are cached. Nineteen conhosts arrive with them, from a session started on pipes.
+The 47 processes are shader compile workers, which appear during the first cook and not afterwards once their results are cached. The nineteen conhosts are not the cook's: [they come from the target check on the way in](2026-07-31-043951-the-editor-is-the-cost.md), and `-nocompile -skipbuild` takes them to zero.
 
 ## Two cooks, side by side
 
