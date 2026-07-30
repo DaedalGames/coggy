@@ -8,6 +8,8 @@
 //! than noise, which is exactly why no result travels without this. Nothing
 //! identifying the machine is collected — reports are meant to be committed.
 
+use std::time::{Duration, Instant};
+
 use serde::{Deserialize, Serialize};
 use sysinfo::System;
 
@@ -32,6 +34,108 @@ pub struct Machine {
     /// exists to disagree with it.
     pub os_version: String,
 }
+
+/// What the machine is already doing before a session starts.
+///
+/// A desktop is never idle: this one ran a quarter of its sixteen cores busy
+/// with nothing asked of it, spread across four hundred processes with no
+/// single owner. That is a fact about whether a reading can be trusted, and
+/// this is where a run says so before producing one.
+///
+/// **It is not a smaller `C`.** Subtracting it looks right and is not: solving
+/// the relation with the free count puts `η` above 1, which cannot happen. The
+/// reason is in the ramps themselves — sessions at the redline measured 15.1
+/// of 16 cores, so the background that idles at four collapses to under one as
+/// soon as something wants the machine. Background load is contention, not a
+/// reservation, and busy sessions win it.
+///
+/// What it leaves is a question about `η`. That term was read as memory
+/// contention between sessions, on the evidence that ten sessions with cores
+/// to spare still ran a fifth slower. Whatever background survives under load
+/// is a second candidate for part of that gap, and the two have not been
+/// separated.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct BackgroundLoad {
+    pub samples: usize,
+    /// Cores busy on average with nothing of ours running, this process aside.
+    pub mean_cores: f64,
+    /// The worst single reading, which is what a rung unlucky in its timing
+    /// competes against.
+    pub peak_cores: f64,
+    pub logical_cores: usize,
+}
+
+impl BackgroundLoad {
+    /// Samples the whole machine over `window`, which has to outlast a few of
+    /// sysinfo's minimum refresh intervals to mean anything.
+    pub fn measure(window: Duration) -> Self {
+        let mut sys = System::new();
+        let logical_cores = {
+            sys.refresh_cpu_list(sysinfo::CpuRefreshKind::nothing());
+            sys.cpus().len()
+        };
+        // The first refresh has no interval behind it and reads as zero, so it
+        // is taken and discarded before the window opens.
+        sys.refresh_cpu_usage();
+
+        let mut readings = Vec::new();
+        let deadline = Instant::now() + window;
+        while Instant::now() < deadline {
+            std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+            sys.refresh_cpu_usage();
+            readings.push(f64::from(sys.global_cpu_usage()) / 100.0 * logical_cores as f64);
+        }
+
+        Self {
+            samples: readings.len(),
+            mean_cores: readings.iter().sum::<f64>() / readings.len().max(1) as f64,
+            peak_cores: readings.iter().copied().fold(0.0, f64::max),
+            logical_cores,
+        }
+    }
+
+    /// Cores not already spoken for while the machine sits idle.
+    ///
+    /// A measurement condition rather than a capacity: sessions reclaim most
+    /// of what this reports as soon as they start competing for it.
+    pub fn idle_free_cores(&self) -> f64 {
+        (self.logical_cores as f64 - self.mean_cores).max(0.0)
+    }
+
+    /// Whether the machine is quiet enough that a redline describes it rather
+    /// than whatever else is running.
+    pub fn is_quiet(&self) -> bool {
+        self.mean_cores < self.logical_cores as f64 * QUIET_FRACTION
+    }
+
+    pub fn rows(&self) -> Rows {
+        vec![
+            (
+                "busy before we start",
+                format!(
+                    "{:.2} of {} logical ({:.0}%)",
+                    self.mean_cores,
+                    self.logical_cores,
+                    self.mean_cores / self.logical_cores as f64 * 100.0
+                ),
+            ),
+            ("worst sample", format!("{:.2} cores", self.peak_cores)),
+            (
+                "free while idle",
+                format!(
+                    "{:.2} cores — a condition on the reading, not the C the relation takes",
+                    self.idle_free_cores()
+                ),
+            ),
+        ]
+    }
+}
+
+/// How much of the machine may be busy before a reading stops describing it.
+///
+/// A tenth is where the background starts to move a redline by more than the
+/// [spread the metric already carries](../../docs/measurements/2026-07-30-164912-redline-reproducibility.md).
+const QUIET_FRACTION: f64 = 0.10;
 
 impl Machine {
     pub fn detect() -> Self {

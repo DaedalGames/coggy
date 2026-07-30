@@ -10,7 +10,7 @@ use sessionbench::Rows;
 use sessionbench::axes::{self, AxisStatus};
 use sessionbench::format::human_bytes;
 use sessionbench::host::{HeldExclusion, HostFacts};
-use sessionbench::machine::Machine;
+use sessionbench::machine::{BackgroundLoad, Machine};
 use sessionbench::observe::{self, ObserveConfig, RunReport};
 use sessionbench::provenance::Provenance;
 use sessionbench::ramp::{self, Drift, RampConfig, RampReport};
@@ -502,6 +502,10 @@ fn doctor(strict: bool) -> anyhow::Result<()> {
     let statuses = axes::availability(&facts);
 
     block("machine", machine.rows());
+    // Sampled before anything else runs, so the figure describes the machine a
+    // ramp would start on rather than one this command already disturbed.
+    let background = BackgroundLoad::measure(Duration::from_secs(5));
+    block("background", background.rows());
     block("provenance", provenance.rows());
 
     println!("\naxes");
@@ -517,6 +521,13 @@ fn doctor(strict: bool) -> anyhow::Result<()> {
     }
 
     println!();
+    if !background.is_quiet() {
+        println!(
+            "this machine is not quiet: {:.2} of {} cores are spoken for before a session starts, \
+             and the sessions will be taking those back from something",
+            background.mean_cores, background.logical_cores,
+        );
+    }
     let unavailable = statuses.iter().filter(|s| !s.available).count();
     match unavailable {
         0 if provenance.is_reproducible() => println!("all six axes available"),
