@@ -27,10 +27,12 @@ The bottleneck is neither CPU nor RAM in the usual sense. It is **what 100 simul
 
 - **[measured]** 100 shell processes plus the 100 conhost processes ConPTY attaches — 200 processes resident for hours, not moments, at 8.6 to 9.9 MiB per conhost depending on what its client asks of the console
 - **[measured]** Defender real-time scanning every file the sessions write, for as long as they run — and costing **far less than first recorded**: fifty sessions writing 1,875 MiB a minute used under one core in total, sessions included
-- **[assumed]** 100 output streams to absorb without dropping any
+- **[measured]** 100 output streams to absorb without dropping any — and this one is cheap: a hundred sessions moving half a gigabyte a second cost 1.7 cores of sixteen and dropped nothing, against a ceiling of about [7 GiB/s across all sessions](measurements/2026-07-30-output-path.md)
 - **[assumed]** a single UI thread managing a 100-cell grid, once a UI exists
 
-The first two carry numbers from [one session measured both ways](measurements/2026-07-30-conhost-and-defender.md), which is not the as-is baseline and does not stand in for one.
+**Three of these four have now been measured, and none of them is the bottleneck.** Processes cost little in memory though the count itself matters, [Defender's cost was overstated by two orders of magnitude](measurements/2026-07-30-defender-at-scale.md) and is small, and output has three to four orders of magnitude of headroom for anything that emits text. What limits the machine is plainer than any of them: sessions competing for cores, at a redline that [tracks the inverse of how much of its time a session spends computing](measurements/2026-07-30-duty-and-redline.md).
+
+That is the finding M0 exists to produce, and it is not the one this section was written expecting.
 
 **[measured]** Windows Terminal is already C++ with a GPU renderer, so the lag is not a language problem.
 
