@@ -51,7 +51,7 @@ The first term is measured. The second is a property of the model and the task, 
 
 The table above is built on a six-second build. **A game engine's build is minutes.** At 120 s of build against 30 s of wait, the build is four fifths of the turn: `d ≈ 2.1`, and the redline is **about 12**.
 
-That is the shape of the sessions COGGY exists to hold, and it is the shape this machine cannot supply — which is what [M5](../../ROADMAP.md#m5--engine-adapters-exploratory) waits on, now for a reason with a number attached rather than a category.
+That is the shape of the sessions COGGY exists to hold, and it is the shape this machine cannot supply — which is what [M5](../../ROADMAP.md#m5--engine-surfaces-exploratory) waits on, now for a reason with a number attached rather than a category.
 
 **The three residency costs M0 measured were all cheap, and this is the one that is not.** Memory, Defender and output each turned out to have orders of headroom; cores do not, and a build-heavy session is where that bites.
 

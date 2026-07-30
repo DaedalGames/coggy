@@ -7,7 +7,7 @@
 - [M2 · Harness Contract](#m2--harness-contract)
 - [M3 · Resource Governor](#m3--resource-governor)
 - [M4 · Audit Surface](#m4--audit-surface)
-- [M5 · Engine Adapters (Exploratory)](#m5--engine-adapters-exploratory)
+- [M5 · Engine Surfaces (Exploratory)](#m5--engine-surfaces-exploratory)
 - [Non-Goals](#non-goals)
 - [Decision Principle](#decision-principle)
 
@@ -123,15 +123,17 @@ Job Object quotas, core budget scheduler, build queueing, automated Defender exc
 
 **Gate M4:** a human reads the state of a 100-session batch from the UI alone within 5 minutes.
 
-## M5 · Engine Adapters (Exploratory)
+## M5 · Engine Surfaces (Exploratory)
 
 Duration undecided. The gate gets rewritten after M4's measurements.
 
-Attach the four official MCP servers from [the semantic layer reference](docs/PLAN.md#semantic-layer-reference-surveyed-2026-07) — Unreal 5.8, Unity 6, Blender, Godot AI — plus a PIE capture pane.
+**Engines reach COGGY twice, and only one of those is this milestone.**
 
-**Nothing is built new.** All four engines have official or quasi-official MCP, and COGGY only consumes. Godot is where we have the most room to contribute.
+As **workloads**, they are what a session turns out to cost, and that measurement belongs to M0. [An Unreal build holds 1.69 GiB where a synthetic session holds twenty megabytes](docs/measurements/2026-07-31-022200-an-unreal-session.md), which reversed which condition binds, and [one engine installation compiles one thing at a time](docs/measurements/2026-07-31-034150-unreal-builds-serialise.md), which caps concurrent building at one however much machine is left. Each engine contributes numbers to the governor's admission rule and nothing else. Measuring all four in sequence buys less than measuring the two extremes: Godot's editor and a Blender render span two orders of magnitude, and Unreal and Unity sit between them.
 
-**Adapters wait on sequence rather than on hardware.** Unreal 5.8 is installed on the development machine with Visual Studio and MSVC beside it, which is enough to build and to measure but not a reason to start here — an adapter written before M1 has a daemon to attach to would be rewritten. What that install did buy is M0's last input: [a real engine session, measured](docs/measurements/2026-07-31-022200-an-unreal-session.md), which turned out to break a different condition than every synthetic one before it.
+As **MCP servers**, they are what the harness drives, and COGGY consumes rather than writes. Attach the four official servers from [the semantic layer reference](docs/PLAN.md#semantic-layer-reference-surveyed-2026-07) — Unreal 5.8, Unity 6, Blender, Godot AI — plus a PIE capture pane. Godot is where we have the most room to contribute.
+
+**There is no per-engine adaptation to sequence.** The daemon spawns a process, drains its output and governs its resources; nothing in it knows an engine exists. A milestone that adapted to Unreal and then to Unity would be building [engine control, which the vendors already own](docs/PLAN.md#anti-patterns-these-kill-the-project), and that is a permanent non-goal. Serialised builds are the same story: **Unreal Build Accelerator** and `UbaCoordinatorHorde` ship inside the engine, so distributing build actions is something to consume when M3 needs it.
 
 ## Non-Goals
 

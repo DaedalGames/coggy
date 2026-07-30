@@ -4,7 +4,7 @@ What the instrument found, in the order it found it. Each record holds the numbe
 
 ## What M0 concluded
 
-Seven findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that owns it; nothing here is stated that is not measured there.
+Eight findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that owns it; nothing here is stated that is not measured there.
 
 1. **Against synthetic sessions, none of the costs this project was designed around is the bottleneck.** Processes are cheap in memory — [dropping conhost returns 3.9% of the budget at a hundred sessions](2026-07-30-120002-first-redlines.md#what-dropping-conhost-is-worth-at-any-session-weight). Defender was [overstated by two orders of magnitude](2026-07-30-142218-defender-at-scale.md). Output has [three to four orders of headroom](2026-07-30-145414-output-path.md). [PLAN's own escape clause fired](../PLAN.md#residency-not-spawning) on that result — and finding 7 is what it looks like once the sessions stop being synthetic.
 
@@ -20,6 +20,8 @@ Seven findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that
 
 7. **Against a real engine, memory binds first — which reverses finding 1.** An [Unreal session holds 1.69 GiB steady and peaks at 3.40](2026-07-31-022200-an-unreal-session.md), eighty-five times the synthetic workload, and the RSS condition trips at thirteen sessions where work rate would not until twenty. The condition M0 retired as slack is the one that stops the machine, and a blank template is the floor rather than a typical case.
 
+8. **A machine builds one engine project at a time.** [Unreal serialises build actions per installation](2026-07-31-034150-unreal-builds-serialise.md), so ten sessions ran one compiler between them and the capacity figures above describe a queue rather than a crowd. Epic ships the answer inside the engine — Unreal Build Accelerator — which makes it something to consume.
+
 **What none of this settles is [G0](../../ROADMAP.md#current-priority-m0--attribution)**, which wants a real generation session this machine has never had. It is now two scalars and a ladder rather than a whole measurement — [the steps are written down](../../sessionbench/README.md#running-gate-g0-on-a-configured-machine).
 
 | Record | What it answered |
@@ -32,6 +34,7 @@ Seven findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that
 | [Defender at scale](2026-07-30-142218-defender-at-scale.md) | **Withdraws the cost estimated in the first record.** Fifty sessions writing 1,875 MiB a minute used 0.9 cores where the earlier figure demanded 51. |
 | [The output path](2026-07-30-145414-output-path.md) | A hundred streams at half a gigabyte a second cost 1.7 cores of sixteen. The ceiling is about 7 GiB/s aggregate, and it is bandwidth rather than processors. |
 | [The duty relation is derivable](2026-07-30-154348-duty-is-derivable.md) | **Supersedes the 84% share above.** The constant 25 was `2ηC` — with the processor count in it, which is what lets the relation speak for other hardware. Two ramps at different duties agree on `η` to within 0.4%, and a rung predicted in advance landed. |
+| [Concurrent Unreal builds serialise](2026-07-31-034150-unreal-builds-serialise.md) | Ten sessions, one `cl.exe`. Two locks — `Build.bat`'s script guard, bypassable, and UnrealBuildTool's per-installation one, not. Also six defects on the way there, two of them the instrument breaking its own workload contract. |
 | [An Unreal session, and the condition that actually binds](2026-07-31-022200-an-unreal-session.md) | The engine was installed the whole time. A build holds 1.69 GiB steady against a synthetic session's 20 MiB, so memory trips at thirteen sessions and cores would not until twenty — the reverse of what every earlier record concluded. |
 | [What an agent session actually costs](2026-07-31-015246-what-a-session-costs.md) | The first reading of `d` from something other than a workload built to demand exactly one. A building session takes 2.63 cores, so the relation runs the other way from where it was exercised — and a hundred such sessions break both the core and the memory condition. |
 | [How much the redline moves between identical runs](2026-07-30-164912-redline-reproducibility.md) | **Puts an error bar on every number above.** Seven identical runs gave 30, 31, 31, 31, 33, 34, 34 — the ladder is reproducible to ±13% from rungs that each reproduce within 2%. Solving the budget on a fitted slope instead brings the same seven to 2.3%. |

@@ -36,7 +36,9 @@ That is the finding M0 exists to produce, and it is not the one this section was
 
 **[measured]** The hundred above is a demand figure — sessions needed to clear a thousand games a day. Against it now sits a capacity figure, taken against Unreal rather than a stand-in: a session building the engine's blank C++ template [holds 1.69 GiB and demands 1.24 cores](measurements/2026-07-31-022200-an-unreal-session.md), so a hundred of them want 169 GiB against a 22 GiB budget. **The gap between the two figures is the whole of what COGGY is for**, and it is a factor of eight rather than a margin.
 
-**[measured]** **Memory is what binds, not cores** — the reverse of what the four costs above concluded, because they were measured against sessions holding 20 MiB. RSS trips at thirteen sessions where work rate would not until twenty, and at six if a hundred builds reach their compile peaks together. A blank template is the smallest thing an engine can build; a generated game carries assets, shaders and a cook, all of which move both figures up.
+**[measured]** **Memory is what binds, not cores** — the reverse of what the four costs above concluded, because they were measured against sessions holding 20 MiB. RSS trips at thirteen sessions where work rate would not until twenty. A blank template is the smallest thing an engine can build; a generated game carries assets, shaders and a cook, all of which move both figures up.
+
+**[measured]** **And a machine builds one of them at a time.** [Unreal serialises build actions per engine installation](measurements/2026-07-31-034150-unreal-builds-serialise.md), so ten sessions compile no faster than one and the capacity figures above describe a queue rather than a crowd. Epic's own answer is Unreal Build Accelerator, which ships in the engine — [something to consume](../CLAUDE.md) rather than route around.
 
 **[measured]** Windows Terminal is already C++ with a GPU renderer, so the lag is not a language problem.
 
