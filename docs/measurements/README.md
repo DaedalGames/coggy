@@ -10,6 +10,7 @@ What the instrument found, in the order it found it. Each record holds the numbe
 | [The exclusion delta](2026-07-30-exclusion-delta.md) | What a Defender path exclusion buys — at one session, nothing measurable, and the record is mostly about why the first answer looked otherwise. |
 | [Defender at scale](2026-07-30-defender-at-scale.md) | **Withdraws the cost estimated in the first record.** Fifty sessions writing 1,875 MiB a minute used 0.9 cores where the earlier figure demanded 51. |
 | [The output path](2026-07-30-output-path.md) | A hundred streams at half a gigabyte a second cost 1.7 cores of sixteen. The ceiling is about 7 GiB/s aggregate, and it is bandwidth rather than processors. |
+| [The duty relation is derivable](2026-07-30-duty-is-derivable.md) | **Supersedes the 84% share above.** The constant 25 was `2ηC` — with the core count in it, which is what lets the relation speak for other hardware. Two ramps at different duties agree on `η` to within 0.4%, and a rung predicted in advance landed. |
 
 ## The pattern these share
 

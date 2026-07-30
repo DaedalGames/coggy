@@ -42,6 +42,8 @@ Taking the solo figure validated against a known duty — 0.987 cores at 81.61 u
 
 **Sessions get 84% of their share, not 100%**, and the shortfall is flat across a twofold range of session counts — so it is a property of the machine rather than noise or a threshold effect. Cache pressure and scheduling are the obvious suspects and neither is measured here.
 
+> **Superseded.** The figure is **0.77**, not 0.84, once the hold is long enough to clear session startup — the same defect this record already flags for its cores columns. And the suspects are separable after all: it is memory rather than scheduling, because the loss is already there at ten sessions with six cores standing idle. Both in [the duty relation is derivable](2026-07-30-duty-is-derivable.md), which also shows what the 25 below is made of.
+
 The consequence is concrete: a redline computed from one session reads about 19% high. That is the gap the ladder exists to close, and it is the answer to why an afternoon of holding sessions cannot be replaced by a division.
 
 ## What would break the relation
