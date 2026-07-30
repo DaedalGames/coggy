@@ -35,7 +35,7 @@ Done on 2026-07-30 as far as a machine without the harness can take it, and [the
 
 So G0 no longer waits on a harness for a whole measurement. It waits for **two scalars and one rung** — a real session's duty, an `η` from any rung held past saturation, and a ladder to check the answer rather than to find it. **`C` being in the formula is the part that travels**, since the configured machine will not have sixteen cores and the flat `25/d` this replaces would have been wrong there in proportion.
 
-**Gate G0:** an as-is redline, frozen, with its limiting cause named.
+**Gate G0:** an as-is redline, frozen, with its limiting cause named. [The steps, for whoever runs it on a machine with the engines attached](sessionbench/README.md#running-gate-g0-on-a-configured-machine) — including why the agent CLI is what you measure once, not what you ramp.
 
 - **Pass:** a redline pair such as `84 / RSS` for every target in the comparison set, each reproducible from its recorded hardware.
 - **Fail:** any run producing a bare number, or one aggregate figure plus a guess at the cause.

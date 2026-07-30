@@ -95,6 +95,21 @@ cargo run -p sessionbench -- ramp --hold 90 -- <command>
 
 Rungs are judged on all four conditions, so a run that cannot evaluate one does not print a smaller redline — it prints none.
 
+## Running gate G0 on a configured machine
+
+[G0](../ROADMAP.md#current-priority-m0--attribution) wants an as-is redline for a real generation session, and this machine has never had one to point at. The steps below are what it takes on a machine that does.
+
+**Do not ramp the agent CLI itself.** Eight rungs at sixty seconds with thirty-odd sessions each is thousands of session-minutes of real inference, and the bill is the least of it — sessions that fail on rate limits mid-rung produce a redline describing the API. Measure the real session once, then ramp a synthetic workload shaped to match it.
+
+1. **`doctor --strict`.** A run missing an axis is not a smaller result, it is a wrong one, and the Defender axis needs elevation.
+2. **`observe` one real session, to completion.** Its cores figure is `d`, the share of wall time it spends computing; its RSS and output volume say whether either is anywhere near a budget. One session, one afternoon, no ramp.
+3. **`ramp` `cpu-spin --duty <d>`**, sized to that figure. [How the session waits does not matter](../docs/measurements/2026-07-30-duty-is-derivable.md) — proportional and fixed pauses give the same curve — so the synthetic stands in honestly for a session waiting on a model.
+4. **Read the drift line before anything else.** Past a few percent the machine changed under the ladder and the redline is reading low.
+5. **Check the answer against `2ηC/d`.** The fitted slope is `η` and the report prints it. The two disagreeing means one of the assumptions behind the relation does not hold on that machine, which is worth more than either number.
+6. **Record the pair, never the bare count**, with the hardware it came from.
+
+Step 3 is where a heavier session would change the answer: `η` belongs to the workload as much as the machine, and `cpu-spin --resident` is the knob for it if the real session's footprint is far from 20 MiB.
+
 ## What we measure against
 
 A benchmark that only measures `coggyd` is marketing. At minimum, these run on identical hardware.
