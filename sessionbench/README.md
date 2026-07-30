@@ -69,6 +69,8 @@ cargo run -p sessionbench -- doctor
 cargo run -p sessionbench -- observe --duration 300 -- <command>
 ```
 
+**Its RSS figure carries its own control.** The median of the first measured quarter is reported beside the median of the last, because a memory-limited redline is the budget divided by that figure and is a ceiling only if the session held the same amount throughout — a run whose two ends disagree is averaging two different sessions. It is the single-session counterpart to a ramp repeating a rung, and it is the whole of an RSS redline's rigour, since [there is no slope to fit when total memory is the per-session figure times the count](../docs/measurements/2026-07-31-045604-an-error-bar-for-the-engine.md).
+
 `observe` runs one session to completion and records what holding it costs — RSS over time, process and conhost counts, output volume, and Defender's CPU split between startup and steady state. It writes `samples.jsonl` and `run.json` under `bench-out/`, then closes with a linear projection to 100 sessions. That projection is a floor rather than a forecast, and it is useful for exactly that reason: a floor that already breaks a condition settles the question without running the ramp.
 
 Add `--pty` to give the session a pseudoconsole instead of pipes. Running one workload both ways is the direct measurement behind [Decision 1](../docs/PLAN.md#four-core-decisions), since the difference between the two is one conhost per session, resident for as long as the session lives.

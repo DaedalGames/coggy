@@ -569,6 +569,7 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
                     human_bytes(summary.steady_rss_bytes)
                 ),
             ),
+            ("rss drift", rss_drift(summary)),
             ("peak processes", format!("{}", summary.peak_processes)),
             ("peak conhost", format!("{}", summary.peak_pseudoconsoles)),
             (
@@ -677,6 +678,33 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
 /// straight through — a machine that slows as the ramp runs steepens the fitted
 /// slope and reports a ceiling that is too low, with no sign of it anywhere in
 /// the numbers.
+/// How much the session's own footprint moved between the two ends of a run.
+///
+/// The single-session counterpart to the ramp's repeated rung. A memory-limited
+/// redline is the budget divided by this figure, so it is a ceiling only if the
+/// session held the same amount throughout — and a run whose ends disagree is
+/// reporting an average of two different sessions.
+fn rss_drift(summary: &observe::Summary) -> String {
+    if summary.early_rss_bytes == 0 {
+        return "no early samples to compare against".to_string();
+    }
+    let moved = (summary.steady_rss_bytes as f64 - summary.early_rss_bytes as f64)
+        / summary.early_rss_bytes as f64
+        * 100.0;
+    let verdict = if moved.abs() < 5.0 {
+        "held"
+    } else if moved > 0.0 {
+        "still growing — this is not a steady figure"
+    } else {
+        "still settling — this is not a steady figure"
+    };
+    format!(
+        "{} early, {:+.1}% by the end — {verdict}",
+        human_bytes(summary.early_rss_bytes),
+        moved
+    )
+}
+
 fn print_drift(report: &RampReport) {
     match report.drift() {
         // A repeat the instrument could not measure is not a machine that

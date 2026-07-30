@@ -37,10 +37,12 @@ So G0 no longer waits on a harness for a whole measurement. It waits for **two s
 
 **Gate G0:** an as-is redline, frozen, with its limiting cause named. [The steps, for whoever runs it on a machine with the engines attached](sessionbench/README.md#running-gate-g0-on-a-configured-machine) — including why the agent CLI is what you measure once, not what you ramp.
 
-- **Pass:** a redline pair such as `84 / RSS` for every reachable target in [the comparison set](sessionbench/README.md#what-we-measure-against), each reproducible from its recorded hardware, each drawn from the fitted slope, and each carrying a drift check inside a couple of percent.
-- **Fail:** any run producing a bare number, one aggregate figure plus a guess at the cause, or a count taken from a single bisection.
+- **Pass:** a redline pair such as `84 / RSS` for every reachable target in [the comparison set](sessionbench/README.md#what-we-measure-against), each reproducible from its recorded hardware, each carrying a drift check inside a couple of percent, and each rigorous in the way its own limiting condition allows.
+- **Fail:** any run producing a bare number, one aggregate figure plus a guess at the cause, or a count taken from one reading of whichever quantity binds.
 
-**That last clause was added after M0 measured its own metric.** The gate originally asked only for a pair, which was written before anyone knew what a redline costs to reproduce: seven identical runs of the same configuration returned counts spanning 12.5%, and [the ladder's search was the noisy part rather than the measuring](docs/measurements/2026-07-30-164912-redline-reproducibility.md). A G0 frozen from one bisection would hand M1 a target wrong by more than most optimizations are worth, and freezing is the one thing this gate does.
+**What rigour means depends on which condition trips**, and reading it as one thing sent this gate looking for something that does not exist. A work-rate redline is a threshold crossing on a noisy curve, so it needs [the fitted slope](docs/measurements/2026-07-30-164912-redline-reproducibility.md) — seven identical runs of one configuration spanned 12.5% without it, and the ladder's search rather than the measuring was why. **An RSS redline has no slope to fit.** Total memory is the per-session figure times the count by construction, so what a fit would buy is bought instead by repeating that figure: [four readings of a cooking session give 1.865 GiB and 6%](docs/measurements/2026-07-31-045604-an-error-bar-for-the-engine.md), and the ceiling follows by division.
+
+Both still need the drift control, because a machine that changed under the ladder invalidates either one. A G0 frozen from a single reading of whichever quantity binds would hand M1 a target wrong by more than most optimizations are worth, and freezing is the one thing this gate does.
 
 **No pass/fail threshold attaches to the redline value itself.** The four conditions define what counts as *sustained*, not a bar COGGY must clear. Whatever as-is produces is the right answer: M0 locates the ceiling rather than beating it, and M1 carries the first target COGGY has to hit.
 

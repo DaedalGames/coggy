@@ -75,6 +75,15 @@ pub struct ObserveConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Summary {
     pub peak_rss_bytes: u64,
+    /// Median RSS over the first measured quarter.
+    ///
+    /// The single-session control, and the counterpart to [the ramp repeating
+    /// a rung](../../docs/measurements/2026-07-30-164912-redline-reproducibility.md):
+    /// an RSS figure is only a ceiling if the session held the same amount
+    /// throughout, and comparing the two ends of one run is what says whether
+    /// it did. A memory-limited redline has no slope to fit, so this and
+    /// repeats are the whole of its rigour.
+    pub early_rss_bytes: u64,
     /// Median RSS over the final quarter of the run.
     ///
     /// The figure that matters for residency. A peak is a moment; this is what
@@ -340,16 +349,20 @@ fn summarize(samples: &[Sample], output: &Output, duration: Duration) -> Summary
     // Memory settles within seconds, so its steady figure reads off the final
     // quarter. CPU needs the wider post-startup window instead, for the reason
     // on SteadyCpu.
-    let mut steady_rss: Vec<u64> = samples[samples.len() * 3 / 4..]
-        .iter()
-        .map(|s| s.rss_bytes)
-        .collect();
-    steady_rss.sort_unstable();
+    let quarter = |window: &[Sample]| -> u64 {
+        let mut rss: Vec<u64> = window.iter().map(|s| s.rss_bytes).collect();
+        rss.sort_unstable();
+        rss.get(rss.len() / 2).copied().unwrap_or(0)
+    };
+    // A quarter, or one sample, or nothing at all — a run shorter than a single
+    // sample has no ends to compare and must not be sliced as though it did.
+    let cut = (samples.len() / 4).max(1).min(samples.len());
     let cpu = steady_cpu(samples);
 
     Summary {
         peak_rss_bytes: samples.iter().map(|s| s.rss_bytes).max().unwrap_or(0),
-        steady_rss_bytes: steady_rss.get(steady_rss.len() / 2).copied().unwrap_or(0),
+        early_rss_bytes: quarter(&samples[..cut]),
+        steady_rss_bytes: quarter(&samples[samples.len() - cut..]),
         peak_processes: samples.iter().map(|s| s.processes).max().unwrap_or(0),
         peak_pseudoconsoles: samples.iter().map(|s| s.pseudoconsoles).max().unwrap_or(0),
         output_bytes,
