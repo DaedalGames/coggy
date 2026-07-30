@@ -8,10 +8,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use clap::{Parser, Subcommand};
 use sessionbench::Rows;
 use sessionbench::axes::{self, AxisStatus};
+use sessionbench::format::human_bytes;
 use sessionbench::host::HostFacts;
 use sessionbench::machine::Machine;
-use sessionbench::observe::{self, ObserveConfig, RunReport, SessionMode, human_bytes};
+use sessionbench::observe::{self, ObserveConfig, RunReport};
 use sessionbench::provenance::Provenance;
+use sessionbench::session::SessionMode;
 use sessionbench::tree::Membership;
 
 /// Measures redline: the maximum concurrent sessions this machine sustains,

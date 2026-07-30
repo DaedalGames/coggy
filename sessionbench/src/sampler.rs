@@ -1,0 +1,126 @@
+// sessionbench — the concurrent session scaling benchmark.
+// Copyright (C) 2026 Daedal Games
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+//! Reading the machine on a fixed interval.
+//!
+//! Refreshing and sampling are separate calls on purpose. One refresh walks
+//! every process on the machine, so a ramp holding a hundred sessions has to
+//! pay for that once per tick rather than once per session — otherwise the
+//! instrument's own cost grows with the number it is measuring, which is the
+//! one shape a scaling benchmark cannot have.
+
+use std::time::Duration;
+
+use serde::{Deserialize, Serialize};
+use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+
+use crate::session::Output;
+use crate::tree::{Attribution, ProcessSample, SessionTree};
+
+/// Windows Defender's scanning service.
+const DEFENDER_PROCESS: &str = "MsMpEng.exe";
+
+/// One instant of one session's cost.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Sample {
+    pub t_ms: u64,
+    pub rss_bytes: u64,
+    pub processes: usize,
+    pub pseudoconsoles: usize,
+    pub cpu_percent: f32,
+    /// `None` when Defender is not running, which is itself worth recording.
+    pub defender_cpu_percent: Option<f32>,
+    pub defender_rss_bytes: Option<u64>,
+    pub available_memory_bytes: u64,
+    pub output_bytes: u64,
+    /// Lines the session has written, which is its own count of work done.
+    pub work_units: u64,
+    /// Every member, so the artifact can be re-read for which process names
+    /// hold what share without taking the run again.
+    pub members: Vec<ProcessSample>,
+}
+
+pub struct Sampler {
+    sys: System,
+}
+
+impl Sampler {
+    /// Builds a sampler with its CPU counters already primed.
+    ///
+    /// sysinfo reports usage as the delta between two refreshes, so a sampler
+    /// used immediately would report every process at zero.
+    pub fn new() -> Self {
+        let mut sampler = Self { sys: System::new() };
+        sampler.refresh();
+        sampler
+    }
+
+    /// Re-reads the machine. Call once per tick, however many sessions are up.
+    pub fn refresh(&mut self) {
+        self.sys.refresh_memory();
+        self.sys.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing().with_cpu().with_memory(),
+        );
+    }
+
+    /// Samples one session against the current refresh.
+    pub fn sample(&self, tree: &mut SessionTree, output: &Output, elapsed: Duration) -> Sample {
+        let members = tree.sample(&self.sys);
+        let defender = self
+            .sys
+            .processes()
+            .values()
+            .find(|p| p.name().eq_ignore_ascii_case(DEFENDER_PROCESS));
+
+        Sample {
+            t_ms: elapsed.as_millis() as u64,
+            rss_bytes: members.iter().map(|m| m.rss_bytes).sum(),
+            processes: members.len(),
+            pseudoconsoles: members
+                .iter()
+                .filter(|m| m.attribution == Attribution::Pseudoconsole)
+                .count(),
+            cpu_percent: members.iter().map(|m| m.cpu_percent).sum(),
+            defender_cpu_percent: defender.map(|p| p.cpu_usage()),
+            defender_rss_bytes: defender.map(|p| p.memory()),
+            available_memory_bytes: self.sys.available_memory(),
+            output_bytes: output.total(),
+            work_units: output.units(),
+            members,
+        }
+    }
+
+    /// Refreshes and samples in one call, for a run watching a single session.
+    pub fn take(&mut self, tree: &mut SessionTree, output: &Output, elapsed: Duration) -> Sample {
+        self.refresh();
+        self.sample(tree, output, elapsed)
+    }
+
+    /// Terminates whatever a session left behind after its root was killed.
+    ///
+    /// Killing the root does not take its children with it, and the last
+    /// sample is the list of what to finish off.
+    pub fn reap(&mut self, last: Option<&Sample>) {
+        let Some(sample) = last else { return };
+        self.refresh();
+        for member in &sample.members {
+            if let Some(process) = self.sys.process(Pid::from_u32(member.pid)) {
+                process.kill();
+            }
+        }
+    }
+
+    /// Memory the operating system currently reports as free for new work.
+    pub fn available_memory(&self) -> u64 {
+        self.sys.available_memory()
+    }
+}
+
+impl Default for Sampler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
