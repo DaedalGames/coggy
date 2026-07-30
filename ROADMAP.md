@@ -37,8 +37,10 @@ So G0 no longer waits on a harness for a whole measurement. It waits for **two s
 
 **Gate G0:** an as-is redline, frozen, with its limiting cause named. [The steps, for whoever runs it on a machine with the engines attached](sessionbench/README.md#running-gate-g0-on-a-configured-machine) — including why the agent CLI is what you measure once, not what you ramp.
 
-- **Pass:** a redline pair such as `84 / RSS` for every target in the comparison set, each reproducible from its recorded hardware.
-- **Fail:** any run producing a bare number, or one aggregate figure plus a guess at the cause.
+- **Pass:** a redline pair such as `84 / RSS` for every reachable target in [the comparison set](sessionbench/README.md#what-we-measure-against), each reproducible from its recorded hardware, each drawn from the fitted slope, and each carrying a drift check inside a couple of percent.
+- **Fail:** any run producing a bare number, one aggregate figure plus a guess at the cause, or a count taken from a single bisection.
+
+**That last clause was added after M0 measured its own metric.** The gate originally asked only for a pair, which was written before anyone knew what a redline costs to reproduce: seven identical runs of the same configuration returned counts spanning 12.5%, and [the ladder's search was the noisy part rather than the measuring](docs/measurements/2026-07-30-redline-reproducibility.md). A G0 frozen from one bisection would hand M1 a target wrong by more than most optimizations are worth, and freezing is the one thing this gate does.
 
 **No pass/fail threshold attaches to the redline value itself.** The four conditions define what counts as *sustained*, not a bar COGGY must clear. Whatever as-is produces is the right answer: M0 locates the ceiling rather than beating it, and M1 carries the first target COGGY has to hit.
 
