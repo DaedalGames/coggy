@@ -26,7 +26,7 @@ plus headroom for failure, retry, and repair = 100 concurrent sessions
 The bottleneck is neither CPU nor RAM in the usual sense. It is **what 100 simultaneous sessions cost while they are alive.** On stock Windows 11 Terminal with pwsh 7 that means:
 
 - **[measured]** 100 shell processes plus the 100 conhost processes ConPTY attaches — 200 processes resident for hours, not moments, at 8.6 to 9.9 MiB per conhost depending on what its client asks of the console
-- **[measured]** Defender real-time scanning every file the sessions write, for as long as they run — and costing **far less than first recorded**: fifty sessions writing 1,875 MiB a minute used under one core in total, sessions included
+- **[measured]** Defender real-time scanning every file the sessions write, for as long as they run — and costing **far less than first recorded**: fifty sessions writing 1,875 MiB a minute used under one core in total, and [an exclusion over a cooking session, which is the write pattern scanning charges most for, buys 0.034 cores](measurements/2026-07-31-041923-what-an-exclusion-buys-a-cook.md)
 - **[measured]** 100 output streams to absorb without dropping any — and this one is cheap: a hundred sessions moving half a gigabyte a second cost 1.7 cores of sixteen and dropped nothing, against a ceiling of about [7 GiB/s across all sessions](measurements/2026-07-30-145414-output-path.md)
 - **[assumed]** a single UI thread managing a 100-cell grid, once a UI exists
 
