@@ -277,7 +277,23 @@ impl Session {
 /// itself. Naming its scratch directory here is what lets the benchmark do it
 /// instead — one ramp left 299 directories behind before this existed, and
 /// that was a working ramp rather than a broken one.
+///
+/// **Always absolute.** The value is built from `--out`, which defaults to a
+/// relative `bench-out`, and a workload that only ever opens files itself
+/// never notices. One that shells out to a tool which changes directory does:
+/// Unreal's `Build.bat` pushes into the engine before running, so a relative
+/// path resolved there points at nothing, and every build failed in sixty
+/// milliseconds while the ramp read the retry loop as a fast workload.
 pub const SCRATCH_VAR: &str = "SESSIONBENCH_SCRATCH";
+
+/// The scratch path as a workload will see it.
+///
+/// Lexical rather than canonical: `std::fs::canonicalize` returns Windows
+/// verbatim paths, and `\\?\C:\...` breaks tools that parse their arguments by
+/// hand — which is most build systems.
+fn scratch_for_workload(scratch: &Path) -> PathBuf {
+    std::path::absolute(scratch).unwrap_or_else(|_| scratch.to_path_buf())
+}
 
 /// Starts a session and the threads that keep its output moving.
 ///
@@ -291,6 +307,7 @@ pub fn spawn(
     scratch: &Path,
 ) -> Result<Spawned> {
     let (program, args) = command.split_first().context("no command to run")?;
+    let scratch = scratch_for_workload(scratch);
     let output = Arc::new(Output::new());
     let log = |suffix: &str| -> PathBuf {
         let mut path = log_base.as_os_str().to_owned();
@@ -302,7 +319,7 @@ pub fn spawn(
         SessionMode::Pipe => {
             let mut child = std::process::Command::new(program)
                 .args(args)
-                .env(SCRATCH_VAR, scratch)
+                .env(SCRATCH_VAR, &scratch)
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
@@ -348,7 +365,7 @@ pub fn spawn(
 
             let mut builder = portable_pty::CommandBuilder::new(program);
             builder.args(args);
-            builder.env(SCRATCH_VAR, scratch);
+            builder.env(SCRATCH_VAR, &scratch);
             // `CommandBuilder` inherits the environment but leaves the working
             // directory unset, which lands the child in the user's profile
             // instead. Pipe mode inherits it, and the two modes have to differ
