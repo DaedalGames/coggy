@@ -82,9 +82,9 @@ pub fn ramp_markdown(report: &RampReport) -> String {
     let _ = writeln!(out, "## Rungs\n");
     let _ = writeln!(
         out,
-        "| Sessions | RSS | Per-session rate | Against solo | Cores | Processes | conhost | Replaced | Dropped | Worst tick | Verdict |"
+        "| Sessions | RSS | Machine free | Per-session rate | Against solo | Cores | Processes | conhost | Replaced | Dropped | Worst tick | Verdict |"
     );
-    let _ = writeln!(out, "|---|---|---|---|---|---|---|---|---|---|---|");
+    let _ = writeln!(out, "|---|---|---|---|---|---|---|---|---|---|---|---|");
     for step in &report.steps {
         let against_solo =
             if step.units_per_session_per_sec > 0.0 && report.solo_units_per_sec > 0.0 {
@@ -102,9 +102,10 @@ pub fn ramp_markdown(report: &RampReport) -> String {
         };
         let _ = writeln!(
             out,
-            "| {} | {} | {:.2} units/s | {against_solo} | {:.1} | {} | {} | {} | {} | {} ms | {verdict} |",
+            "| {} | {} | {} | {:.2} units/s | {against_solo} | {:.1} | {} | {} | {} | {} | {} ms | {verdict} |",
             step.sessions,
             human_bytes(step.total_rss_bytes),
+            human_bytes(step.min_available_memory_bytes),
             step.units_per_session_per_sec,
             step.session_cores + step.defender_cores,
             step.processes,

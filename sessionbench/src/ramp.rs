@@ -197,6 +197,14 @@ pub struct Step {
     pub samples: usize,
     pub total_rss_bytes: u64,
     pub rss_budget_bytes: u64,
+    /// Least physical memory the machine had free during the rung.
+    ///
+    /// The RSS condition compares a working set against a budget, and a
+    /// working set falls once Windows starts paging — so the condition goes
+    /// quiet during the failure it exists to catch. This is the machine's own
+    /// account of the same moment, and a rung that held while this approached
+    /// zero held on paper.
+    pub min_available_memory_bytes: u64,
     /// The figure the work-rate condition compares against its solo value.
     pub units_per_session_per_sec: f64,
     pub session_cores: f64,
@@ -721,6 +729,11 @@ fn hold(
         samples: measured.len(),
         total_rss_bytes,
         rss_budget_bytes: budget,
+        min_available_memory_bytes: measured
+            .iter()
+            .map(|s| s.available_memory_bytes)
+            .min()
+            .unwrap_or(0),
         units_per_session_per_sec,
         session_cores: mean(measured.iter().map(|s| f64::from(s.cpu_percent) / 100.0)),
         defender_cores: mean(

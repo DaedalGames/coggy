@@ -807,9 +807,10 @@ fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
             format!("broke on {:?}", step.broken)
         };
         println!(
-            "  {:>3}  rss {:>10}  {:.2} units/s/session  {:.1} cores  {:>2} replaced  {} dropped  {verdict}",
+            "  {:>3}  rss {:>10}  free {:>10}  {:.2} units/s/session  {:.1} cores  {:>2} replaced  {} dropped  {verdict}",
             step.sessions,
             human_bytes(step.total_rss_bytes),
+            human_bytes(step.min_available_memory_bytes),
             step.units_per_session_per_sec,
             step.session_cores + step.defender_cores,
             step.replacements,
