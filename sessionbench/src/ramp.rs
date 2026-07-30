@@ -95,6 +95,12 @@ pub struct RampConfig {
     /// redlines have neither problem: at a hundred sessions the write volume
     /// is a hundredfold, and a redline is an integer from window deltas.
     pub exclude_scratch: bool,
+    /// Skip repeating a rung at the end to check the machine did not drift.
+    ///
+    /// The check costs one hold and is what says whether the ladder measured
+    /// one machine or several. Worth skipping only when the ramp is being run
+    /// for its shape rather than its number.
+    pub skip_drift_check: bool,
     pub mode: SessionMode,
     pub command: Vec<String>,
 }
@@ -231,6 +237,12 @@ pub struct RampReport {
     /// `None` when the ladder ran out before any condition broke, which means
     /// the redline is somewhere above what was tried rather than unknown.
     pub redline: Option<Redline>,
+    /// The lowest saturated rung, held once more after the ladder finished.
+    ///
+    /// A control rather than a rung. Compared against its own first reading in
+    /// `steps` it says whether the machine ran the same at the end as at the
+    /// start — which every other figure here assumes and none of them checks.
+    pub drift_check: Option<Step>,
 }
 
 /// Runs the ladder and writes the artifact into `config.out_dir`.
@@ -346,6 +358,43 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         });
     }
 
+    // The control. Every figure above assumes the machine at the last rung is
+    // the machine that was at the first, and nothing so far has checked it.
+    // Averaging over rungs removes noise but carries drift straight through:
+    // if later rungs run slower for being later, the fitted slope steepens and
+    // the redline reads low, faithfully.
+    //
+    // Repeat the lowest saturated rung. Same session count, different position,
+    // which is the one comparison that separates the two — three runs found
+    // rung 32 reading 2.06 against rung 34's 2.01 in the same runs, and 32 had
+    // been measured last every time.
+    let drift_check = if config.skip_drift_check {
+        None
+    } else {
+        let solo = search.solo_units_per_sec;
+        let repeat = search
+            .steps
+            .iter()
+            .filter(|step| {
+                step.inconclusive.is_none()
+                    && step.units_per_session_per_sec > 0.0
+                    && redline::is_saturated(solo / step.units_per_session_per_sec)
+            })
+            .map(|step| step.sessions)
+            .min();
+        match repeat {
+            Some(sessions) => {
+                println!("\ndrift check: holding {sessions} session(s) again");
+                search.measure_as(sessions, &format!("drift-{sessions:03}"))?;
+                // Off the ladder and into its own field: it is a control rather
+                // than a rung, and leaving it in `steps` would put the same
+                // session count in the curve twice.
+                search.steps.pop()
+            }
+            None => None,
+        }
+    };
+
     let solo_units_per_sec = search.solo_units_per_sec;
     let steps = search.steps;
 
@@ -367,6 +416,7 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         solo_units_per_sec,
         steps,
         redline,
+        drift_check,
     };
 
     // Two artifacts: the record, and the thing anyone actually reads. The
@@ -411,10 +461,20 @@ struct Search<'a> {
 }
 
 impl Search<'_> {
-    /// Runs one rung and records it.
+    /// Runs one rung of the ladder.
     fn measure(&mut self, sessions: u32) -> Result<Outcome> {
+        self.measure_as(sessions, &format!("step-{sessions:03}"))
+    }
+
+    /// Runs one rung and records it.
+    ///
+    /// `tag` names the directory this rung's logs land in. It exists because
+    /// the drift check holds a count the ladder already held, and a directory
+    /// named after the count alone would leave `step-025` holding the repeat's
+    /// logs while the report described the original's.
+    fn measure_as(&mut self, sessions: u32, tag: &str) -> Result<Outcome> {
         println!("\nholding {sessions} session(s) for {:?}", self.config.hold);
-        let step_dir = self.config.out_dir.join(format!("step-{sessions:03}"));
+        let step_dir = self.config.out_dir.join(tag);
         fs::create_dir_all(&step_dir)?;
 
         let mut step = hold(

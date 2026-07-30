@@ -157,6 +157,15 @@ enum Command {
         #[arg(long)]
         pty: bool,
 
+        /// Skip holding the lowest saturated rung once more at the end.
+        ///
+        /// That repeat is the ramp's only control on itself: everything it
+        /// reports assumes the machine at the last rung is the machine that
+        /// was at the first, and nothing else here checks it. It costs one
+        /// hold.
+        #[arg(long)]
+        skip_drift_check: bool,
+
         /// Hide the sessions' writes from real-time scanning for this ramp.
         ///
         /// The exclusion axis at the scale it belongs at: run the same ladder
@@ -231,6 +240,7 @@ fn main() -> anyhow::Result<()> {
             max_sessions,
             resolution,
             pty,
+            skip_drift_check,
             exclude_scratch,
             command,
         } => {
@@ -247,6 +257,7 @@ fn main() -> anyhow::Result<()> {
                 max_sessions,
                 resolution,
                 exclude_scratch,
+                skip_drift_check,
                 mode,
                 command,
             };
@@ -648,6 +659,48 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
     println!("\nwritten to {}", out_dir.display());
 }
 
+/// Says whether the ladder measured one machine or several.
+///
+/// The lowest saturated rung, held once at the start and once after everything
+/// else. Averaging over rungs takes noise out of the redline but carries drift
+/// straight through — a machine that slows as the ramp runs steepens the fitted
+/// slope and reports a ceiling that is too low, with no sign of it anywhere in
+/// the numbers.
+fn print_drift(report: &RampReport) {
+    let Some(again) = &report.drift_check else {
+        return;
+    };
+    let Some(first) = report
+        .steps
+        .iter()
+        .find(|step| step.sessions == again.sessions)
+    else {
+        return;
+    };
+    // A repeat the instrument could not measure is not a machine that slowed
+    // to nothing, and reporting it as one would put a 100% drift on the board
+    // describing the observer.
+    if let Some(reason) = &again.inconclusive {
+        println!(
+            "  drift check: {} sessions could not be re-measured — {reason}",
+            again.sessions
+        );
+        return;
+    }
+    let (before, after) = (
+        first.units_per_session_per_sec,
+        again.units_per_session_per_sec,
+    );
+    if before <= 0.0 || after <= 0.0 {
+        return;
+    }
+    let slower = (before - after) / before * 100.0;
+    println!(
+        "  drift check: {} sessions ran {before:.2} units/s early and {after:.2} at the end ({slower:+.1}% slower)",
+        again.sessions
+    );
+}
+
 fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
     let target = report
         .command
@@ -711,6 +764,9 @@ fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
             report.machine.label(),
         ),
     }
+    // Outside the match: the control says whether the ladder measured one
+    // machine, which is worth knowing whether or not it found a redline.
+    print_drift(report);
 
     println!("\nrungs");
     for step in &report.steps {

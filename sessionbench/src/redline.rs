@@ -79,6 +79,15 @@ pub fn fit_crossing(rungs: &[(u32, f64)], budget: f64, ladder_sessions: u32) -> 
     })
 }
 
+/// Whether a rung is slow enough that the machine has run out of cores.
+///
+/// The fit needs this to know which rungs lie on the line. The drift check
+/// needs it to pick a rung worth repeating, since a rung with cores to spare
+/// would absorb a slower machine instead of showing it.
+pub fn is_saturated(slowdown: f64) -> bool {
+    slowdown >= FIT_FLOOR_SLOWDOWN
+}
+
 /// How slow a rung must run before it counts as saturated.
 ///
 /// Below saturation every session gets the cores it asks for, so the slowdown

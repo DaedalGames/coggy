@@ -69,7 +69,29 @@ Residuals against each run's own line, by position in the run, put the last-meas
 
 **But 32 was always the last rung measured**, so position and session count are perfectly confounded here, and two of the six runs break the pattern. Thermal accumulation over a fifteen-minute ramp is the obvious suspect; Defender working through the logs earlier rungs left behind is another; neither is measured. This is [the same confusion that cost the Defender estimate](2026-07-30-defender-at-scale.md), and it is recorded as open rather than resolved.
 
-The test that separates them: measure one rung at the start of a ramp and the same rung at the end. Same session count, different position. It needs a way to place an arbitrary rung early, which the fixed ladder does not currently offer.
+The test that separates them: measure one rung at the start of a ramp and the same rung at the end. Same session count, different position.
+
+**Every ramp now does this.** Rather than placing an arbitrary rung early — which the fixed ladder cannot do — it holds the *lowest saturated* rung a second time once the ladder has finished. One extra hold, on by default, kept out of `steps` so the same count does not enter the curve twice. It is also the only control the ramp has on itself for a reason that outlives this anomaly: the fitted slope averages noise away but carries drift straight through, so a machine slowing under its own ladder would report a ceiling too low with nothing anywhere to show it.
+
+### It fired on the first run that used it
+
+```
+redline: 32 sessions (WorkRate) · cpu-spin · pipe · 16C/31GiB · Defender on
+  fitted at 32.3 through 6 saturated rungs, gaining 0.0619 slowdown per session
+  drift check: 25 sessions ran 40.02 units/s early and 38.11 at the end (+4.8% slower)
+```
+
+| | Six quiet runs | This run |
+|---|---|---|
+| Fitted redline | 33.31 – 34.06 | **32.3** |
+| Slope | 0.0554 – 0.0590 | **0.0619** |
+| Cores at the saturated rungs | 15.0 – 15.2 | 13.0 – 15.1, falling through the run |
+
+**The failure mode is exactly the predicted one.** The machine lost 4.8% across the ramp, the slope steepened, and the redline came out 3.9% low — and without the control, 32.3 would have looked as reasonable as 33.6.
+
+**A large part of that drift was the observer.** During the six earlier runs nothing else touched the machine; during this one it was being edited alongside. So this run is contaminated as evidence about *what* makes the machine drift — thermal, Defender, or an agent writing files — and it is a clean demonstration of the thing the control is for. [The Defender estimate that had to be withdrawn](2026-07-30-defender-at-scale.md) was contaminated the same way, with no line anywhere in the output to show it.
+
+The late-rung anomaly is a plausible casualty of the same effect — rung 32 was measured last in the runs where it read high — but that remains unproven, because those runs had no control on them.
 
 ## What this changes
 

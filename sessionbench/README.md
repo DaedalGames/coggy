@@ -87,6 +87,8 @@ Halves run as adjacent pairs because a single comparison cannot separate the exc
 cargo run -p sessionbench -- ramp --hold 90 -- <command>
 ```
 
+**Every ramp ends by holding one rung a second time** — the lowest saturated one — and reports how the two readings compare. It is the only control the ramp has on itself: each figure it produces assumes the machine at the last rung is the machine that was at the first, and the fit makes that assumption load-bearing, since averaging over rungs removes noise but carries drift straight through. A machine that slowed as the ladder ran would steepen the slope and report a ceiling too low with nothing anywhere to show it. One extra hold; `--skip-drift-check` turns it off when a ramp is being run for its shape rather than its number.
+
 `ramp` climbs the ladder and produces the redline. Each rung holds its session count for the whole window — **replacing any session that finishes**, which is both what keeps the count honest and what makes the replacement condition measurable at all. A rung that let finished sessions stay finished would report the count it asked for while measuring a decaying one, and the machine gets easier as that happens, so the number would climb exactly when it should fall.
 
 `--max-sessions` caps the climb. The full ladder reaches 200 and will take the machine with it for the duration.
