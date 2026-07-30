@@ -69,6 +69,14 @@ pub struct Output {
     /// Only stdout: a session that fails noisily would otherwise report a
     /// rising work rate on the way down.
     units: Arc<AtomicU64>,
+    /// The largest ordinal any line opened with.
+    ///
+    /// Counted in the stream rather than read back from the log afterwards.
+    /// The log is capped, because persisting every byte makes the disk the
+    /// limit of any workload whose payload is its output — one session pushing
+    /// 5 MiB/s wrote 301 MiB of log for a sixty-second run, and a hundred of
+    /// them would ask for half a gigabyte a second.
+    highest_unit: Arc<AtomicU64>,
 }
 
 impl Output {
@@ -77,7 +85,21 @@ impl Output {
             stdout: Arc::new(AtomicU64::new(0)),
             stderr: Arc::new(AtomicU64::new(0)),
             units: Arc::new(AtomicU64::new(0)),
+            highest_unit: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    /// Units the session announced but never delivered a line for.
+    ///
+    /// A gap below the highest ordinal seen is output that went missing
+    /// between the session and this process. Saturates at zero rather than
+    /// wrapping: a workload that does not number its lines leaves the highest
+    /// ordinal at nothing while the count climbs, and that is not a negative
+    /// drop.
+    pub fn dropped_units(&self) -> u64 {
+        self.highest_unit
+            .load(Ordering::Relaxed)
+            .saturating_sub(self.units())
     }
 
     /// A frozen counter, for summing a pool of sessions into one view.
@@ -89,6 +111,7 @@ impl Output {
             stdout: Arc::new(AtomicU64::new(bytes)),
             stderr: Arc::new(AtomicU64::new(0)),
             units: Arc::new(AtomicU64::new(units)),
+            highest_unit: Arc::new(AtomicU64::new(units)),
         }
     }
 
@@ -99,12 +122,76 @@ impl Output {
     pub fn units(&self) -> u64 {
         self.units.load(Ordering::Relaxed)
     }
+
+    /// The pair of counters a stdout drain feeds.
+    pub fn units_counters(&self) -> Units {
+        Units {
+            count: Arc::clone(&self.units),
+            highest: Arc::clone(&self.highest_unit),
+        }
+    }
 }
 
 impl Default for Output {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// The two counters a stream's lines feed, kept together because they are only
+/// meaningful against each other.
+#[derive(Clone)]
+pub struct Units {
+    count: Arc<AtomicU64>,
+    highest: Arc<AtomicU64>,
+}
+
+impl Units {
+    /// Counts the lines in a chunk and reads each one's opening ordinal.
+    ///
+    /// `line_start` carries the beginning of a line across chunk boundaries,
+    /// since a read lands wherever it lands and an ordinal split across two of
+    /// them would otherwise be lost.
+    ///
+    /// Lines are counted, ordinals are only tracked for their maximum, and
+    /// that asymmetry is what makes a pseudoconsole harmless here. ConPTY runs
+    /// its startup sequences into the workload's first line, so that line's
+    /// ordinal is unreadable — but it still counts as a line, and the maximum
+    /// comes from the lines after it. A previous version compared a *set* of
+    /// parsed ordinals against its own size, which turned that one unreadable
+    /// line into a phantom drop and every `--pty` ramp into a redline of zero.
+    fn consume(&self, chunk: &[u8], line_start: &mut Vec<u8>) {
+        let mut lines = 0u64;
+        for byte in chunk {
+            if *byte == b'\n' {
+                lines += 1;
+                if let Some(ordinal) = leading_ordinal(line_start) {
+                    self.highest.fetch_max(ordinal, Ordering::Relaxed);
+                }
+                line_start.clear();
+            } else if line_start.len() < 32 {
+                line_start.push(*byte);
+            }
+        }
+        if lines > 0 {
+            self.count.fetch_add(lines, Ordering::Relaxed);
+        }
+    }
+}
+
+/// The integer a line opens with, if it opens with one.
+///
+/// Deliberately strict: a line that does not begin with digits has no ordinal
+/// rather than an ordinal found somewhere inside it. Escape sequences and
+/// payload both contain digits, and a number scavenged from either would be a
+/// drop count made of noise.
+fn leading_ordinal(line: &[u8]) -> Option<u64> {
+    let digits: &[u8] = match line.iter().position(|b| !b.is_ascii_digit()) {
+        Some(0) => return None,
+        Some(end) => &line[..end],
+        None => line,
+    };
+    std::str::from_utf8(digits).ok()?.parse().ok()
 }
 
 /// A running session and the machinery keeping it alive.
@@ -220,7 +307,7 @@ pub fn spawn(
                     child.stdout.take().context("stdout was not piped")?,
                     log("-stdout.log"),
                     Arc::clone(&output.stdout),
-                    Some(Arc::clone(&output.units)),
+                    Some(output.units_counters()),
                     None,
                 ),
                 drain(
@@ -269,7 +356,7 @@ pub fn spawn(
                 reader,
                 log("-output.log"),
                 Arc::clone(&output.stdout),
-                Some(Arc::clone(&output.units)),
+                Some(output.units_counters()),
                 Some(terminal_end.take_writer()?),
             )];
             Ok(Spawned {
@@ -291,16 +378,29 @@ pub fn spawn(
 /// the smallest possible terminal: it answers the cursor-position query so the
 /// session is not left waiting on a reply that a headless run would otherwise
 /// never send.
+/// How much of each stream is kept on disk.
+///
+/// A sample rather than a transcript. Persisting everything makes the disk the
+/// ceiling for any workload whose payload is its output, which is exactly the
+/// workload the dropped-output condition exists for — and the ordinals are
+/// counted in the stream, so nothing downstream needs the file.
+const LOG_CAP_BYTES: u64 = 4 * 1024 * 1024;
+
 fn drain(
     mut source: impl Read + Send + 'static,
     path: PathBuf,
     counter: Arc<AtomicU64>,
-    units: Option<Arc<AtomicU64>>,
+    units: Option<Units>,
     answer_queries: Option<Box<dyn Write + Send>>,
 ) -> JoinHandle<Result<()>> {
     std::thread::spawn(move || {
         let mut sink = BufWriter::new(File::create(&path)?);
+        let mut persisted = 0u64;
         let mut responder = answer_queries;
+        // Bytes since the last newline, capped: only a line's opening matters,
+        // and a workload with no newline at all must not grow this without
+        // bound.
+        let mut line_start: Vec<u8> = Vec::with_capacity(32);
         // Holds the bytes a query could have been split across. One shorter
         // than the sequence, so it can never hold a whole match and cause a
         // reply to be sent twice.
@@ -312,11 +412,15 @@ fn drain(
                 Ok(0) => break,
                 Ok(n) => {
                     counter.fetch_add(n as u64, Ordering::Relaxed);
-                    sink.write_all(&buffer[..n])?;
+                    if persisted < LOG_CAP_BYTES {
+                        let room = (LOG_CAP_BYTES - persisted) as usize;
+                        let keep = n.min(room);
+                        sink.write_all(&buffer[..keep])?;
+                        persisted += keep as u64;
+                    }
 
                     if let Some(units) = units.as_ref() {
-                        let lines = buffer[..n].iter().filter(|b| **b == b'\n').count();
-                        units.fetch_add(lines as u64, Ordering::Relaxed);
+                        units.consume(&buffer[..n], &mut line_start);
                     }
 
                     if let Some(writer) = responder.as_mut() {
@@ -344,4 +448,63 @@ fn drain(
         sink.flush()?;
         Ok(())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Feeds a stream to the counters in chunks of `chunk` bytes.
+    fn count(stream: &[u8], chunk: usize) -> (u64, u64) {
+        let output = Output::new();
+        let units = output.units_counters();
+        let mut carry = Vec::new();
+        for piece in stream.chunks(chunk) {
+            units.consume(piece, &mut carry);
+        }
+        (output.units(), output.dropped_units())
+    }
+
+    #[test]
+    fn a_gap_in_the_ordinals_is_a_drop() {
+        let (units, dropped) = count(b"1 a\n2 b\n4 d\n", 64);
+        assert_eq!(units, 3);
+        assert_eq!(dropped, 1);
+    }
+
+    #[test]
+    fn a_session_killed_partway_has_dropped_nothing() {
+        // Every rung ends by killing its sessions, so a stream that simply
+        // stops is the normal case and must not read as a drop.
+        assert_eq!(count(b"1 a\n2 b\n3 c\n", 64), (3, 0));
+    }
+
+    #[test]
+    fn a_truncated_final_line_is_not_a_gap() {
+        assert_eq!(count(b"1 a\n2 b\n3 c", 64), (2, 0));
+    }
+
+    #[test]
+    fn conpty_startup_sequences_do_not_swallow_the_first_unit() {
+        // What a pseudoconsole really writes: its own sequences run straight
+        // into the workload's first line. That ordinal is unreadable, and it
+        // must not become a phantom drop.
+        let stream = b"\x1b[6n\x1b[?9001h\x1b[m\x1b[?25h1 unit-1\n2 unit-2\n3 unit-3\n";
+        assert_eq!(count(stream, 64), (3, 0));
+    }
+
+    #[test]
+    fn an_ordinal_split_across_reads_still_counts() {
+        // A read lands wherever it lands. Splitting "1234" down the middle
+        // must not turn unit 1234 into unit 12.
+        let stream = b"1 a\n1234 b\n";
+        for chunk in 1..stream.len() {
+            assert_eq!(count(stream, chunk), (2, 1232), "chunk size {chunk}");
+        }
+    }
+
+    #[test]
+    fn a_workload_that_numbers_nothing_reports_no_drops() {
+        assert_eq!(count(b"hello\nworld\n", 64), (2, 0));
+    }
 }

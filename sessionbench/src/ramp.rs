@@ -27,9 +27,8 @@
 //! in the first real run, which reported a redline of ten when the ceiling was
 //! somewhere in the eleven-to-twenty-five range.
 
-use std::collections::BTreeSet;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -150,8 +149,6 @@ pub struct TeardownCost {
     pub reap_kill_ms: u64,
     /// How many were still alive when the grace period ran out.
     pub stragglers: usize,
-    /// Reading every session log back to look for gaps.
-    pub scan_ms: u64,
     /// Removing the directory the sessions wrote into.
     pub scratch_ms: u64,
     /// Releasing the pty handles, which is where a pseudoconsole is closed.
@@ -165,7 +162,6 @@ impl TeardownCost {
             + self.settle_ms
             + self.reap_refresh_ms
             + self.reap_kill_ms
-            + self.scan_ms
             + self.scratch_ms
     }
 }
@@ -521,6 +517,9 @@ fn hold(
     let replacements = pool.replacements;
     let worst_replacement_secs = pool.worst_replacement_secs;
 
+    // Read before anything is torn down, since the counters live in the slots.
+    let dropped_units = pool.dropped_units();
+
     let mut teardown = TeardownCost::default();
     let at = Instant::now();
     pool.kill_all();
@@ -545,10 +544,6 @@ fn hold(
     let (refresh_ms, kill_ms) = sampler.reap(last.as_ref());
     teardown.reap_refresh_ms = refresh_ms;
     teardown.reap_kill_ms = kill_ms;
-
-    let at = Instant::now();
-    let dropped_units = count_dropped_units(step_dir)?;
-    teardown.scan_ms = at.elapsed().as_millis() as u64;
 
     let at = Instant::now();
     // Errors ignored on purpose: a file still held by a session that has not
@@ -624,6 +619,8 @@ struct Pool {
     /// Units from sessions that have already finished, so the running total
     /// never goes backwards when one is replaced.
     retired_units: u64,
+    /// Drops from those same sessions, kept for the same reason.
+    retired_dropped: u64,
     replacements: u32,
     worst_replacement_secs: Option<f64>,
 }
@@ -650,6 +647,7 @@ impl Pool {
         Ok(Self {
             slots,
             retired_units: 0,
+            retired_dropped: 0,
             replacements: 0,
             worst_replacement_secs: None,
         })
@@ -672,6 +670,7 @@ impl Pool {
             }
             let replacing = Instant::now();
             self.retired_units += slot.output.units();
+            self.retired_dropped += slot.output.dropped_units();
             slot.generation += 1;
             *slot = start(config, step_dir, scratch, slot.index, slot.generation, tree)?;
 
@@ -687,6 +686,21 @@ impl Pool {
 
     fn total_units(&self) -> u64 {
         self.retired_units + self.slots.iter().map(|s| s.output.units()).sum::<u64>()
+    }
+
+    /// Units the sessions announced but never delivered.
+    ///
+    /// Read from the counters the drains keep rather than by scanning the logs
+    /// afterwards, which is what lets the logs be capped: a workload whose
+    /// payload is its output would otherwise make the disk the ceiling of the
+    /// axis that exists to measure the output path.
+    fn dropped_units(&self) -> u64 {
+        self.retired_dropped
+            + self
+                .slots
+                .iter()
+                .map(|s| s.output.dropped_units())
+                .sum::<u64>()
     }
 
     /// A view of the pool's output for the sampler, which wants one counter.
@@ -741,52 +755,6 @@ fn start(
     })
 }
 
-/// Units a session announced but never finished a line for.
-///
-/// Every workload line begins with the unit's ordinal, so a gap below the
-/// highest ordinal seen is output that went missing between the session and
-/// this process. A truncated final line is not a gap — that is a session that
-/// was killed, which is how every rung ends.
-///
-/// Control sequences are stripped first, and that is not cosmetic. A
-/// pseudoconsole renders a screen rather than a stream, and ConPTY opens by
-/// writing its startup sequences onto the same line as the workload's first
-/// output — so unit one arrives as `ESC[6n…ESC[?25h1 unit-1.dat` and its
-/// ordinal is unreadable. Every ramp under `--pty` reported a spurious redline
-/// of zero until this existed, and only running one in that mode showed it.
-fn count_dropped_units(step_dir: &Path) -> Result<u64> {
-    let mut dropped = 0;
-    for entry in fs::read_dir(step_dir)? {
-        let path = entry?.path();
-        let is_session_log = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(|n| n.ends_with("-stdout.log") || n.ends_with("-output.log"));
-        if !is_session_log {
-            continue;
-        }
-
-        let mut seen = BTreeSet::new();
-        for line in BufReader::new(File::open(&path)?)
-            .lines()
-            .map_while(Result::ok)
-        {
-            let plain = strip_ansi_escapes::strip_str(&line);
-            if let Some(ordinal) = plain
-                .split_whitespace()
-                .next()
-                .and_then(|token| token.parse::<u64>().ok())
-            {
-                seen.insert(ordinal);
-            }
-        }
-        if let Some(highest) = seen.last() {
-            dropped += highest - seen.len() as u64;
-        }
-    }
-    Ok(dropped)
-}
-
 fn median(values: impl Iterator<Item = u64>) -> Option<u64> {
     let mut sorted: Vec<u64> = values.collect();
     sorted.sort_unstable();
@@ -823,14 +791,13 @@ fn print_step(step: &Step, solo: f64) {
     );
     let down = &step.teardown;
     println!(
-        "      teardown {} ms = kill {} + release {} + settle {} + reap {}+{} + scan {} + scratch {} ({} straggler(s))",
+        "      teardown {} ms = kill {} + release {} + settle {} + reap {}+{} + scratch {} ({} straggler(s))",
         down.total_ms(),
         down.kill_ms,
         down.release_ms,
         down.settle_ms,
         down.reap_refresh_ms,
         down.reap_kill_ms,
-        down.scan_ms,
         down.scratch_ms,
         down.stragglers
     );
@@ -838,55 +805,5 @@ fn print_step(step: &Step, solo: f64) {
         (Some(reason), _) => println!("      INCONCLUSIVE: {reason}"),
         (None, true) => println!("      held"),
         (None, false) => println!("      BROKE: {:?}", step.broken),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// A throwaway directory holding one session log.
-    fn logged(name: &str, body: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("sessionbench-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).expect("a writable temporary directory");
-        fs::write(dir.join("s000-g00-stdout.log"), body).expect("a writable log");
-        dir
-    }
-
-    #[test]
-    fn a_gap_in_the_ordinals_counts_as_dropped_output() {
-        let dir = logged("gap", "1 a\n2 b\n4 d\n");
-        assert_eq!(count_dropped_units(&dir).expect("readable"), 1);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_session_killed_partway_has_dropped_nothing() {
-        // Every rung ends by killing its sessions, so a log that simply stops
-        // is the normal case and must not read as a drop.
-        let dir = logged("killed", "1 a\n2 b\n3 c\n");
-        assert_eq!(count_dropped_units(&dir).expect("readable"), 0);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_truncated_final_line_is_not_a_gap() {
-        let dir = logged("truncated", "1 a\n2 b\n3 c");
-        assert_eq!(count_dropped_units(&dir).expect("readable"), 0);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn conpty_startup_sequences_do_not_swallow_the_first_unit() {
-        // What a pseudoconsole actually writes: its own startup sequences run
-        // straight into the workload's first line, so the ordinal is only
-        // reachable once they are stripped.
-        let dir = logged(
-            "conpty",
-            "\x1b[6n\x1b[?9001h\x1b[?1004h\x1b[m\x1b[?25h1 unit-1.dat\n2 unit-2.dat\n",
-        );
-        assert_eq!(count_dropped_units(&dir).expect("readable"), 0);
-        let _ = fs::remove_dir_all(&dir);
     }
 }

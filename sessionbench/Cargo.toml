@@ -29,7 +29,6 @@ portable-pty.workspace = true
 win32job.workspace = true
 thread-priority.workspace = true
 humansize.workspace = true
-strip-ansi-escapes.workspace = true
 
 [build-dependencies]
 vergen.workspace = true

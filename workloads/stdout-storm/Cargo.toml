@@ -1,0 +1,16 @@
+[package]
+name = "stdout-storm"
+description = "A workload whose payload is its output, for the axis that counts dropped bytes."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+clap.workspace = true
+
+[lints]
+workspace = true
