@@ -37,11 +37,15 @@ pub struct Provenance {
 impl Provenance {
     /// Collects the block, half from build time and half from now.
     ///
-    /// The split is deliberate. The compiler and the resolved dependency
-    /// versions are properties of the binary, so asking at run time could name
-    /// a toolchain that never touched it. The commit and the dirty flag are
-    /// properties of the checkout being measured, and only run time knows
-    /// whether someone edited a file since the last build.
+    /// The split is deliberate, and it is why `vergen` supplies only half of
+    /// this. The compiler and the resolved dependency versions are properties
+    /// of the binary, so asking at run time could name a toolchain that never
+    /// touched it — `vergen` is right about those. The commit and the dirty
+    /// flag are properties of the checkout being measured, and `vergen` reads
+    /// them at build time too: cargo re-runs a build script when `.git/HEAD`
+    /// changes, which committing does not do and editing a source file does
+    /// not either. A stale commit hash on a measurement is worse than none, so
+    /// those two are read here instead.
     pub fn current() -> Self {
         let (commit, dirty) = match git_commit() {
             Some(commit) => (Some(commit), Some(git_tree_is_dirty())),
@@ -52,8 +56,13 @@ impl Provenance {
             sessionbench_version: env!("CARGO_PKG_VERSION").to_string(),
             sessionbench_commit: commit,
             working_tree_dirty: dirty,
-            rustc: env!("SESSIONBENCH_RUSTC").to_string(),
-            measurement_crates: parse_deps(env!("SESSIONBENCH_DEPS")),
+            rustc: format!(
+                "rustc {} ({} {})",
+                env!("VERGEN_RUSTC_SEMVER"),
+                &env!("VERGEN_RUSTC_COMMIT_HASH")[..9.min(env!("VERGEN_RUSTC_COMMIT_HASH").len())],
+                env!("VERGEN_RUSTC_COMMIT_DATE"),
+            ),
+            measurement_crates: measurement_crates(env!("VERGEN_CARGO_DEPENDENCIES")),
         }
     }
 
@@ -88,11 +97,21 @@ impl Provenance {
     }
 }
 
-/// `name=version` pairs as emitted by the build script.
-fn parse_deps(packed: &str) -> BTreeMap<String, String> {
+/// Crates whose version can change a measured number.
+///
+/// `sysinfo` reads every RSS and CPU figure; `portable-pty` decides whether a
+/// session gets a conhost. The rest of the tree renders reports and parses
+/// arguments, so its versions cannot move a curve. `vergen` resolves the whole
+/// dependency list and this narrows it, because a provenance block nobody reads
+/// is not provenance.
+const MEASUREMENT_CRATES: [&str; 2] = ["sysinfo", "portable-pty"];
+
+/// Picks the measurement crates out of `vergen`'s `name version` list.
+fn measurement_crates(packed: &str) -> BTreeMap<String, String> {
     packed
         .split(',')
-        .filter_map(|pair| pair.split_once('='))
+        .filter_map(|entry| entry.trim().split_once(' '))
+        .filter(|(name, _)| MEASUREMENT_CRATES.contains(name))
         .map(|(name, version)| (name.to_string(), version.to_string()))
         .collect()
 }

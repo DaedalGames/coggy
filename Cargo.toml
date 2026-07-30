@@ -31,6 +31,8 @@ sysinfo = "0.37"
 portable-pty = "0.9"
 win32job = "2"
 thread-priority = "2"
+humansize = "2"
+vergen = { version = "9", features = ["cargo", "rustc"] }
 
 [profile.release]
 lto = "thin"

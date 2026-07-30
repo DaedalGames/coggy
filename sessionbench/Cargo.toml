@@ -28,6 +28,10 @@ sysinfo.workspace = true
 portable-pty.workspace = true
 win32job.workspace = true
 thread-priority.workspace = true
+humansize.workspace = true
+
+[build-dependencies]
+vergen.workspace = true
 
 [lints]
 workspace = true
