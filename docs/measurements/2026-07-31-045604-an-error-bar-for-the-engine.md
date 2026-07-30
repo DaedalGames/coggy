@@ -15,6 +15,8 @@ A fifth reading, taken once `observe` had a control of its own, came in at 1.89 
 
 The binding condition survives that. `21.97 ÷ 1.87` is **11.7 sessions**, and the spread puts it between **11.4 and 12.1** — so twelve, where a single reading had said eleven.
 
+**That is the engine's ceiling and not a session's.** A session also holds the agent CLI driving it, and [dividing the budget by both halves gives nine](2026-07-31-054657-the-driven-duty.md).
+
 **That drift figure is what makes the median a ceiling rather than an average of two states.** A cook cycles the editor in and out, so the worry was that a steady figure describes neither end; both quarters carrying the same mix is what answers it, and [four concurrent sessions summing to 1.94 apiece](2026-07-31-043156-cook-peaks-scatter.md) confirms it from outside — one session's average over time and four sessions' total at an instant agree.
 
 Cores reproduce at 19%, which would have been useless had cores been what bound the machine. They are not, and that is luck rather than design.

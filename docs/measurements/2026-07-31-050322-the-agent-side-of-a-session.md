@@ -29,9 +29,9 @@ The lifetime mean is the figure that matters. A turn is a burst against long str
 
 Cores look comfortable at `d = 0.112`, and that figure belongs to a session waiting on a human rather than on a harness.
 
-**How much waiting is in it comes out of the same numbers.** A turn costs about 0.42 cores while it runs and the lifetime mean is 0.112, so this session spent roughly **27% of its life inside a turn** and the rest waiting for someone to type. A harness driving a hundred sessions back to back pushes that fraction towards one, taking `d` towards 0.42 and [the duty relation](2026-07-30-154348-duty-is-derivable.md) from over two hundred sessions to about **59**.
+**How much waiting is in it comes out of the same numbers.** A turn costs about 0.42 cores while it runs and the lifetime mean is 0.112, so this session spent roughly **27% of its life inside a turn** and the rest waiting for someone to type.
 
-Memory still binds first, at 38 against 59. But any CPU headroom quoted from this figure is an idle session's headroom, and a driven one has a third of it. That is arithmetic on measured numbers rather than a measurement, and a harness would settle it.
+[A driven session has since been measured at 0.27 cores](2026-07-31-054657-the-driven-duty.md), which puts the core ceiling at **93**. Memory still binds first, at 38 against 93, but any CPU headroom quoted from the 0.112 above is an idle session's headroom and a driven one has under half of it.
 
 Set beside the engine, the two costs behave differently. **The CLI's 580 MiB is held for the session's whole life; the engine's 1.865 GiB only while it cooks.** A hundred sessions therefore pay 58 GiB always and the cooking share on top, which is why the agent is the floor and the engine is what lands on it.
 
@@ -44,7 +44,7 @@ It is the same error as measuring memory against a 20 MiB synthetic workload and
 ## What this rests on
 
 - **One CLI, one session, one machine.** Claude Code specifically, and a different agent would hold a different amount.
-- **Twenty-five hours of conversation.** Resident state grows with a session's history, so a fresh session holds less and this is closer to a ceiling than a typical value.
+- **Twenty-five hours of conversation.** Resident state grows with a session's history, so a fresh session holds less and this is closer to a ceiling than a typical value — [since measured as a sawtooth between 480 and 586 MiB](2026-07-31-054657-the-driven-duty.md), which a context compaction cuts back.
 - **The lifetime mean spans idle and active alike**, which is what makes it the right `d` — but it is one session's mix of the two, not a generation harness's.
 - **Nothing here is `sessionbench`'s doing.** The figures come from process accounting on a live session rather than from a controlled run, so they carry no drift check and no repeats beyond the three windows above.
 
