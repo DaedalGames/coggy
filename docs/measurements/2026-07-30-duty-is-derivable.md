@@ -8,6 +8,10 @@ A session that computes a fraction `d` of its wall time needs `d` cores to run a
 
     slowdown = N·d / (η·C)
 
+**`C` is logical processors**, not physical cores, because that is the unit the ramp's own cores column is measured in — one busy hardware thread reads as 1.0. Mixing the two puts `η` above 1, which cannot happen: on a machine reporting 2 physical and 4 logical, a redline of 7 at full duty gives `η = 1.75` against physical and 0.875 against logical, and only the second is a fraction of anything. The headline's `16C` is [deliberately physical](../../sessionbench/README.md#report-format) because it describes hardware; it is not the `C` in this formula.
+
+Hyperthreads do not each add a full core of throughput, so on a machine that has them `η` carries that shortfall along with everything else. That is a feature of where the term sits rather than a flaw — but it means an `η` measured with hyperthreading is not the same quantity as one measured without.
+
 The [WorkRate condition](../../sessionbench/README.md#redline) allows a 2× slowdown, so
 
     redline = 2·η·C / d
@@ -73,21 +77,21 @@ Both got every core they asked for. Both ran slower anyway. **With six spare cor
 
 The unsaturated 0.80 is close to the saturated 0.77, so `η` is not a threshold effect that switches on at the redline. It is present throughout and merely becomes visible when cores run out.
 
-**So `η` belongs to the workload as much as the machine**, and cannot be carried to a real session by assumption. It can be carried cheaply by measurement: one solo run and one saturated rung give it, without a ladder.
+**So `η` belongs to the workload as much as the machine**, and cannot be carried to a real session by assumption. It also belongs to the machine's topology: where hyperthreading is on, `η` absorbs the difference between a hardware thread and a core, so a figure taken with it is not comparable to one taken without. Both reasons point the same way, and measuring it is cheap — one solo run and one saturated rung, without a ladder.
 
 ## What this changes for G0
 
 The gate needs a redline for a session this machine cannot run. It now needs **two scalars and one rung**:
 
 1. `d`, the fraction of wall time a real session computes — `observe` reports it.
-2. `η`, from one rung held past saturation.
+2. `η`, from one rung held past saturation on that machine, since neither the workload nor the topology carries over.
 3. `redline = 2ηC/d`, checked against a ladder rather than trusted in place of one.
 
-`C` being in the formula is the part that travels. The configured machine will not have sixteen cores, and `25/d` would have been wrong there by whatever ratio its core count differs by.
+`C` being in the formula is the part that travels. The configured machine will not have sixteen logical processors, and the flat `25/d` this replaces would have been wrong there in proportion.
 
 ## What is still assumed
 
-- ~~**Both ramps waited by sleeping proportionally.**~~ **Run, and it cancels.** `cpu-spin --wait-ms 4` gives the same solo duty with a pause that does not stretch under load, which is the shape of a session waiting on a model. Matched against the proportional ramp its rungs agree within 1.6% at every session count — 1.50× against 1.50× at 25, 1.99× against 2.01× at 34 — so the waiting mechanism does not move the curve. The two configurations' redlines came out 31 and 34, which looked like a difference until [three runs of each interleaved completely](2026-07-30-redline-reproducibility.md).
+- **How a session waits does not matter, which was worth checking.** `cpu-spin` pauses proportionally, so its duty survives contention; a session waiting on a model gets a fixed pause instead and its duty climbs as its compute slows. Run as a matched pair at equal solo duty, the two agree within 1.6% at every rung — 1.50× against 1.50× at 25 sessions, 1.99× against 2.01× at 34 — so the curves are the same at every load rather than only where the condition bites. Their redlines came out 31 and 34, which looked like a difference until [three runs of each interleaved completely](2026-07-30-redline-reproducibility.md).
 - **`η` was measured on one working-set size.** 20 MiB per session is a knob, and a session that fits in cache should show `η` nearer 1.
 - **Memory never became the limiting condition.** At 100 sessions and quarter duty the ceiling was still work rate.
 

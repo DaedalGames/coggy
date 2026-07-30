@@ -8,7 +8,7 @@ Five findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that 
 
 1. **None of the costs this project was designed around is the bottleneck.** Processes are cheap in memory — [dropping conhost returns 3.9% of the budget at a hundred sessions](2026-07-30-first-redlines.md#what-dropping-conhost-is-worth-at-any-session-weight). Defender was [overstated by two orders of magnitude](2026-07-30-defender-at-scale.md). Output has [three to four orders of headroom](2026-07-30-output-path.md). [PLAN's own escape clause fired](../PLAN.md#residency-not-spawning) on that result.
 
-2. **What binds is sessions competing for cores**, at `redline = 2ηC/d` — inversely with the share of its time a session computes, proportionally with the core count. [Derived rather than fitted](2026-07-30-duty-is-derivable.md), and checked against a rung predicted before it was run.
+2. **What binds is sessions competing for cores**, at `redline = 2ηC/d` — inversely with the share of its time a session computes, proportionally with the machine's logical processors. [Derived rather than fitted](2026-07-30-duty-is-derivable.md), and checked against a rung predicted before it was run.
 
 3. **`η` is memory, not scheduling.** Ten sessions received every core they asked for, ran a fifth slower anyway, and left six cores idle doing it — so `η` belongs to the workload as much as the machine and has to be measured rather than assumed.
 
@@ -27,7 +27,7 @@ Five findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that 
 | [The exclusion delta](2026-07-30-exclusion-delta.md) | What a Defender path exclusion buys — at one session, nothing measurable, and the record is mostly about why the first answer looked otherwise. |
 | [Defender at scale](2026-07-30-defender-at-scale.md) | **Withdraws the cost estimated in the first record.** Fifty sessions writing 1,875 MiB a minute used 0.9 cores where the earlier figure demanded 51. |
 | [The output path](2026-07-30-output-path.md) | A hundred streams at half a gigabyte a second cost 1.7 cores of sixteen. The ceiling is about 7 GiB/s aggregate, and it is bandwidth rather than processors. |
-| [The duty relation is derivable](2026-07-30-duty-is-derivable.md) | **Supersedes the 84% share above.** The constant 25 was `2ηC` — with the core count in it, which is what lets the relation speak for other hardware. Two ramps at different duties agree on `η` to within 0.4%, and a rung predicted in advance landed. |
+| [The duty relation is derivable](2026-07-30-duty-is-derivable.md) | **Supersedes the 84% share above.** The constant 25 was `2ηC` — with the processor count in it, which is what lets the relation speak for other hardware. Two ramps at different duties agree on `η` to within 0.4%, and a rung predicted in advance landed. |
 | [How much the redline moves between identical runs](2026-07-30-redline-reproducibility.md) | **Puts an error bar on every number above.** Seven identical runs gave 30, 31, 31, 31, 33, 34, 34 — the ladder is reproducible to ±13% from rungs that each reproduce within 2%. Solving the budget on a fitted slope instead brings the same seven to 2.3%. |
 
 ## The pattern these share

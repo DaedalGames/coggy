@@ -105,7 +105,7 @@ Rungs are judged on all four conditions, so a run that cannot evaluate one does 
 2. **`observe` one real session, to completion.** Its cores figure is `d`, the share of wall time it spends computing; its RSS and output volume say whether either is anywhere near a budget. One session, one afternoon, no ramp.
 3. **`ramp` `cpu-spin --duty <d>`**, sized to that figure. [How the session waits does not matter](../docs/measurements/2026-07-30-duty-is-derivable.md) — proportional and fixed pauses give the same curve — so the synthetic stands in honestly for a session waiting on a model.
 4. **Read the drift line before anything else.** Past a few percent the machine changed under the ladder and the redline is reading low.
-5. **Check the answer against `2ηC/d`.** The fitted slope is `η` and the report prints it. The two disagreeing means one of the assumptions behind the relation does not hold on that machine, which is worth more than either number.
+5. **Check the answer against `2ηC/d`**, with `C` the machine's logical processors rather than the physical count the headline carries. The fitted slope is `η` and the report prints it. The two disagreeing means one of the assumptions behind the relation does not hold on that machine, which is worth more than either number.
 6. **Record the pair, never the bare count**, with the hardware it came from.
 
 Step 3 is where a heavier session would change the answer: `η` belongs to the workload as much as the machine, and `cpu-spin --resident` is the knob for it if the real session's footprint is far from 20 MiB.
@@ -157,6 +157,8 @@ Every run writes both, into its own directory under `bench-out/`:
 - Headline format — count, the condition that stopped it, workload, mode, machine, Defender: `redline: 10 sessions (WorkRate) · stdout-storm · pipe · 16C/31GiB · Defender on`
 
 Two names rather than one, because the two commands answer different questions and a reader holding a file should be able to tell which. **The markdown is generated, never written by hand** — the first two records here were typed up from terminal output, and a figure retyped is a figure that can be retyped wrong.
+
+Cores in the headline are **physical**, because the claim beside them is how many sessions fit and hyperthreads flatter that number without adding a core's worth of capacity. **The cores column in the rungs is logical**, since that is the unit a process's CPU usage arrives in — one busy hardware thread reads as 1.0. The two differ on any machine with hyperthreading, and [the duty relation](../docs/measurements/2026-07-30-duty-is-derivable.md#the-derivation) takes the logical count, matching what it is compared against.
 
 Memory is reported in **GiB, and as the figure the operating system calls usable** rather than the number on the box. Condition 2 is a fraction of it, so the 7% between GiB and GB is enough to move a verdict, and a machine sold as 32GB has about 31 GiB to give.
 

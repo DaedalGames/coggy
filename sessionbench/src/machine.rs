@@ -61,6 +61,11 @@ impl Machine {
     ///
     /// Physical cores, because the claim being made is about how many sessions
     /// fit — hyperthreads flatter that number without adding capacity.
+    ///
+    /// **Not the `C` in `redline = 2ηC/d`.** That one is the logical count,
+    /// because it is compared against measured CPU usage, which arrives in
+    /// logical-processor units. On a 2-physical/4-logical runner the two give
+    /// η of 1.75 and 0.875, and only the second can be a fraction of anything.
     pub fn label(&self) -> String {
         let cores = self.physical_cores.unwrap_or(self.logical_cores);
         format!("{cores}C/{}GiB", self.memory_gib())

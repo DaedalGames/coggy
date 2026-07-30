@@ -27,7 +27,7 @@ pub struct Redline {
 /// Bisection asks a noisy curve where it crosses a line and lets one reading
 /// of one rung decide which way to search next. Near the budget the verdicts
 /// are neither monotone nor exact, so a rung landing a percent to either side
-/// sends the search in opposite directions — [six identical
+/// sends the search in opposite directions — [seven identical
 /// runs](../../docs/measurements/2026-07-30-redline-reproducibility.md)
 /// returned 30, 31, 31, 31, 33, 34 and 34, a spread of 12.5% from measurements
 /// whose own rungs reproduced within 2%.
@@ -35,8 +35,8 @@ pub struct Redline {
 /// Fitting instead uses every saturated rung, so no single one can drag the
 /// answer, and it is what the model already claimed: `slowdown = N·d/(η·C)` is
 /// linear in `N` through the origin, so solving `b·N = 2` for a fitted `b` is
-/// solving `N = 2ηC/d`. **The slope is `η`.** The same seven fit to within
-/// 2.3%.
+/// solving `N = 2ηC/d`, where `C` is logical processors. **The slope is
+/// `η`.** The same seven fit to within 2.3%.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Fit {
     /// The crossing itself, before it is floored into a session count.
@@ -225,7 +225,7 @@ mod tests {
     #[test]
     fn the_slope_is_eta_over_the_cores_a_session_wants() {
         // slowdown = N·d/(η·C), so slope = d/(η·C) and the fit measures η.
-        // Sixteen cores, three-quarter duty, η of 0.77.
+        // Sixteen logical processors, three-quarter duty, η of 0.77.
         let (cores, duty, eta) = (16.0, 0.75, 0.77);
         let at = 2.0 * eta * cores / duty;
         let fit = fit_crossing(&clean(at, &[25, 31, 34, 37]), WORK_RATE_BUDGET_FACTOR, 33)
