@@ -16,6 +16,10 @@ Before writing any non-trivial module, in this order:
 
 **The reliable tell** is writing a data structure to track something the operating system already tracks. Process membership, memory accounting, and lifetime are all kernel bookkeeping, and a hand-rolled version of any of them is a bug waiting for a long enough run.
 
+**The rule is retroactive.** It governs code already here, not only code about to be written, and "we already built it" is the weakest argument available — the work is sunk either way, and keeping the worse version costs from here on. Finding that something in this repository duplicates a maintained project is a reason to delete ours.
+
+Keeping ours is allowed, and it needs a **specific** reason recorded next to the code: the thing the alternative gets wrong, in its own words where possible. "Similar to GitHub's anchors" is a reason; "ours is more tailored" is not. And a rejection is rarely total — take the part that fits and say which part you did not.
+
 The same rule governs what we *do not* consume: [PLAN's anti-patterns](docs/PLAN.md#anti-patterns-these-kill-the-project) name the places where building it ourselves kills the project.
 
 ## Measure before you optimize
