@@ -98,7 +98,7 @@ pub struct TickCost {
 }
 
 impl TickCost {
-    fn total_ms(&self) -> u64 {
+    pub fn total_ms(&self) -> u64 {
         self.refresh_ms + self.replace_ms + self.sample_ms + self.write_ms
     }
 
@@ -268,9 +268,16 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         redline,
     };
 
+    // Two artifacts: the record, and the thing anyone actually reads. The
+    // second is generated rather than transcribed, because a figure retyped is
+    // a figure that can be retyped wrong.
     fs::write(
         config.out_dir.join("ramp.json"),
         serde_json::to_string_pretty(&report)?,
+    )?;
+    fs::write(
+        config.out_dir.join("ramp.md"),
+        crate::report::ramp_markdown(&report),
     )?;
     Ok(report)
 }

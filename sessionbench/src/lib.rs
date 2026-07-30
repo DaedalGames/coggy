@@ -15,6 +15,7 @@ pub mod observe;
 pub mod provenance;
 pub mod ramp;
 pub mod redline;
+pub mod report;
 pub mod sampler;
 pub mod session;
 pub mod tree;

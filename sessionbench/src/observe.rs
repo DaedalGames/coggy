@@ -286,6 +286,10 @@ pub fn run(config: &ObserveConfig) -> Result<RunReport> {
         config.out_dir.join("run.json"),
         serde_json::to_string_pretty(&report)?,
     )?;
+    fs::write(
+        config.out_dir.join("run.md"),
+        crate::report::run_markdown(&report),
+    )?;
     Ok(report)
 }
 

@@ -117,9 +117,13 @@ Use `git subtree split` then, which preserves history. **Never symlinks:** on Wi
 
 Machine-readable and human-readable are separate artifacts.
 
-- **`sessionbench.json`** — the raw record: six axes per target per session count. Canonical, not a derivative.
-- **`sessionbench.md`** — for humans: the redline on the first line, six curves below it, hardware table last.
+Every run writes both, into its own directory under `bench-out/`:
+
+- **`ramp.json`** / **`run.json`** — the raw record. Canonical, not a derivative.
+- **`ramp.md`** / **`run.md`** — for humans: the headline on the first line, the curves below it, machine and provenance last.
 - Headline format: `redline: 84 sessions (RSS) · Windows Terminal + pwsh 7 · 16C/64GiB · Defender on`
+
+Two names rather than one, because the two commands answer different questions and a reader holding a file should be able to tell which. **The markdown is generated, never written by hand** — the first two records here were typed up from terminal output, and a figure retyped is a figure that can be retyped wrong.
 
 Memory is reported in **GiB, and as the figure the operating system calls usable** rather than the number on the box. Condition 2 is a fraction of it, so the 7% between GiB and GB is enough to move a verdict, and a machine sold as 32GB has about 31 GiB to give.
 
