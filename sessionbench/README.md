@@ -70,16 +70,14 @@ cargo run -p sessionbench -- observe --duration 300 -- <command>
 Add `--pty` to give the session a pseudoconsole instead of pipes. Running one workload both ways is the direct measurement behind [Decision 1](../docs/PLAN.md#four-core-decisions), since the difference between the two is one conhost per session, resident for as long as the session lives.
 
 ```
-cargo run -p sessionbench -- ramp --hold 90 -- <command>
-```
-
-```
 cargo run -p sessionbench -- exclusion-delta -- <command>
 ```
 
-`exclusion-delta` is the sixth axis. It runs one workload twice — once with its directory watched, once with a Defender path exclusion covering it — and reports what the exclusion bought. **It changes this machine's real-time protection for the length of the second half**, over a directory the benchmark created for that run, and removes the exclusion afterwards whether or not the run succeeded. The removal is verified rather than assumed, and a failure to remove is printed where it cannot be missed.
+`exclusion-delta` runs one workload watched and then excluded, several times over, and reports what the exclusion bought. **It changes this machine's real-time protection for the length of each excluded half**, over a directory the benchmark created for that run, and removes the exclusion afterwards whether or not the run succeeded. The removal is verified rather than assumed, and a failure to remove is printed where it cannot be missed.
 
-Both halves write into fresh sibling directories. Reusing one path would credit the exclusion with the scanning cache's work, which is [rule 4](#keeping-it-honest).
+Halves run as adjacent pairs because a single comparison cannot separate the exclusion from whatever else the machine was doing, and every half is preceded by an idle baseline for the same reason. When the spread across pairs is wider than what separates them, the run says inconclusive rather than averaging noise into a confident number. Fresh directories throughout, since reusing one would credit the exclusion with the scanning cache's work — [rule 4](#keeping-it-honest).
+
+**At one session it will tell you nothing**, which is [measured rather than warned about](../docs/measurements/2026-07-30-exclusion-delta.md). The exclusion axis lives on the ramp: `ramp --exclude-scratch` holds one exclusion over the sessions' writes for a whole ladder, and two ladders compared by redline is the form that answers.
 
 ```
 cargo run -p sessionbench -- ramp --hold 90 -- <command>
@@ -95,15 +93,17 @@ Rungs are judged on all four conditions, so a run that cannot evaluate one does 
 
 A benchmark that only measures `coggyd` is marketing. At minimum, these run on identical hardware.
 
-| Target | Role |
-|---|---|
-| Windows Terminal + pwsh 7 | The as-is baseline — the thing we claim to beat |
-| Windows Terminal + cmd | Control that isolates shell startup cost |
-| conhost directly, no terminal UI | Floor that isolates the UI layer's cost |
-| WezTerm (Windows) | Rust prior art; the honest comparison |
-| Alacritty (Windows) | Upper bound for a minimal implementation |
-| wmux | Electron control; the cost of that architecture choice, in numbers |
-| coggyd | Ours. **Added only after M1** |
+| Target | Role | Reachable |
+|---|---|---|
+| A pseudoconsole per session | The as-is baseline — what a terminal gives a session today | [measured](../docs/measurements/2026-07-30-conhost-and-defender.md) |
+| Pipes, no pseudoconsole | The floor, and what the daemon intends to default to | [measured](../docs/measurements/2026-07-30-first-redlines.md) |
+| pwsh 7 against cmd against the workload alone | Control that isolates shell startup cost | this instrument |
+| coggyd | Ours. **Added only after M1** | M1 |
+| Windows Terminal, WezTerm, Alacritty, wmux | What an emulator costs to host N sessions | a different instrument · M4 |
+
+**The last row is a different question, and finding that out was worth the row.** This instrument spawns the process and holds the reading end of its output; that is what lets it count units and notice a gap in them. A terminal emulator owns its own pseudoconsole and draws to a window, so there is no reading end to hold and no work rate to count — and `wt.exe new-tab` returns to us immediately while the session it opened belongs to a process that was already running. Attribution fails for the same reason: the job object is joined by *this* process before it spawns anything, and membership is inherited downward, so a program that started before us was never going to be in it.
+
+Which is not a defect in either. The question this instrument answers is what a session costs to exist — and a session costs the same whether WezTerm or Windows Terminal is drawing it. What an emulator costs to *host* a hundred of them is a real question and a separate one: it measures one process's rendering rather than a hundred processes' residency, it needs a way to drive a UI into opening sessions, and it belongs with the axis that has a screen to compare against.
 
 ## Keeping it honest
 
@@ -133,7 +133,7 @@ Every run writes both, into its own directory under `bench-out/`:
 
 - **`ramp.json`** / **`run.json`** — the raw record. Canonical, not a derivative.
 - **`ramp.md`** / **`run.md`** — for humans: the headline on the first line, the curves below it, machine and provenance last.
-- Headline format: `redline: 84 sessions (RSS) · Windows Terminal + pwsh 7 · 16C/64GiB · Defender on`
+- Headline format — count, the condition that stopped it, workload, mode, machine, Defender: `redline: 10 sessions (WorkRate) · stdout-storm · pipe · 16C/31GiB · Defender on`
 
 Two names rather than one, because the two commands answer different questions and a reader holding a file should be able to tell which. **The markdown is generated, never written by hand** — the first two records here were typed up from terminal output, and a figure retyped is a figure that can be retyped wrong.
 
