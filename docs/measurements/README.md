@@ -20,6 +20,7 @@ Five findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that 
 
 | Record | What it answered |
 |---|---|
+| [What fixing the instrument was worth](2026-07-30-instrument-corrections.md) | Before it could measure the machine it had to stop measuring itself: teardown 400× faster, a sampler tick 269×, a process refresh 2,346×. Every one of those was first read as a fact about Windows. |
 | [conhost and Defender](2026-07-30-conhost-and-defender.md) | The first session, end to end. A pseudoconsole costs a second process, and it belongs to whoever created it rather than to the session it serves — which is why killing a session does not take its console with it. |
 | [The first redlines](2026-07-30-first-redlines.md) | The ladder's first numbers, and pipes against pseudoconsoles at a hundred sessions. |
 | [Duty and the redline](2026-07-30-duty-and-redline.md) | Why one redline is not a property of the machine: `redline × duty ≈ 25` here, so a session that computes half the time doubles the count. |

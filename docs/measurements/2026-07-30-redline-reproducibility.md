@@ -55,7 +55,20 @@ Against the same runs, changing nothing but how the number is drawn from them:
 
 **Five times more reproducible from the same measurements.** The fit uses every rung, so no single one can drag the answer.
 
+Run by run, through the origin: 33.31, 33.35, 33.46, 33.62, 33.65, 33.65, 34.06, against the ladder's 30, 31, 31, 31, 33, 34, 34.
+
 The free intercept came out between +0.015 and +0.166 — unstable, and the derivation says it should be zero. Dropping it *improved* reproducibility, which is what happens when a parameter is absorbing noise rather than describing anything.
+
+### What the change cost
+
+| | |
+|---|---|
+| Runtime | unchanged — the ladder still climbs and refines, and no rung is added |
+| Code | `fit_crossing` in `redline.rs`, about fifteen lines and five tests |
+| Scope | work rate only. Dropped output is an edge with nothing between two rungs to interpolate; RSS and replacement lag are slopes but would each need their own quantity and budget |
+| Compatibility | `Redline` gains a `fitted` field, so older `ramp.json` files stay readable and newer ones carry both numbers |
+
+**Five times more reproducible at no measurement cost**, because the readings were always there — only one of them was being used.
 
 The fitted value also agrees with what the duty relation predicts independently, `2 × 0.77 × 16 / 0.75 = 32.9`, to within 2.1% — closer than the ladder's mean managed.
 

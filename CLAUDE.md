@@ -27,7 +27,8 @@ The same rule governs what we *do not* consume: [PLAN's anti-patterns](docs/PLAN
 The project's own reason for existing. [M0](ROADMAP.md#current-priority-m0--attribution) is a measurement milestone precisely because a daemon built around an unmeasured assumption reproduces the lag it exists to remove.
 
 - A performance claim without a `sessionbench` artifact is not a claim.
-- **Every measured improvement gets a KPI record**, as `docs/<NAME>-<YYYYMMDDHHMMSS>.local.md`, with an as-is column beside the to-be one. The `.local` keeps it out of the repository; the timestamp keeps the series readable; the as-is column is the part that makes it a measurement rather than an announcement.
+- **Every measured improvement gets a record with an as-is column beside the to-be one.** The as-is column is what makes it a measurement rather than an announcement. It belongs in [docs/measurements/](docs/measurements/) under that directory's own `YYYY-MM-DD-<slug>.md` naming, published like everything else there — an engineering figure has no reason to be private, and two KPI files sat `.local` for a day for no reason anyone could name. Keep `.local` for what genuinely cannot be published, which so far is unit economics and funding posture and nothing else.
+- **A KPI that restates an existing record is a view of it, not a second record.** Fold what is new — usually the cost of the change — into the record that owns the measurement, and do not create the file.
 - A number that contradicts the plan rewrites the plan, never the other way around.
 - Claims in PLAN are marked **[measured]** or **[assumed]**. If you turn one into the other, edit the marker in the same change.
 
