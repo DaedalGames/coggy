@@ -49,7 +49,7 @@ The consequence is concrete: a redline computed from one session reads about 19%
 Stated because it is worth checking rather than assuming when the harness arrives.
 
 - **This workload waits by sleeping.** A generation session waits on a model and on I/O. Sleeping frees a core cleanly; a blocking read may not free it as cleanly, and that would bend the curve.
-- **This workload writes nothing while it waits.** [Defender charges roughly 1.6 CPU-seconds per MiB written](2026-07-30-conhost-and-defender.md), and that term scales with sessions independently of their duty, so a write-heavy session has a second slope the relation does not carry.
+- **This workload writes nothing while it waits.** Scanning cost scales with sessions independently of their duty, so a write-heavy session has a second slope the relation does not carry — though [that term turned out to be small](2026-07-30-defender-at-scale.md), and the figure originally cited here was wrong by two orders of magnitude.
 - **Memory never entered.** A session much heavier than 24 MiB reaches the RSS condition on its own schedule, and the two ceilings would have to be taken together.
 
 The relation is a way to read the machine, not a law about sessions. Check it against a real one before quoting it.

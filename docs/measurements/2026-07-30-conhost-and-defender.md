@@ -29,7 +29,7 @@ Two details are load-bearing. The workload **holds memory** rather than merely a
 
 **A conhost costs 8.57 MiB resident.** Memory reproduces to 0.01 MiB across three runs in each mode, so the difference is the pseudoconsole and nothing else. An earlier pair driven by a PowerShell session instead put it at 9.9 MiB, which is worth keeping: conhost's footprint tracks what its client asks of the console, so **8.6 to 9.9 MiB** is the honest range and the low end is the one to plan against.
 
-**Defender charges about 1.6 CPU-seconds per MiB written.** The workload writes 4.18 MiB/min against a mean steady cost of 6.81 CPU-s/min. Two unrelated workloads now agree on this figure to within a few percent, which is more than either run establishes alone.
+> **Withdrawn.** ~~Defender charges about 1.6 CPU-seconds per MiB written.~~ The workload wrote 4.18 MiB/min against a mean steady cost of 6.81 CPU-s/min, and two unrelated workloads agreed to within a few percent — which turned out to establish only that both runs were measuring the same background. **Defender is one machine-wide process, and attributing all of its CPU to the session under test attributes the whole machine to it.** [Fifty sessions writing 1,875 MiB a minute later used under one core in total](2026-07-30-defender-at-scale.md), where this figure demanded fifty-one. It is wrong by more than two orders of magnitude and nothing downstream of it stands.
 
 **Work rate is the same in both modes** — 1.105 against 1.098 units/s — which is the expected result at one session and the solo figure that [the work-rate condition](../../sessionbench/README.md#redline) will be compared against once the ramp exists.
 
@@ -51,7 +51,7 @@ Linear, and therefore a floor. On this machine — 16 physical cores, 31 GiB usa
 
 The saving is real, reproducible, and **small next to what else is happening**. Dropping every conhost returns 0.84 GiB, which is 3.8% of the RSS budget on a machine whose projected total already sits at 41% of it. RSS is nowhere near limiting here, so removing a slice of it changes no verdict.
 
-Defender over the same runs wants about 72% of the machine's cores. That is the term worth attacking, and [M3 already owns it](../../ROADMAP.md#m3--resource-governor) — as a five-minute implementation, filed behind three weeks of daemon work that buys a twentieth as much.
+~~Defender over the same runs wants about 72% of the machine's cores.~~ **Withdrawn with the figure it rested on.** Defender's real cost at scale is small — see [Defender at scale](2026-07-30-defender-at-scale.md) — so the conclusion that it was the term worth attacking, and that M3's exclusion work buys twenty times what the daemon does, has nothing behind it.
 
 **This does not yet trigger the attribution rule.** That rule fires on the as-is redline, and this workload's write rate is a guess at what generation does rather than a measurement of it. Two things would change the reading: a session much heavier than 84 MiB makes conhost's share smaller still, while one that writes far less makes Defender's term collapse and could put RSS back in front.
 

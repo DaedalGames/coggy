@@ -50,7 +50,7 @@ watched 4.94 units/s   excluded 4.94 units/s
 The measurement was built at the wrong scale, and its own output says so.
 
 - At **one** session, Defender's cost is real but invisible: it competes with nobody, and the only visible term is its CPU rate, which is exactly the quantity buried in machine-wide noise.
-- At **a hundred** sessions, the write volume is a hundredfold and Defender's demand becomes a large share of the sixteen cores — where it must show up in per-session work rate, which is [the condition the metric leans on](../../sessionbench/README.md#redline).
+- At **a hundred** sessions, the write volume is a hundredfold, so if Defender's demand is a large share of the sixteen cores it must show up in per-session work rate, which is [the condition the metric leans on](../../sessionbench/README.md#redline). ([It is not](2026-07-30-defender-at-scale.md) — but that is the answer the experiment returned rather than one it assumed.)
 - A redline is an integer produced from deltas over a window. It does not average noisy per-sample rates, and it is exactly the robust statistic this axis lacked.
 
 So the next form of this measurement is **two ramps, one with the sessions' scratch root excluded**, compared by their redlines. That is a different and better experiment, and it was only findable by building the wrong one and reading what it said.
