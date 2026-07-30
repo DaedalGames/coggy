@@ -84,6 +84,8 @@ Validated against a known duty afterwards: one session that truly occupies 0.24 
 
 **redline, RSS, work rate, and every verdict above are unaffected** — RSS is a median of the final quarter, and work rate is a delta over the window rather than a mean of per-sample readings. Only the cores columns read high, most at the low rungs. The ramp now floors its spin-up at the same thirty seconds, and a hold too short to clear it is reported as inconclusive rather than measured.
 
+**Re-measured afterwards with the floor in place**, at a sixty-second hold leaving thirty measured samples per rung, and the ladder reproduces: 1.00×, 1.16× at ten, 1.95× at twenty-five, 2.03× at twenty-six, breaking to 3.87× at fifty. Same redline of 25, and cores plateau at 15.1 to 15.4 rather than 15.1 to 15.3 — the startup spike is small against fifteen cores held for forty seconds, which is why the correction bites at low counts and not here.
+
 ## Provenance
 
 | | |

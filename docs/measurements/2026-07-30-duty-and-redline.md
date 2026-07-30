@@ -28,6 +28,22 @@ Those core figures were taken with a fifteen-second hold, whose spin-up was too 
 
 So the harness is needed for one number rather than for the whole gate.
 
+## Why the ramp cannot be replaced by the arithmetic
+
+The obvious shortcut is to skip the ladder: measure one session's cores, divide the machine's into it, apply the 2× budget. It over-predicts, and by a consistent amount.
+
+Taking the solo figure validated against a known duty — 0.987 cores at 81.61 units/s — and asking what proportional core-sharing would give at each rung:
+
+| Sessions | Cores per session | Rate if sharing were proportional | Measured | Ratio |
+|---|---|---|---|---|
+| 25 | 0.604 | 49.9 units/s | 41.95 | **0.84** |
+| 37 | 0.411 | 34.0 units/s | 28.43 | **0.84** |
+| 50 | 0.304 | 25.1 units/s | 21.08 | **0.84** |
+
+**Sessions get 84% of their share, not 100%**, and the shortfall is flat across a twofold range of session counts — so it is a property of the machine rather than noise or a threshold effect. Cache pressure and scheduling are the obvious suspects and neither is measured here.
+
+The consequence is concrete: a redline computed from one session reads about 19% high. That is the gap the ladder exists to close, and it is the answer to why an afternoon of holding sessions cannot be replaced by a division.
+
 ## What would break the relation
 
 Stated because it is worth checking rather than assuming when the harness arrives.
