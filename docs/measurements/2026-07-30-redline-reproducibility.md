@@ -112,6 +112,22 @@ A spread of ±13% swallows any finding that turned on two redlines differing by 
 
 **No conclusion in this repository was drawn from a redline difference small enough for this to reach.** That is luck rather than discipline: the comparisons that mattered happened to be made on quantities measured directly, and the redline was mostly used as a headline rather than as evidence.
 
+## The readings, so the fits can be checked
+
+Per-session units/s, listed in the order each run measured them. The ladder climbs to bracket and then halves, so the counts are not in ascending order and the position of a rung is part of its record.
+
+| Run | Solo | Rungs, in measurement order |
+|---|---|---|
+| prop-1 | 61.10 | 10: 53.61 · 25: 40.82 · 50: 20.88 · 37: 27.79 · 31: 32.31 · 34: 30.46 · 32: 29.64 |
+| fixed-1 | 60.33 | 10: 54.66 · 25: 40.20 · 50: 20.53 · 37: 27.53 · 31: 33.34 · 34: 30.25 · 35: 27.69 |
+| prop-2 | 60.81 | 10: 53.65 · 25: 40.77 · 50: 20.43 · 37: 27.74 · 31: 32.28 · 34: 30.50 · 35: 29.43 |
+| fixed-2 | 61.33 | 10: 55.17 · 25: 41.06 · 50: 20.85 · 37: 27.82 · 31: 30.64 · 28: 36.88 · 29: 35.54 · 30: 35.11 |
+| prop-3 | 60.90 | 10: 53.82 · 25: 41.27 · 50: 20.96 · 37: 28.10 · 31: 33.05 · 34: 30.24 · 32: 29.44 |
+| fixed-3 | 61.46 | 10: 55.23 · 25: 40.58 · 50: 20.72 · 37: 28.12 · 31: 33.26 · 34: 30.59 · 32: 29.87 |
+| prop-4 | 60.33 | 10: 53.23 · 25: 40.02 · 50: 20.86 · 37: 27.75 · 31: 33.18 · 34: 30.05 · 32: 31.55 · 33: 31.26 |
+
+Slowdowns are each run's own solo divided by the rung, and the fits cover rungs from 25 upward. The ramps that produced these were pruned from `bench-out/` afterwards, so **this table is the record** — it is here rather than in a scratch script because the analysis it supports is quoted above.
+
 ## Provenance
 
 | | |

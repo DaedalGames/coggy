@@ -39,6 +39,56 @@ jobs:
       - name: Smoke-run the binary
         run: cargo run -p sessionbench -- doctor
 
+  # `doctor` passing proves the machine was inspected, not that a redline can
+  # still be produced. This job runs the ladder end to end on the smallest
+  # workload that saturates a runner: spawn, drain, sample, judge, refine,
+  # repeat a rung as a control, and write both artifacts. The arithmetic inside
+  # it is covered by unit tests; what only an integration run reaches is
+  # everything between a process starting and a report existing.
+  #
+  # Not a measurement. A shared runner is the wrong machine to take a number
+  # from, and the assertions below deliberately check that figures exist rather
+  # than what they are.
+  bench-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build the benchmark and a workload
+        run: cargo build --release -p sessionbench -p cpu-spin
+
+      # Hold has to clear the thirty-second spin-up floor or every rung is
+      # reported inconclusive, which would pass this job while measuring
+      # nothing. Resident is small and max-sessions low because a two-core
+      # runner reaches its ceiling early and there is no reason to punish it.
+      - name: Run a short ladder
+        run: >
+          cargo run --release -q -p sessionbench -- ramp
+          --label ci --hold 45 --max-sessions 10 --resolution 4
+          -- ./target/release/cpu-spin.exe --units 100000 --resident 4
+
+      - name: The run has to have left a usable report
+        shell: pwsh
+        run: |
+          $run = Get-ChildItem bench-out -Directory | Sort-Object Name | Select-Object -Last 1
+          if (-not $run) { throw "the ramp wrote no run directory" }
+          foreach ($artifact in 'ramp.json', 'ramp.md') {
+            $path = Join-Path $run.FullName $artifact
+            if (-not (Test-Path $path)) { throw "missing $artifact" }
+            if ((Get-Item $path).Length -eq 0) { throw "$artifact is empty" }
+          }
+          $report = Get-Content (Join-Path $run.FullName 'ramp.json') -Raw | ConvertFrom-Json
+          if ($report.steps.Count -lt 2) { throw "only $($report.steps.Count) rung(s) ran" }
+          if ($report.solo_units_per_sec -le 0) { throw "the solo rung measured no work" }
+          # Every rung reported inconclusive is the failure this job exists to
+          # catch: it looks like success from the exit code alone.
+          $usable = @($report.steps | Where-Object { -not $_.inconclusive })
+          if ($usable.Count -eq 0) { throw "no rung produced a usable reading" }
+          Write-Output "$($usable.Count) of $($report.steps.Count) rungs usable, solo $($report.solo_units_per_sec) units/s"
+          Get-Content (Join-Path $run.FullName 'ramp.md') -TotalCount 12
+
   # A declared rust-version that CI never exercises is a guess. The local
   # toolchain tracks latest stable and will happily satisfy an MSRV that real
   # 1.88 users cannot meet, so this job pins the declared floor and nothing

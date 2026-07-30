@@ -2,6 +2,22 @@
 
 What the instrument found, in the order it found it. Each record holds the numbers, the machine they came from, and the commit that produced them — so a figure quoted from here can be traced back to a run rather than to a memory.
 
+## What M0 concluded
+
+Five findings, on 16 cores / 31 GiB / Windows 11. Each links to the record that owns it; nothing here is stated that is not measured there.
+
+1. **None of the costs this project was designed around is the bottleneck.** Processes are cheap in memory — [dropping conhost returns 3.9% of the budget at a hundred sessions](2026-07-30-first-redlines.md#what-dropping-conhost-is-worth-at-any-session-weight). Defender was [overstated by two orders of magnitude](2026-07-30-defender-at-scale.md). Output has [three to four orders of headroom](2026-07-30-output-path.md). [PLAN's own escape clause fired](../PLAN.md#residency-not-spawning) on that result.
+
+2. **What binds is sessions competing for cores**, at `redline = 2ηC/d` — inversely with the share of its time a session computes, proportionally with the core count. [Derived rather than fitted](2026-07-30-duty-is-derivable.md), and checked against a rung predicted before it was run.
+
+3. **`η` is memory, not scheduling.** Ten sessions received every core they asked for, ran a fifth slower anyway, and left six cores idle doing it — so `η` belongs to the workload as much as the machine and has to be measured rather than assumed.
+
+4. **A redline from one ladder is worth ±12.5%**, from rungs that each reproduce within 2%. [The search was the noisy part, not the measuring](2026-07-30-redline-reproducibility.md); solving the budget on a fitted slope brings the same seven runs to 2.3%.
+
+5. **A ramp changes the machine it measures.** A rung ran 4.8% slower at the end of one ladder than at its start, dragging the fitted redline down 3.9%. Every ramp now repeats a rung as a control, and [the rule that follows](../../CLAUDE.md) is to do nothing else on the box while one runs.
+
+**What none of this settles is [G0](../../ROADMAP.md#current-priority-m0--attribution)**, which wants a real generation session this machine has never had. It is now two scalars and a ladder rather than a whole measurement — [the steps are written down](../../sessionbench/README.md#running-gate-g0-on-a-configured-machine).
+
 | Record | What it answered |
 |---|---|
 | [conhost and Defender](2026-07-30-conhost-and-defender.md) | The first session, end to end. A pseudoconsole costs a second process, and it belongs to whoever created it rather than to the session it serves — which is why killing a session does not take its console with it. |
