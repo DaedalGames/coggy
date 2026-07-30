@@ -59,6 +59,12 @@ const HEARTBEAT: Duration = Duration::from_secs(30);
 pub struct ObserveConfig {
     pub label: String,
     pub out_dir: PathBuf,
+    /// Where the session may write.
+    ///
+    /// Separate from `out_dir` so two runs can share one, which is what the
+    /// exclusion delta needs: the same path has to be the excluded one in both
+    /// halves, or the comparison is between two different directories.
+    pub scratch: PathBuf,
     pub interval: Duration,
     pub mode: SessionMode,
     pub max_duration: Option<Duration>,
@@ -174,9 +180,10 @@ pub fn run(config: &ObserveConfig) -> Result<RunReport> {
         .with_context(|| format!("creating {}", config.out_dir.display()))?;
     let mut samples_file = BufWriter::new(File::create(config.out_dir.join("samples.jsonl"))?);
 
-    // Named here so it can be removed here. A session ended by `--duration` is
-    // killed, and a killed process runs no cleanup of its own.
-    let scratch = config.out_dir.join("scratch");
+    // Created here, and removed here only when this run owns it. A session
+    // ended by `--duration` is killed, and a killed process runs no cleanup.
+    let scratch = config.scratch.clone();
+    let owns_scratch = scratch.starts_with(&config.out_dir);
     fs::create_dir_all(&scratch)?;
 
     let started_unix = SystemTime::now()
@@ -257,7 +264,9 @@ pub fn run(config: &ObserveConfig) -> Result<RunReport> {
     // threads see EOF and stop counting.
     drop(session);
     Spawned::finish(drains)?;
-    let _ = fs::remove_dir_all(&scratch);
+    if owns_scratch {
+        let _ = fs::remove_dir_all(&scratch);
+    }
 
     let duration = started.elapsed();
     let summary = summarize(&samples, &output, duration);

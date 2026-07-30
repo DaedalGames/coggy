@@ -121,6 +121,118 @@ impl HostFacts {
     }
 }
 
+/// A Defender path exclusion, held only as long as this value is.
+///
+/// The removal is the reason the type exists. An exclusion is a hole in the
+/// machine's real-time protection, and one left behind by a benchmark is a hole
+/// nobody asked for and nobody will notice. It is removed on drop as well as on
+/// request, verified rather than assumed, and a failure to remove is printed
+/// where it cannot be missed — a silent failure here changes the machine's
+/// security posture and says nothing.
+///
+/// Only ever point this at a directory the benchmark created for one run.
+pub struct HeldExclusion {
+    path: String,
+    removed: bool,
+}
+
+impl HeldExclusion {
+    /// Adds the exclusion and confirms Defender took it.
+    ///
+    /// Confirmed rather than trusted: `Add-MpPreference` can return quietly
+    /// without the path appearing, and an exclusion that was never applied
+    /// would produce a delta of zero that reads as "exclusions do not help".
+    pub fn add(path: &std::path::Path) -> Result<Self, String> {
+        let path = path.to_string_lossy().into_owned();
+        run_powershell(&format!(
+            "Add-MpPreference -ExclusionPath {} -ErrorAction Stop",
+            quote(&path)
+        ))?;
+
+        if !HostFacts::query()
+            .defender
+            .exclusion_paths
+            .iter()
+            .any(|p| p.eq_ignore_ascii_case(&path))
+        {
+            // Try to undo whatever half-happened before giving up.
+            let _ = run_powershell(&format!(
+                "Remove-MpPreference -ExclusionPath {} -ErrorAction SilentlyContinue",
+                quote(&path)
+            ));
+            return Err(format!(
+                "Defender did not report {path} as excluded after adding it"
+            ));
+        }
+        Ok(Self {
+            path,
+            removed: false,
+        })
+    }
+
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// Removes the exclusion and confirms it is gone.
+    pub fn remove(&mut self) -> Result<(), String> {
+        if self.removed {
+            return Ok(());
+        }
+        run_powershell(&format!(
+            "Remove-MpPreference -ExclusionPath {} -ErrorAction Stop",
+            quote(&self.path)
+        ))?;
+
+        if HostFacts::query()
+            .defender
+            .exclusion_paths
+            .iter()
+            .any(|p| p.eq_ignore_ascii_case(&self.path))
+        {
+            return Err(format!("{} is still excluded after removing it", self.path));
+        }
+        self.removed = true;
+        Ok(())
+    }
+}
+
+impl Drop for HeldExclusion {
+    fn drop(&mut self) {
+        if let Err(error) = self.remove() {
+            eprintln!(
+                "\nWARNING: a Defender exclusion was left in place and must be removed by hand:\n  {}\n  {error}\n",
+                self.path
+            );
+        }
+    }
+}
+
+/// Single-quotes a value for PowerShell, doubling any quote inside it.
+fn quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+/// Runs one PowerShell statement, returning its stderr as the error.
+fn run_powershell(statement: &str) -> Result<(), String> {
+    let output = Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command", statement])
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|error| format!("powershell.exe: {error}"))?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = stderr.trim();
+    if output.status.success() && stderr.is_empty() {
+        return Ok(());
+    }
+    Err(if stderr.is_empty() {
+        format!("exited with {}", output.status)
+    } else {
+        stderr.to_string()
+    })
+}
+
 /// PowerShell renders booleans as `True` / `False`.
 fn parse_bool(value: &str) -> Option<bool> {
     match value.trim() {

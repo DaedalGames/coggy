@@ -73,6 +73,18 @@ Add `--pty` to give the session a pseudoconsole instead of pipes. Running one wo
 cargo run -p sessionbench -- ramp --hold 90 -- <command>
 ```
 
+```
+cargo run -p sessionbench -- exclusion-delta -- <command>
+```
+
+`exclusion-delta` is the sixth axis. It runs one workload twice — once with its directory watched, once with a Defender path exclusion covering it — and reports what the exclusion bought. **It changes this machine's real-time protection for the length of the second half**, over a directory the benchmark created for that run, and removes the exclusion afterwards whether or not the run succeeded. The removal is verified rather than assumed, and a failure to remove is printed where it cannot be missed.
+
+Both halves write into fresh sibling directories. Reusing one path would credit the exclusion with the scanning cache's work, which is [rule 4](#keeping-it-honest).
+
+```
+cargo run -p sessionbench -- ramp --hold 90 -- <command>
+```
+
 `ramp` climbs the ladder and produces the redline. Each rung holds its session count for the whole window — **replacing any session that finishes**, which is both what keeps the count honest and what makes the replacement condition measurable at all. A rung that let finished sessions stay finished would report the count it asked for while measuring a decaying one, and the machine gets easier as that happens, so the number would climb exactly when it should fall.
 
 `--max-sessions` caps the climb. The full ladder reaches 200 and will take the machine with it for the duration.

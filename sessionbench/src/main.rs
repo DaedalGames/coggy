@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 use sessionbench::Rows;
 use sessionbench::axes::{self, AxisStatus};
 use sessionbench::format::human_bytes;
-use sessionbench::host::HostFacts;
+use sessionbench::host::{HeldExclusion, HostFacts};
 use sessionbench::machine::Machine;
 use sessionbench::observe::{self, ObserveConfig, RunReport};
 use sessionbench::provenance::Provenance;
@@ -68,6 +68,37 @@ enum Command {
         pty: bool,
 
         /// The command to run, after `--`.
+        #[arg(last = true, required = true, value_name = "COMMAND")]
+        command: Vec<String>,
+    },
+
+    /// Measure what a Defender exclusion is worth, by running one workload
+    /// twice.
+    ///
+    /// Adds a path exclusion for the directory the second run writes into and
+    /// removes it afterwards. That is a change to this machine's real-time
+    /// protection while the run lasts, held for the shortest window the
+    /// measurement allows and removed even if the run fails.
+    ExclusionDelta {
+        #[arg(long, default_value = "exclusion")]
+        label: String,
+
+        #[arg(long, default_value = "bench-out")]
+        out: PathBuf,
+
+        #[arg(long, default_value_t = 1.0, value_name = "SECONDS")]
+        interval: f64,
+
+        /// How long each half runs.
+        ///
+        /// Both halves are cut at the same startup window, so this has to
+        /// outlast it by enough to leave a steady state.
+        #[arg(long, default_value_t = 90.0, value_name = "SECONDS")]
+        duration: f64,
+
+        #[arg(long)]
+        pty: bool,
+
         #[arg(last = true, required = true, value_name = "COMMAND")]
         command: Vec<String>,
     },
@@ -143,8 +174,10 @@ fn main() -> anyhow::Result<()> {
                 .map(|d| d.as_secs())
                 .unwrap_or_default();
 
+            let out_dir = out.join(format!("{stamp}-{label}-{}", mode.label()));
             let config = ObserveConfig {
-                out_dir: out.join(format!("{stamp}-{label}-{}", mode.label())),
+                scratch: out_dir.join("scratch"),
+                out_dir,
                 label,
                 interval: Duration::from_secs_f64(interval),
                 mode,
@@ -161,6 +194,14 @@ fn main() -> anyhow::Result<()> {
             print_run(&report, &config.out_dir);
             Ok(())
         }
+        Command::ExclusionDelta {
+            label,
+            out,
+            interval,
+            duration,
+            pty,
+            command,
+        } => exclusion_delta(label, out, interval, duration, pty, command),
         Command::Ramp {
             label,
             out,
@@ -197,6 +238,115 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
     }
+}
+
+/// Runs one workload twice, the second time with its directory excluded from
+/// real-time scanning, and reports the difference.
+///
+/// The two halves write into sibling directories under one root, both fresh:
+/// scanning charges far less the second time a file is written, so reusing the
+/// path would credit the exclusion with the cache's work.
+fn exclusion_delta(
+    label: String,
+    out: PathBuf,
+    interval: f64,
+    duration: f64,
+    pty: bool,
+    command: Vec<String>,
+) -> anyhow::Result<()> {
+    let mode = if pty {
+        SessionMode::Pty
+    } else {
+        SessionMode::Pipe
+    };
+    let root = out.join(format!("{}-{label}-{}", stamp(), mode.label()));
+    let scratch_root = root.join("scratch");
+
+    let half = |name: &str| ObserveConfig {
+        label: format!("{label}-{name}"),
+        out_dir: root.join(name),
+        scratch: scratch_root.join(name),
+        interval: Duration::from_secs_f64(interval),
+        mode,
+        max_duration: Some(Duration::from_secs_f64(duration)),
+        command: command.clone(),
+    };
+
+    println!(
+        "scanned half — Defender watching {}",
+        scratch_root.display()
+    );
+    let scanned = observe::run(&half("scanned"))?;
+
+    println!("\nadding a Defender path exclusion for the run's scratch root");
+    let held = HeldExclusion::add(&scratch_root).map_err(|e| anyhow::anyhow!(e))?;
+    println!("  excluded {}", held.path());
+
+    let excluded = observe::run(&half("excluded"));
+
+    // Removed before anything else, including before the second half's result
+    // is examined. The drop guard would catch it, but a machine should not be
+    // left unprotected for the length of a report.
+    let mut held = held;
+    let removal = held.remove();
+    println!("exclusion removed");
+    let excluded = excluded?;
+    removal.map_err(|e| anyhow::anyhow!(e))?;
+
+    print_exclusion_delta(&scanned, &excluded, &root);
+    Ok(())
+}
+
+fn print_exclusion_delta(scanned: &RunReport, excluded: &RunReport, out_dir: &std::path::Path) {
+    let rate = |report: &RunReport| {
+        report
+            .summary
+            .defender
+            .as_ref()
+            .and_then(|cost| cost.steady_cpu_seconds_per_min)
+    };
+
+    block(
+        "defender exclusion delta",
+        vec![
+            (
+                "scanned",
+                format!(
+                    "{:.2} units/s · Defender {}",
+                    scanned.summary.work_units_per_sec,
+                    rate(scanned).map_or("unmeasured".into(), |r| format!("{r:.2} s/min")),
+                ),
+            ),
+            (
+                "excluded",
+                format!(
+                    "{:.2} units/s · Defender {}",
+                    excluded.summary.work_units_per_sec,
+                    rate(excluded).map_or("unmeasured".into(), |r| format!("{r:.2} s/min")),
+                ),
+            ),
+            (
+                "work rate",
+                match scanned.summary.work_units_per_sec {
+                    solo if solo > 0.0 => format!(
+                        "{:+.1}% with the exclusion",
+                        (excluded.summary.work_units_per_sec / solo - 1.0) * 100.0
+                    ),
+                    _ => "no baseline to compare against".into(),
+                },
+            ),
+            (
+                "defender cpu",
+                match (rate(scanned), rate(excluded)) {
+                    (Some(before), Some(after)) => {
+                        format!("{:+.2} s per minute", after - before)
+                    }
+                    _ => "one half had no steady state".into(),
+                },
+            ),
+        ],
+    );
+    println!("\nwritten to {}", out_dir.display());
 }
 
 /// Seconds since the epoch, for naming an output directory.
