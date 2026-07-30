@@ -110,6 +110,8 @@ Memory is reported in **GiB, and as the figure the operating system calls usable
 
 **A redline quoted without its target, session count, and hardware is not quotable.** The moment a bare number circulates, the benchmark has become marketing.
 
+Results worth keeping are written up under `docs/measurements/`, one file per session, each carrying the provenance block of the run behind it. The raw artifacts are not committed — a report that records its commit and its hardware can be reproduced, and a repository full of `samples.jsonl` cannot be read.
+
 **Provenance block.** Neither the toolchain nor the measurement crates are pinned; both track latest, because going stale costs more than drift does. That trade is only safe if every run records what produced it, so `sessionbench.json` carries the rustc version, the `sessionbench` commit, and the resolved version of every crate touching a measurement. Frozen baselines stay comparable because they are *labeled*, not because the inputs were held still, and a baseline whose provenance differs from the current run is flagged rather than compared.
 
 ## What we take from prior art

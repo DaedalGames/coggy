@@ -25,10 +25,12 @@ plus headroom for failure, retry, and repair = 100 concurrent sessions
 
 The bottleneck is neither CPU nor RAM in the usual sense. It is **what 100 simultaneous sessions cost while they are alive.** On stock Windows 11 Terminal with pwsh 7 that means:
 
-- **[assumed]** 100 shell processes plus the 100 conhost processes ConPTY attaches — 200 processes resident for hours, not moments
-- **[assumed]** Defender real-time scanning every file the sessions write, continuously, for as long as they run
+- **[measured]** 100 shell processes plus the 100 conhost processes ConPTY attaches — 200 processes resident for hours, not moments, at 9.9 MiB per conhost
+- **[measured]** Defender real-time scanning every file the sessions write, at roughly 1.6 CPU-seconds per MiB written, for as long as they run
 - **[assumed]** 100 output streams to absorb without dropping any
 - **[assumed]** a single UI thread managing a 100-cell grid, once a UI exists
+
+The first two carry numbers from [one session measured both ways](measurements/2026-07-30-conhost-and-defender.md), which is not the as-is baseline and does not stand in for one.
 
 **[measured]** Windows Terminal is already C++ with a GPU renderer, so the lag is not a language problem.
 
@@ -164,7 +166,9 @@ This is the **target state for M1–M5.** Exactly one crate exists today — `se
 
 What that buys is **resident memory and the I/O paths attached to it, held for the life of every session** — not faster startup. Skipping a conhost saves its RSS for hours, and saving a few milliseconds of creation is rounding error against a 1.5-hour session.
 
-**[assumed]** This is still **the most dangerous untested belief here**, because the saving is asserted rather than measured. `sessionbench` treats pipe-vs-PTY as a measured axis rather than a premise, and its conhost-count curve plotted against total RSS is the direct evidence: if dropping conhost does not move the RSS curve, Decision 1 bought nothing.
+**[measured]** A conhost costs **9.9 MiB resident per session**, reproducibly, so dropping a hundred of them returns just under a gigabyte.
+
+**[assumed]** Whether that is worth having is still open, and it now rests on two conditions rather than on the saving itself: that RSS is what limits the machine, and that sessions are light enough for 9.9 MiB to be a large share of each. On the one machine measured so far the first is false — a projected hundred sessions sit at 39% of the RSS budget, while Defender over the same runs projects to 70% of the machine's cores. The as-is redline settles it. Until then this remains the most dangerous belief in the document, having moved from unmeasured to measured and smaller than claimed.
 
 **Decision 2. UI comes last.** No UI before M2. The harness drives batches through the CLI, so a headless daemon plus CLI is enough to run 1000. A UI is only needed when a human audits.
 
