@@ -868,8 +868,19 @@ fn start(
     generation: u32,
     tree: &mut SessionTree,
 ) -> Result<Slot> {
-    let base = step_dir.join(format!("s{index:03}-g{generation:02}"));
-    let spawned = session::spawn(&config.command, config.mode, &base, scratch)?;
+    let name = format!("s{index:03}-g{generation:02}");
+    let base = step_dir.join(&name);
+    // One directory per session rather than one per rung. The workload contract
+    // forbids shared paths, and handing every session the same one broke that
+    // from the instrument's side: the three synthetic workloads name their
+    // files uniquely inside it and never noticed, while the first workload to
+    // build a fixed-name subtree had ten sessions deleting each other's.
+    // Per generation as well as per index, so a replaced session starts clean
+    // rather than on top of whatever its predecessor was killed in the middle
+    // of.
+    let scratch = scratch.join(&name);
+    fs::create_dir_all(&scratch)?;
+    let spawned = session::spawn(&config.command, config.mode, &base, &scratch)?;
     if let Some(pid) = spawned.session.pid() {
         tree.add_root(Pid::from_u32(pid));
     }
