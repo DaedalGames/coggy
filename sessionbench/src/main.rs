@@ -570,6 +570,13 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
                 ),
             ),
             ("rss drift", rss_drift(summary)),
+            (
+                "machine headroom",
+                format!(
+                    "{} free at its lowest — the figure the RSS condition cannot see",
+                    human_bytes(summary.min_available_memory_bytes)
+                ),
+            ),
             ("peak processes", format!("{}", summary.peak_processes)),
             ("peak conhost", format!("{}", summary.peak_pseudoconsoles)),
             (

@@ -74,6 +74,16 @@ pub struct ObserveConfig {
 /// What the run adds up to.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Summary {
+    /// Least physical memory the machine had free at any point in the run.
+    ///
+    /// The condition reads a working set, which is what a process holds in RAM
+    /// *now* — and that figure falls when Windows starts paging, so it goes
+    /// quiet during exactly the failure it exists to catch. Commit charge has
+    /// the opposite fault: a runtime that reserves a heap and never touches it
+    /// reads as pressure that never arrives. Neither is a fact about the
+    /// machine, and this is: it was collected on every sample from the start
+    /// and reported nowhere.
+    pub min_available_memory_bytes: u64,
     pub peak_rss_bytes: u64,
     /// Median RSS over the first measured quarter.
     ///
@@ -360,6 +370,11 @@ fn summarize(samples: &[Sample], output: &Output, duration: Duration) -> Summary
     let cpu = steady_cpu(samples);
 
     Summary {
+        min_available_memory_bytes: samples
+            .iter()
+            .map(|s| s.available_memory_bytes)
+            .min()
+            .unwrap_or(0),
         peak_rss_bytes: samples.iter().map(|s| s.rss_bytes).max().unwrap_or(0),
         early_rss_bytes: quarter(&samples[..cut]),
         steady_rss_bytes: quarter(&samples[samples.len() - cut..]),

@@ -25,7 +25,7 @@ The lifetime mean is the figure that matters. A turn is a burst against long str
 
 **Memory breaks at about 38 sessions on the agent alone**, before an engine is opened.
 
-**And the condition measures the smaller of two numbers.** `sessionbench`'s RSS condition reads the working set — what a process holds in physical memory now — while the commit charge is what it has reserved and Windows must be able to back. At 1,096 MiB against 559, a hundred sessions reserve **110 GiB** where the condition sees 58. Paging keeps the resident figure low and does not make the reservation go away, so the ceiling this arithmetic gives is the optimistic one.
+**And the condition measures the smaller of two numbers.** `sessionbench`'s RSS condition reads the working set — what a process holds in physical memory now — while the commit charge is what it has reserved and Windows must be able to back. At 1,096 MiB against 559, a hundred sessions reserve **110 GiB** where the condition sees 58. Paging keeps the resident figure low and does not make the reservation go away, so the ceiling this arithmetic gives is the optimistic one. Neither number settles it — a working set understates pressure and a commit charge overstates it — which is why `observe` now reports the machine's own headroom beside them.
 
 Cores are comfortable: `2ηC/d` with `d = 0.112` gives well over two hundred, so the [duty relation](2026-07-30-154348-duty-is-derivable.md) says the CPU side is not what stops this.
 
