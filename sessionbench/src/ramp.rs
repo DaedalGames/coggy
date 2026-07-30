@@ -86,6 +86,16 @@ pub struct RampConfig {
     pub max_sessions: u32,
     /// How tight the bracket must be before the redline is reported.
     pub resolution: u32,
+    /// Hold a Defender path exclusion over the sessions' scratch root for the
+    /// whole ramp.
+    ///
+    /// This is the exclusion axis at the scale it belongs at. Measured against
+    /// one session it was invisible — Defender competes with nobody on a
+    /// machine with fifteen idle cores — and its CPU rate, the only visible
+    /// term there, sits under machine-wide noise. Two ramps compared by their
+    /// redlines have neither problem: at a hundred sessions the write volume
+    /// is a hundredfold, and a redline is an integer from window deltas.
+    pub exclude_scratch: bool,
     pub mode: SessionMode,
     pub command: Vec<String>,
 }
@@ -217,6 +227,8 @@ pub struct RampReport {
     pub hold_ms: u64,
     /// How tight the bracket was narrowed before the redline was reported.
     pub resolution: u32,
+    /// Whether the sessions' writes were hidden from real-time scanning.
+    pub scratch_excluded: bool,
     /// Per-session rate at one session, which every later rung is read against.
     pub solo_units_per_sec: f64,
     pub steps: Vec<Step>,
@@ -250,6 +262,21 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
     }
     let mut tree = armed.attach_pool();
     let mut sampler = Sampler::new();
+
+    // Held for the whole ramp when asked for, over the sessions' scratch root
+    // and nothing else. Dropped at the end of this function, and again by its
+    // own guard if anything below returns early.
+    let scratch_root = scratch_root(&config.out_dir);
+    fs::create_dir_all(&scratch_root)?;
+    let exclusion = match config.exclude_scratch {
+        false => None,
+        true => {
+            let held = crate::host::HeldExclusion::add(&scratch_root)
+                .map_err(|error| anyhow::anyhow!(error))?;
+            println!("excluded {} from real-time scanning", held.path());
+            Some(held)
+        }
+    };
 
     let mut search = Search {
         config,
@@ -316,6 +343,7 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         interval_ms: config.interval.as_millis() as u64,
         hold_ms: config.hold.as_millis() as u64,
         resolution: config.resolution.max(1),
+        scratch_excluded: config.exclude_scratch,
         solo_units_per_sec,
         steps,
         redline,
@@ -324,6 +352,14 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
     // Two artifacts: the record, and the thing anyone actually reads. The
     // second is generated rather than transcribed, because a figure retyped is
     // a figure that can be retyped wrong.
+    // Removed before the artifacts are written, so the machine is not left
+    // unprotected while a report renders.
+    if let Some(mut held) = exclusion {
+        held.remove().map_err(|error| anyhow::anyhow!(error))?;
+        println!("exclusion removed");
+    }
+    let _ = fs::remove_dir_all(&scratch_root);
+
     fs::write(
         config.out_dir.join("ramp.json"),
         serde_json::to_string_pretty(&report)?,
@@ -395,13 +431,23 @@ impl Search<'_> {
     }
 }
 
-/// Where a rung's sessions may write.
+/// The one directory every rung's sessions write under.
+///
+/// One root rather than one per rung, so a single Defender exclusion can cover
+/// the whole ramp — and cover only what the sessions wrote, leaving this
+/// process's own logs and samples on the scanned side of the line where they
+/// belong.
+pub fn scratch_root(out_dir: &Path) -> PathBuf {
+    out_dir.join("scratch")
+}
+
+/// Where one rung's sessions write.
 ///
 /// Removed when the rung ends, which is the only chance anything has to remove
 /// it: the rung ends by killing every session, and a killed process runs no
 /// cleanup.
-fn scratch_dir(step_dir: &Path) -> PathBuf {
-    step_dir.join("scratch")
+fn scratch_dir(out_dir: &Path, sessions: u32) -> PathBuf {
+    scratch_root(out_dir).join(format!("step-{sessions:03}"))
 }
 
 /// Holds `sessions` alive for one hold window and measures what it cost.
@@ -413,8 +459,9 @@ fn hold(
     sampler: &mut Sampler,
     budget: u64,
 ) -> Result<Step> {
-    fs::create_dir_all(scratch_dir(step_dir))?;
-    let mut pool = Pool::new(config, step_dir, sessions, tree)?;
+    let scratch = scratch_dir(&config.out_dir, sessions);
+    fs::create_dir_all(&scratch)?;
+    let mut pool = Pool::new(config, step_dir, sessions, &scratch, tree)?;
     let mut samples_file = BufWriter::new(File::create(step_dir.join("samples.jsonl"))?);
 
     let started = Instant::now();
@@ -440,7 +487,7 @@ fn hold(
         cost.refresh_ms = at.elapsed().as_millis() as u64;
 
         let at = Instant::now();
-        pool.replace_finished(config, step_dir, tree)?;
+        pool.replace_finished(config, step_dir, &scratch, tree)?;
         cost.replace_ms = at.elapsed().as_millis() as u64;
 
         let at = Instant::now();
@@ -507,7 +554,7 @@ fn hold(
     // Errors ignored on purpose: a file still held by a session that has not
     // finished dying is not worth failing a measured rung over, and the next
     // run starts from a fresh output directory anyway.
-    let _ = fs::remove_dir_all(scratch_dir(step_dir));
+    let _ = fs::remove_dir_all(&scratch);
     teardown.scratch_ms = at.elapsed().as_millis() as u64;
 
     let elapsed_secs = started.elapsed().as_secs_f64();
@@ -593,11 +640,12 @@ impl Pool {
         config: &RampConfig,
         step_dir: &Path,
         sessions: u32,
+        scratch: &Path,
         tree: &mut SessionTree,
     ) -> Result<Self> {
         let mut slots = Vec::with_capacity(sessions as usize);
         for index in 0..sessions {
-            slots.push(start(config, step_dir, index, 0, tree)?);
+            slots.push(start(config, step_dir, scratch, index, 0, tree)?);
         }
         Ok(Self {
             slots,
@@ -615,6 +663,7 @@ impl Pool {
         &mut self,
         config: &RampConfig,
         step_dir: &Path,
+        scratch: &Path,
         tree: &mut SessionTree,
     ) -> Result<()> {
         for slot in &mut self.slots {
@@ -624,7 +673,7 @@ impl Pool {
             let replacing = Instant::now();
             self.retired_units += slot.output.units();
             slot.generation += 1;
-            *slot = start(config, step_dir, slot.index, slot.generation, tree)?;
+            *slot = start(config, step_dir, scratch, slot.index, slot.generation, tree)?;
 
             let took = replacing.elapsed().as_secs_f64() + config.interval.as_secs_f64();
             self.replacements += 1;
@@ -672,12 +721,13 @@ impl Pool {
 fn start(
     config: &RampConfig,
     step_dir: &Path,
+    scratch: &Path,
     index: u32,
     generation: u32,
     tree: &mut SessionTree,
 ) -> Result<Slot> {
     let base = step_dir.join(format!("s{index:03}-g{generation:02}"));
-    let spawned = session::spawn(&config.command, config.mode, &base, &scratch_dir(step_dir))?;
+    let spawned = session::spawn(&config.command, config.mode, &base, scratch)?;
     if let Some(pid) = spawned.session.pid() {
         tree.add_root(Pid::from_u32(pid));
     }

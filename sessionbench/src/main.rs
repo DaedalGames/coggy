@@ -157,6 +157,15 @@ enum Command {
         #[arg(long)]
         pty: bool,
 
+        /// Hide the sessions' writes from real-time scanning for this ramp.
+        ///
+        /// The exclusion axis at the scale it belongs at: run the same ladder
+        /// with and without, and compare the two redlines. **This changes the
+        /// machine's real-time protection for the length of the ramp**, over a
+        /// directory the benchmark created, and removes it afterwards.
+        #[arg(long)]
+        exclude_scratch: bool,
+
         /// The command each session runs, after `--`.
         #[arg(last = true, required = true, value_name = "COMMAND")]
         command: Vec<String>,
@@ -222,6 +231,7 @@ fn main() -> anyhow::Result<()> {
             max_sessions,
             resolution,
             pty,
+            exclude_scratch,
             command,
         } => {
             let mode = if pty {
@@ -236,6 +246,7 @@ fn main() -> anyhow::Result<()> {
                 hold: Duration::from_secs_f64(hold),
                 max_sessions,
                 resolution,
+                exclude_scratch,
                 mode,
                 command,
             };
