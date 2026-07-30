@@ -52,6 +52,14 @@ Defender, over the same runs, projects to roughly 70% of the machine's cores. Th
 
 **What holds regardless of workload** is the 9.9 MiB figure, because it is conhost's own footprint. For it to be worth half the project, the limiting condition has to be RSS and the sessions have to be light enough that 9.9 MiB is a large share of each. Neither is established, and the first is currently false on this machine.
 
+## Do the redline conditions survive this?
+
+Yes, which is the answer this run existed to give. [The conditions](../../sessionbench/README.md#redline) can now be built into the ramp without rewriting them.
+
+The shape found here is that memory has room and cores do not. Condition 2 would not trip at a hundred sessions, sitting at 39% of a 70% budget. Condition 1 would, because eleven of sixteen cores going to Defender leaves each session a fraction of the machine it had to itself. Condition 1 is already the one the metric leans on, so the instrument is pointed at the right thing.
+
+One gap opens instead. `WorkRate` names a symptom rather than a cause, so a redline of `84 / WorkRate` does not say whether work rate fell to Defender, to contention between sessions, or to disk. Every sample already carries Defender's CPU beside the session's, so the ramp has to attribute where the cores went and not merely name the condition — otherwise the pair that a redline is supposed to be collapses into a bare number with a label attached.
+
 ## Provenance
 
 | | |
