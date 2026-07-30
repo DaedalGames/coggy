@@ -144,6 +144,28 @@ impl Sampler {
         self.sample(tree, output, elapsed)
     }
 
+    /// Watches Defender alone for a while, in cores.
+    ///
+    /// Defender is one machine-wide process, so a run that attributes all of
+    /// its CPU to the session being measured is also attributing everything
+    /// else on the machine. Taking this immediately before a half is what makes
+    /// that visible: a baseline near zero says the machine was quiet, and one
+    /// that is not says the result underneath it is describing the room.
+    ///
+    /// `None` when Defender is not running.
+    pub fn watch_defender(&mut self, duration: Duration, interval: Duration) -> Option<f64> {
+        let started = std::time::Instant::now();
+        let mut readings = Vec::new();
+
+        while started.elapsed() < duration {
+            std::thread::sleep(interval);
+            self.refresh(Some(&[]));
+            let pid = self.defender?;
+            readings.push(f64::from(self.sys.process(pid)?.cpu_usage()) / 100.0);
+        }
+        (!readings.is_empty()).then(|| readings.iter().sum::<f64>() / readings.len() as f64)
+    }
+
     /// Waits for a sample's processes to exit on their own, up to `grace`.
     ///
     /// Closing a pseudoconsole asks its host to leave, and at small counts they

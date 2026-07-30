@@ -14,6 +14,7 @@ use sessionbench::machine::Machine;
 use sessionbench::observe::{self, ObserveConfig, RunReport};
 use sessionbench::provenance::Provenance;
 use sessionbench::ramp::{self, RampConfig, RampReport};
+use sessionbench::sampler::Sampler;
 use sessionbench::session::SessionMode;
 use sessionbench::tree::Membership;
 
@@ -271,9 +272,19 @@ fn exclusion_delta(
         max_duration: Some(Duration::from_secs_f64(duration)),
         command: command.clone(),
     };
+    // Defender is one machine-wide process, so a baseline taken with nothing
+    // running is the only way to tell its work from the room's. Without it a
+    // run reports whatever else touched the disk as the workload's scanning
+    // cost — which is how an earlier attempt produced an 84% saving that did
+    // not reproduce, and then a negative one.
+    let mut sampler = Sampler::new();
+    let tick = Duration::from_secs_f64(interval);
+    println!("measuring Defender with nothing running");
+    let idle_before = sampler.watch_defender(IDLE_BASELINE, tick);
+    println!("  {}", describe_idle(idle_before));
 
     println!(
-        "scanned half — Defender watching {}",
+        "\nscanned half — Defender watching {}",
         scratch_root.display()
     );
     let scanned = observe::run(&half("scanned"))?;
@@ -281,6 +292,8 @@ fn exclusion_delta(
     println!("\nadding a Defender path exclusion for the run's scratch root");
     let held = HeldExclusion::add(&scratch_root).map_err(|e| anyhow::anyhow!(e))?;
     println!("  excluded {}", held.path());
+    let idle_between = sampler.watch_defender(IDLE_BASELINE, tick);
+    println!("  idle again: {}", describe_idle(idle_between));
 
     let excluded = observe::run(&half("excluded"));
 
@@ -293,11 +306,30 @@ fn exclusion_delta(
     let excluded = excluded?;
     removal.map_err(|e| anyhow::anyhow!(e))?;
 
-    print_exclusion_delta(&scanned, &excluded, &root);
+    print_exclusion_delta(&scanned, &excluded, idle_before, idle_between, &root);
     Ok(())
 }
 
-fn print_exclusion_delta(scanned: &RunReport, excluded: &RunReport, out_dir: &std::path::Path) {
+/// How long to watch Defender with nothing running, before each half.
+const IDLE_BASELINE: Duration = Duration::from_secs(20);
+
+fn describe_idle(cores: Option<f64>) -> String {
+    match cores {
+        Some(cores) => format!(
+            "{:.2} s per minute of Defender with no session up",
+            cores * 60.0
+        ),
+        None => "Defender not running".into(),
+    }
+}
+
+fn print_exclusion_delta(
+    scanned: &RunReport,
+    excluded: &RunReport,
+    idle_before: Option<f64>,
+    idle_between: Option<f64>,
+    out_dir: &std::path::Path,
+) {
     let rate = |report: &RunReport| {
         report
             .summary
@@ -305,24 +337,40 @@ fn print_exclusion_delta(scanned: &RunReport, excluded: &RunReport, out_dir: &st
             .as_ref()
             .and_then(|cost| cost.steady_cpu_seconds_per_min)
     };
+    let idle_rate = |cores: Option<f64>| cores.map(|c| c * 60.0);
+    // What the workload itself cost, with the room's share taken off.
+    let attributable = |during: Option<f64>, idle: Option<f64>| Some(during? - idle?);
+
+    let scanned_own = attributable(rate(scanned), idle_rate(idle_before));
+    let excluded_own = attributable(rate(excluded), idle_rate(idle_between));
 
     block(
         "defender exclusion delta",
         vec![
             (
+                "idle before",
+                format!("{:.2} s/min", idle_rate(idle_before).unwrap_or(0.0)),
+            ),
+            (
                 "scanned",
                 format!(
-                    "{:.2} units/s · Defender {}",
+                    "{:.2} units/s · Defender {:.2} s/min · {} attributable",
                     scanned.summary.work_units_per_sec,
-                    rate(scanned).map_or("unmeasured".into(), |r| format!("{r:.2} s/min")),
+                    rate(scanned).unwrap_or(0.0),
+                    scanned_own.map_or("—".into(), |v| format!("{v:.2} s/min")),
                 ),
+            ),
+            (
+                "idle between",
+                format!("{:.2} s/min", idle_rate(idle_between).unwrap_or(0.0)),
             ),
             (
                 "excluded",
                 format!(
-                    "{:.2} units/s · Defender {}",
+                    "{:.2} units/s · Defender {:.2} s/min · {} attributable",
                     excluded.summary.work_units_per_sec,
-                    rate(excluded).map_or("unmeasured".into(), |r| format!("{r:.2} s/min")),
+                    rate(excluded).unwrap_or(0.0),
+                    excluded_own.map_or("—".into(), |v| format!("{v:.2} s/min")),
                 ),
             ),
             (
@@ -336,16 +384,26 @@ fn print_exclusion_delta(scanned: &RunReport, excluded: &RunReport, out_dir: &st
                 },
             ),
             (
-                "defender cpu",
-                match (rate(scanned), rate(excluded)) {
-                    (Some(before), Some(after)) => {
-                        format!("{:+.2} s per minute", after - before)
-                    }
+                "what the exclusion bought",
+                match (scanned_own, excluded_own) {
+                    (Some(before), Some(after)) => format!("{:+.2} s per minute", after - before),
                     _ => "one half had no steady state".into(),
                 },
             ),
         ],
     );
+
+    // The baselines are the verdict on the verdict. A machine that was busy
+    // between the halves has already invalidated the number above it.
+    if let (Some(before), Some(between)) = (idle_rate(idle_before), idle_rate(idle_between)) {
+        let drift = (between - before).abs();
+        let signal = scanned_own.map(f64::abs).unwrap_or(0.0);
+        if drift > signal * 0.25 {
+            println!(
+                "\nWARNING: the idle baselines differ by {drift:.2} s/min against a signal of {signal:.2} s/min.\n         Something else was using the disk, and the delta above is describing it."
+            );
+        }
+    }
     println!("\nwritten to {}", out_dir.display());
 }
 
