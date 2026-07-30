@@ -13,7 +13,7 @@ use sessionbench::host::{HeldExclusion, HostFacts};
 use sessionbench::machine::Machine;
 use sessionbench::observe::{self, ObserveConfig, RunReport};
 use sessionbench::provenance::Provenance;
-use sessionbench::ramp::{self, RampConfig, RampReport};
+use sessionbench::ramp::{self, Drift, RampConfig, RampReport};
 use sessionbench::sampler::Sampler;
 use sessionbench::session::SessionMode;
 use sessionbench::tree::Membership;
@@ -667,38 +667,23 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
 /// slope and reports a ceiling that is too low, with no sign of it anywhere in
 /// the numbers.
 fn print_drift(report: &RampReport) {
-    let Some(again) = &report.drift_check else {
-        return;
-    };
-    let Some(first) = report
-        .steps
-        .iter()
-        .find(|step| step.sessions == again.sessions)
-    else {
-        return;
-    };
-    // A repeat the instrument could not measure is not a machine that slowed
-    // to nothing, and reporting it as one would put a 100% drift on the board
-    // describing the observer.
-    if let Some(reason) = &again.inconclusive {
-        println!(
-            "  drift check: {} sessions could not be re-measured — {reason}",
-            again.sessions
-        );
-        return;
+    match report.drift() {
+        // A repeat the instrument could not measure is not a machine that
+        // slowed to nothing, and reporting it as one would put a drift on the
+        // board describing the observer.
+        Some(Drift::Unmeasurable(reason)) => {
+            println!("  drift check: could not be re-measured — {reason}")
+        }
+        Some(Drift::Measured {
+            sessions,
+            early_units_per_sec,
+            late_units_per_sec,
+            slower_percent,
+        }) => println!(
+            "  drift check: {sessions} sessions ran {early_units_per_sec:.2} units/s early and {late_units_per_sec:.2} at the end ({slower_percent:+.1}% slower)"
+        ),
+        None => {}
     }
-    let (before, after) = (
-        first.units_per_session_per_sec,
-        again.units_per_session_per_sec,
-    );
-    if before <= 0.0 || after <= 0.0 {
-        return;
-    }
-    let slower = (before - after) / before * 100.0;
-    println!(
-        "  drift check: {} sessions ran {before:.2} units/s early and {after:.2} at the end ({slower:+.1}% slower)",
-        again.sessions
-    );
 }
 
 fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {

@@ -172,8 +172,26 @@ impl TeardownCost {
     }
 }
 
+/// What the repeated rung said about the machine underneath the ladder.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Drift {
+    /// The repeat produced no usable reading.
+    ///
+    /// Distinct from a machine that slowed to nothing, which is what a bare
+    /// zero would otherwise be reported as.
+    Unmeasurable(String),
+    /// Both readings of the same session count, early and late.
+    Measured {
+        sessions: u32,
+        early_units_per_sec: f64,
+        late_units_per_sec: f64,
+        /// Positive means the machine was slower the second time.
+        slower_percent: f64,
+    },
+}
+
 /// One rung of the ladder.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Step {
     pub sessions: u32,
     pub samples: usize,
@@ -243,6 +261,32 @@ pub struct RampReport {
     /// `steps` it says whether the machine ran the same at the end as at the
     /// start — which every other figure here assumes and none of them checks.
     pub drift_check: Option<Step>,
+}
+
+impl RampReport {
+    /// Compares the repeated rung against its own first reading.
+    ///
+    /// Lives here rather than in either reporter because both of them need it
+    /// and a figure computed twice is a figure that ends up disagreeing with
+    /// itself.
+    pub fn drift(&self) -> Option<Drift> {
+        let again = self.drift_check.as_ref()?;
+        if let Some(reason) = &again.inconclusive {
+            return Some(Drift::Unmeasurable(reason.clone()));
+        }
+        let early = self
+            .steps
+            .iter()
+            .find(|step| step.sessions == again.sessions)?
+            .units_per_session_per_sec;
+        let late = again.units_per_session_per_sec;
+        (early > 0.0 && late > 0.0).then(|| Drift::Measured {
+            sessions: again.sessions,
+            early_units_per_sec: early,
+            late_units_per_sec: late,
+            slower_percent: (early - late) / early * 100.0,
+        })
+    }
 }
 
 /// Runs the ladder and writes the artifact into `config.out_dir`.
@@ -889,5 +933,87 @@ fn print_step(step: &Step, solo: f64) {
         (Some(reason), _) => println!("      INCONCLUSIVE: {reason}"),
         (None, true) => println!("      held"),
         (None, false) => println!("      BROKE: {:?}", step.broken),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rung(sessions: u32, units_per_session_per_sec: f64) -> Step {
+        Step {
+            sessions,
+            units_per_session_per_sec,
+            ..Step::default()
+        }
+    }
+
+    /// A report carrying only what the drift comparison reads.
+    fn report_with(steps: Vec<Step>, drift_check: Option<Step>) -> RampReport {
+        RampReport {
+            label: String::new(),
+            command: Vec::new(),
+            mode: SessionMode::Pipe,
+            // Defaults rather than the real thing: neither is read by the
+            // drift comparison, and `Provenance::current` shells out to git.
+            machine: Machine::default(),
+            provenance: Provenance::default(),
+            host: HostFacts::default(),
+            membership: Membership::ParentWalk,
+            membership_fallback_reason: None,
+            sampler_unprioritised_reason: None,
+            started_unix: 0,
+            interval_ms: 0,
+            hold_ms: 0,
+            resolution: 1,
+            scratch_excluded: false,
+            solo_units_per_sec: 60.0,
+            steps,
+            redline: None,
+            drift_check,
+        }
+    }
+
+    #[test]
+    fn a_machine_that_slowed_reports_how_much() {
+        // The figures from the run that first used the control.
+        let report = report_with(vec![rung(25, 40.02)], Some(rung(25, 38.11)));
+        let Some(Drift::Measured { slower_percent, .. }) = report.drift() else {
+            panic!("expected a measured drift");
+        };
+        assert!((slower_percent - 4.77).abs() < 0.01, "got {slower_percent}");
+    }
+
+    #[test]
+    fn a_machine_that_held_still_reports_near_zero() {
+        let report = report_with(vec![rung(25, 40.00)], Some(rung(25, 40.00)));
+        let Some(Drift::Measured { slower_percent, .. }) = report.drift() else {
+            panic!("expected a measured drift");
+        };
+        assert_eq!(slower_percent, 0.0);
+    }
+
+    #[test]
+    fn a_repeat_that_could_not_be_measured_is_not_a_machine_that_stopped() {
+        // Zero units is what an unmeasurable rung carries, and reporting it as
+        // a 100% slowdown would describe the observer rather than the machine.
+        let mut unusable = rung(25, 0.0);
+        unusable.inconclusive = Some("too few samples".to_string());
+        let report = report_with(vec![rung(25, 40.02)], Some(unusable));
+        assert_eq!(
+            report.drift(),
+            Some(Drift::Unmeasurable("too few samples".to_string()))
+        );
+    }
+
+    #[test]
+    fn no_repeat_and_no_matching_rung_both_give_nothing() {
+        assert_eq!(report_with(vec![rung(25, 40.0)], None).drift(), None);
+        // The ladder never held the count the control repeated, so there is
+        // nothing to compare it against.
+        assert_eq!(
+            report_with(vec![rung(31, 33.0)], Some(rung(25, 38.0))).drift(),
+            None
+        );
     }
 }

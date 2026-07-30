@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::Rows;
 
 /// The provenance block carried by every report.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Provenance {
     /// Crate version of the binary that produced the run.
     pub sessionbench_version: String,

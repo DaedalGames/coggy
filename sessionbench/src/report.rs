@@ -20,7 +20,7 @@ use crate::format::human_bytes;
 use crate::machine::Machine;
 use crate::observe::RunReport;
 use crate::provenance::Provenance;
-use crate::ramp::RampReport;
+use crate::ramp::{Drift, RampReport};
 
 /// The markdown report for a ramp.
 pub fn ramp_markdown(report: &RampReport) -> String {
@@ -41,6 +41,7 @@ pub fn ramp_markdown(report: &RampReport) -> String {
                 report.machine.label(),
                 defender_state(report.host.defender.realtime_protection),
             );
+            drift_paragraph(&mut out, report);
             if let Some(fit) = &redline.fitted {
                 let _ = writeln!(
                     out,
@@ -269,6 +270,43 @@ pub fn run_markdown(report: &RunReport) -> String {
 
 /// The block every report ends with, because a result without it is not
 /// reproducible and therefore not quotable.
+/// The control, written directly under the headline.
+///
+/// It goes first among the caveats because it decides whether the rest of the
+/// document is worth reading: every other figure here assumes the machine at
+/// the last rung was the machine at the first, and this is the only line that
+/// checks it. A drift past a few percent means the redline reads low, since
+/// the fitted slope averages noise away but carries drift straight through.
+fn drift_paragraph(out: &mut String, report: &RampReport) {
+    match report.drift() {
+        Some(Drift::Unmeasurable(reason)) => {
+            let _ = writeln!(
+                out,
+                "**The drift check produced no reading** — {reason}. Nothing here can say whether the machine held still while the ladder ran.\n"
+            );
+        }
+        Some(Drift::Measured {
+            sessions,
+            early_units_per_sec,
+            late_units_per_sec,
+            slower_percent,
+        }) => {
+            let verdict = if slower_percent.abs() < 2.0 {
+                "The machine held still, so the rungs are comparable with each other."
+            } else if slower_percent > 0.0 {
+                "**The machine slowed under its own ladder, so this redline reads low.** Treat it as a draft and find what else was running."
+            } else {
+                "**The machine sped up as the ladder ran, so this redline reads high.** Something was competing early and stopped."
+            };
+            let _ = writeln!(
+                out,
+                "**Drift check:** {sessions} sessions ran {early_units_per_sec:.2} units/s early in the ramp and {late_units_per_sec:.2} after it finished, {slower_percent:+.1}%. {verdict}\n"
+            );
+        }
+        None => {}
+    }
+}
+
 fn machine_and_provenance(machine: &Machine, provenance: &Provenance) -> String {
     let mut out = String::from("\n## Machine and provenance\n\n| | |\n|---|---|\n");
     for (label, value) in machine.rows().into_iter().chain(provenance.rows()) {

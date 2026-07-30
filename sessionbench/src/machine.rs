@@ -16,7 +16,7 @@ use crate::Rows;
 const BYTES_PER_GIB: f64 = (1024 * 1024 * 1024) as f64;
 
 /// Hardware and operating system a run was taken on.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Machine {
     /// `None` on hardware where the physical count cannot be determined; the
     /// logical count is always available.
