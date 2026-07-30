@@ -1,4 +1,4 @@
-# How much the redline moves between identical runs · 2026-07-30
+# How much the redline moves between identical runs · 2026-07-30 16:49:12
 
 Every measurement in this repository quotes a redline to the session, and until now no configuration had ever been run twice. The reproducibility of the headline number was unmeasured while every other conclusion rested on it.
 
@@ -22,7 +22,7 @@ The curves are the same. The redlines differ because rung 34 lands *on* the 2× 
 | Proportional duty 0.75 | 31, 34, 31, 33 |
 | Fixed wait 4 ms | 34, 30, 31 |
 
-**30, 31, 31, 31, 33, 34, 34 — mean 32.00, range 4 sessions, 12.5%.** The two configurations interleave completely, so the waiting mechanism does not move the redline and [the algebra that predicted it would not](2026-07-30-duty-is-derivable.md) survives.
+**30, 31, 31, 31, 33, 34, 34 — mean 32.00, range 4 sessions, 12.5%.** The two configurations interleave completely, so the waiting mechanism does not move the redline and [the algebra that predicted it would not](2026-07-30-154348-duty-is-derivable.md) survives.
 
 **The redline as the ladder computes it is reproducible to about ±13%, not to the session.** Every figure in the records before this one carries that spread unstated.
 
@@ -41,7 +41,7 @@ So the noise is not in the measuring. It is in asking a noisy curve *where it cr
 
 ## Fitting the slope instead of hunting the crossing
 
-The [derivation](2026-07-30-duty-is-derivable.md) says `slowdown = N·d/(η·C)` — **linear in N, through the origin.** So the right estimator is not a search at all: fit the slope through the saturated rungs and solve it at the budget.
+The [derivation](2026-07-30-154348-duty-is-derivable.md) says `slowdown = N·d/(η·C)` — **linear in N, through the origin.** So the right estimator is not a search at all: fit the slope through the saturated rungs and solve it at the budget.
 
 Fitting `slowdown = b·N` and solving `b·N = 2` *is* `N = 2ηC/d`, with `b = d/(ηC)`. Measuring the slope is measuring `η`. The estimator and the model are the same object.
 
@@ -80,7 +80,7 @@ Rung 32 read **slower than rung 34** in every run that measured it: 2.06, 2.07, 
 
 Residuals against each run's own line, by position in the run, put the last-measured rung at **+0.075** where every earlier position sits near −0.02. Something about being measured late reads as slower.
 
-**But 32 was always the last rung measured**, so position and session count are perfectly confounded here, and two of the six runs break the pattern. Thermal accumulation over a fifteen-minute ramp is the obvious suspect; Defender working through the logs earlier rungs left behind is another; neither is measured. This is [the same confusion that cost the Defender estimate](2026-07-30-defender-at-scale.md), and it is recorded as open rather than resolved.
+**But 32 was always the last rung measured**, so position and session count are perfectly confounded here, and two of the six runs break the pattern. Thermal accumulation over a fifteen-minute ramp is the obvious suspect; Defender working through the logs earlier rungs left behind is another; neither is measured. This is [the same confusion that cost the Defender estimate](2026-07-30-142218-defender-at-scale.md), and it is recorded as open rather than resolved.
 
 The test that separates them: measure one rung at the start of a ramp and the same rung at the end. Same session count, different position.
 
@@ -102,7 +102,7 @@ redline: 32 sessions (WorkRate) · cpu-spin · pipe · 16C/31GiB · Defender on
 
 **The failure mode is exactly the predicted one.** The machine lost 4.8% across the ramp, the slope steepened, and the redline came out 3.9% low — and without the control, 32.3 would have looked as reasonable as 33.6.
 
-**A large part of that drift was the observer.** During the six earlier runs nothing else touched the machine; during this one it was being edited alongside. So this run is contaminated as evidence about *what* makes the machine drift — thermal, Defender, or an agent writing files — and it is a clean demonstration of the thing the control is for. [The Defender estimate that had to be withdrawn](2026-07-30-defender-at-scale.md) was contaminated the same way, with no line anywhere in the output to show it.
+**A large part of that drift was the observer.** During the six earlier runs nothing else touched the machine; during this one it was being edited alongside. So this run is contaminated as evidence about *what* makes the machine drift — thermal, Defender, or an agent writing files — and it is a clean demonstration of the thing the control is for. [The Defender estimate that had to be withdrawn](2026-07-30-142218-defender-at-scale.md) was contaminated the same way, with no line anywhere in the output to show it.
 
 The late-rung anomaly is a plausible casualty of the same effect — rung 32 was measured last in the runs where it read high — but that remains unproven, because those runs had no control on them.
 
@@ -118,10 +118,10 @@ A spread of ±13% swallows any finding that turned on two redlines differing by 
 
 | Record | Rests on | Touched |
 |---|---|---|
-| [Pseudoconsole against pipes](2026-07-30-first-redlines.md) | Per-session RSS, reproducible to 0.01 MiB, and arithmetic over it. **Every rung held in both modes**, so no redline was produced to compare | No |
-| [Defender at scale](2026-07-30-defender-at-scale.md) | Work rate flat to three significant figures across a fiftyfold range. **Neither ramp reached a redline** | No |
-| [The output path](2026-07-30-output-path.md) | An aggregate throughput ceiling, and a redline whose neighbouring rungs sat at 1.77× and 2.30× — far enough from the budget that a few percent cannot move it | No |
-| [Duty and redline](2026-07-30-duty-and-redline.md) | A ratio across a fourfold range, where the spread is a tenth of the effect | No |
+| [Pseudoconsole against pipes](2026-07-30-120002-first-redlines.md) | Per-session RSS, reproducible to 0.01 MiB, and arithmetic over it. **Every rung held in both modes**, so no redline was produced to compare | No |
+| [Defender at scale](2026-07-30-142218-defender-at-scale.md) | Work rate flat to three significant figures across a fiftyfold range. **Neither ramp reached a redline** | No |
+| [The output path](2026-07-30-145414-output-path.md) | An aggregate throughput ceiling, and a redline whose neighbouring rungs sat at 1.77× and 2.30× — far enough from the budget that a few percent cannot move it | No |
+| [Duty and redline](2026-07-30-130619-duty-and-redline.md) | A ratio across a fourfold range, where the spread is a tenth of the effect | No |
 
 **No conclusion in this repository was drawn from a redline difference small enough for this to reach.** That is luck rather than discipline: the comparisons that mattered happened to be made on quantities measured directly, and the redline was mostly used as a headline rather than as evidence.
 

@@ -25,7 +25,7 @@ The climb on its own is not enough, and this is measured rather than argued: a c
 
 **A redline limited by work rate, RSS, or replacement lag is a budget drawn across a slope,** and moves if the budget moves. Only dropped output is an edge. On one machine the per-session work rate ran 1.96× solo at 25 sessions and 2.03× at 26, so the whole answer turned on where the 2× line was drawn — which is worth knowing about a number before quoting it.
 
-**So for work rate the budget is solved on the slope rather than searched for.** Bisection lets one reading of one rung decide which way to search next, and near the budget a rung landing a percent to either side sends it in opposite directions: [seven identical runs](../docs/measurements/2026-07-30-redline-reproducibility.md) returned 30, 31, 31, 31, 33, 34 and 34 — a spread of 12.5% from rungs that each reproduced within 2%. Fitting `slowdown = b·N` through every saturated rung and solving `b·N = 2` uses all of them, so no single one can drag the answer, and the same seven then agree to 2.3%.
+**So for work rate the budget is solved on the slope rather than searched for.** Bisection lets one reading of one rung decide which way to search next, and near the budget a rung landing a percent to either side sends it in opposite directions: [seven identical runs](../docs/measurements/2026-07-30-164912-redline-reproducibility.md) returned 30, 31, 31, 31, 33, 34 and 34 — a spread of 12.5% from rungs that each reproduced within 2%. Fitting `slowdown = b·N` through every saturated rung and solving `b·N = 2` uses all of them, so no single one can drag the answer, and the same seven then agree to 2.3%.
 
 The line goes through the origin because that is what the relation says: `slowdown = N·d/(η·C)` is linear in `N` with no constant term, so **the fitted slope is `η`** and the crossing is `2ηC/d`. Letting the intercept float made the answer less reproducible, which is what a parameter absorbing noise does. The climb and the refinement still run — they are what put rungs on both sides of the budget for the line to be drawn through.
 
@@ -81,7 +81,7 @@ cargo run -p sessionbench -- exclusion-delta -- <command>
 
 Halves run as adjacent pairs because a single comparison cannot separate the exclusion from whatever else the machine was doing, and every half is preceded by an idle baseline for the same reason. When the spread across pairs is wider than what separates them, the run says inconclusive rather than averaging noise into a confident number. Fresh directories throughout, since reusing one would credit the exclusion with the scanning cache's work — [rule 4](#keeping-it-honest).
 
-**At one session it will tell you nothing**, which is [measured rather than warned about](../docs/measurements/2026-07-30-exclusion-delta.md). The exclusion axis lives on the ramp: `ramp --exclude-scratch` holds one exclusion over the sessions' writes for a whole ladder, and two ladders compared by redline is the form that answers.
+**At one session it will tell you nothing**, which is [measured rather than warned about](../docs/measurements/2026-07-30-140251-exclusion-delta.md). The exclusion axis lives on the ramp: `ramp --exclude-scratch` holds one exclusion over the sessions' writes for a whole ladder, and two ladders compared by redline is the form that answers.
 
 ```
 cargo run -p sessionbench -- ramp --hold 90 -- <command>
@@ -103,7 +103,7 @@ Rungs are judged on all four conditions, so a run that cannot evaluate one does 
 
 1. **`doctor --strict`.** A run missing an axis is not a smaller result, it is a wrong one, and the Defender axis needs elevation.
 2. **`observe` one real session, to completion.** Its cores figure is `d`, the share of wall time it spends computing; its RSS and output volume say whether either is anywhere near a budget. One session, one afternoon, no ramp.
-3. **`ramp` `cpu-spin --duty <d>`**, sized to that figure. [How the session waits does not matter](../docs/measurements/2026-07-30-duty-is-derivable.md) — proportional and fixed pauses give the same curve — so the synthetic stands in honestly for a session waiting on a model.
+3. **`ramp` `cpu-spin --duty <d>`**, sized to that figure. [How the session waits does not matter](../docs/measurements/2026-07-30-154348-duty-is-derivable.md) — proportional and fixed pauses give the same curve — so the synthetic stands in honestly for a session waiting on a model.
 4. **Read the drift line before anything else.** Past a few percent the machine changed under the ladder and the redline is reading low.
 5. **Check the answer against `2ηC/d`**, with `C` the machine's logical processors rather than the physical count the headline carries. The fitted slope is `η` and the report prints it. The two disagreeing means one of the assumptions behind the relation does not hold on that machine, which is worth more than either number.
 6. **Record the pair, never the bare count**, with the hardware it came from.
@@ -116,8 +116,8 @@ A benchmark that only measures `coggyd` is marketing. At minimum, these run on i
 
 | Target | Role | Reachable |
 |---|---|---|
-| A pseudoconsole per session | The as-is baseline — what a terminal gives a session today | [measured](../docs/measurements/2026-07-30-conhost-and-defender.md) |
-| Pipes, no pseudoconsole | The floor, and what the daemon intends to default to | [measured](../docs/measurements/2026-07-30-first-redlines.md) |
+| A pseudoconsole per session | The as-is baseline — what a terminal gives a session today | [measured](../docs/measurements/2026-07-30-101141-conhost-and-defender.md) |
+| Pipes, no pseudoconsole | The floor, and what the daemon intends to default to | [measured](../docs/measurements/2026-07-30-120002-first-redlines.md) |
 | pwsh 7 against cmd against the workload alone | Control that isolates shell startup cost | this instrument |
 | coggyd | Ours. **Added only after M1** | M1 |
 | Windows Terminal, WezTerm, Alacritty, wmux | What an emulator costs to host N sessions | a different instrument · M4 |
@@ -158,7 +158,7 @@ Every run writes both, into its own directory under `bench-out/`:
 
 Two names rather than one, because the two commands answer different questions and a reader holding a file should be able to tell which. **The markdown is generated, never written by hand** — the first two records here were typed up from terminal output, and a figure retyped is a figure that can be retyped wrong.
 
-Cores in the headline are **physical**, because the claim beside them is how many sessions fit and hyperthreads flatter that number without adding a core's worth of capacity. **The cores column in the rungs is logical**, since that is the unit a process's CPU usage arrives in — one busy hardware thread reads as 1.0. The two differ on any machine with hyperthreading, and [the duty relation](../docs/measurements/2026-07-30-duty-is-derivable.md#the-derivation) takes the logical count, matching what it is compared against.
+Cores in the headline are **physical**, because the claim beside them is how many sessions fit and hyperthreads flatter that number without adding a core's worth of capacity. **The cores column in the rungs is logical**, since that is the unit a process's CPU usage arrives in — one busy hardware thread reads as 1.0. The two differ on any machine with hyperthreading, and [the duty relation](../docs/measurements/2026-07-30-154348-duty-is-derivable.md#the-derivation) takes the logical count, matching what it is compared against.
 
 Memory is reported in **GiB, and as the figure the operating system calls usable** rather than the number on the box. Condition 2 is a fraction of it, so the 7% between GiB and GB is enough to move a verdict, and a machine sold as 32GB has about 31 GiB to give.
 

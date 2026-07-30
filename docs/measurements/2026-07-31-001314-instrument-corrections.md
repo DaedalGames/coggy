@@ -1,4 +1,4 @@
-# What fixing the instrument was worth · 2026-07-30
+# What fixing the instrument was worth · 2026-07-31 00:13:14
 
 Before the benchmark could measure the machine it had to stop measuring itself. These are the as-is and to-be figures for each defect that made a wrong answer right, taken on the same machine and the same release build either side of the change named beside it.
 
@@ -42,7 +42,7 @@ Same workload, same machine, pipes against a pseudoconsole — the comparison [D
 | 75 | 6.76 GiB · 150 proc | 6.16 GiB · 75 proc | −614 MiB | −75 |
 | **100** | **9.02 GiB · 200 proc** | **8.15 GiB · 100 proc** | **−890 MiB** | **−100** |
 
-Every rung held in both modes at solo work rate, so neither came near a condition. **Dropping conhost buys 0.87 GiB at a hundred sessions — 3.9% of the budget, on a ladder whose top rung uses 41% of it — and buys nothing at all in work rate.** What it costs to leave undone is a hundred extra processes, which is [the ground the decision now stands on](2026-07-30-first-redlines.md#what-dropping-conhost-is-worth-at-any-session-weight).
+Every rung held in both modes at solo work rate, so neither came near a condition. **Dropping conhost buys 0.87 GiB at a hundred sessions — 3.9% of the budget, on a ladder whose top rung uses 41% of it — and buys nothing at all in work rate.** What it costs to leave undone is a hundred extra processes, which is [the ground the decision now stands on](2026-07-30-120002-first-redlines.md#what-dropping-conhost-is-worth-at-any-session-weight).
 
 ## Provenance
 
@@ -52,4 +52,4 @@ Every rung held in both modes at solo work rate, so neither came near a conditio
 | Build | release, same toolchain either side of each change |
 | Measured | 2026-07-30, each pair back to back on an otherwise idle machine |
 
-Figures predating [the drift control](2026-07-30-redline-reproducibility.md) carry no check on whether the machine held still between the two halves of a pair. The ratios here are large enough that it does not decide any of them — a 2,346× change survives a few percent of drift — but the developer-loop rows are close enough to it to be read as directional.
+Figures predating [the drift control](2026-07-30-164912-redline-reproducibility.md) carry no check on whether the machine held still between the two halves of a pair. The ratios here are large enough that it does not decide any of them — a 2,346× change survives a few percent of drift — but the developer-loop rows are close enough to it to be read as directional.

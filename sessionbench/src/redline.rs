@@ -28,7 +28,7 @@ pub struct Redline {
 /// of one rung decide which way to search next. Near the budget the verdicts
 /// are neither monotone nor exact, so a rung landing a percent to either side
 /// sends the search in opposite directions — [seven identical
-/// runs](../../docs/measurements/2026-07-30-redline-reproducibility.md)
+/// runs](../../docs/measurements/2026-07-30-164912-redline-reproducibility.md)
 /// returned 30, 31, 31, 31, 33, 34 and 34, a spread of 12.5% from measurements
 /// whose own rungs reproduced within 2%.
 ///

@@ -27,7 +27,7 @@ The same rule governs what we *do not* consume: [PLAN's anti-patterns](docs/PLAN
 The project's own reason for existing. [M0](ROADMAP.md#current-priority-m0--attribution) is a measurement milestone precisely because a daemon built around an unmeasured assumption reproduces the lag it exists to remove.
 
 - A performance claim without a `sessionbench` artifact is not a claim.
-- **Every measured improvement gets a record with an as-is column beside the to-be one.** The as-is column is what makes it a measurement rather than an announcement. It belongs in [docs/measurements/](docs/measurements/) under that directory's own `YYYY-MM-DD-<slug>.md` naming, published like everything else there — an engineering figure has no reason to be private, and two KPI files sat `.local` for a day for no reason anyone could name. Keep `.local` for what genuinely cannot be published, which so far is unit economics and funding posture and nothing else.
+- **Every measured improvement gets a record with an as-is column beside the to-be one.** The as-is column is what makes it a measurement rather than an announcement. It belongs in [docs/measurements/](docs/measurements/) as `YYYY-MM-DD-HHMMSS-<slug>.md`, stamped with the moment the record was committed rather than the moment the run happened — a clock the next clone can still read, so the records sort into the order they were written on any machine. Publish it like everything else there — an engineering figure has no reason to be private, and two KPI files sat `.local` for a day for no reason anyone could name. Keep `.local` for what genuinely cannot be published, which so far is unit economics and funding posture and nothing else.
 - **A KPI that restates an existing record is a view of it, not a second record.** Fold what is new — usually the cost of the change — into the record that owns the measurement, and do not create the file.
 - A number that contradicts the plan rewrites the plan, never the other way around.
 - Claims in PLAN are marked **[measured]** or **[assumed]**. If you turn one into the other, edit the marker in the same change.
@@ -38,7 +38,7 @@ A long session of back-to-back ramps makes the box slower, and a slower box is n
 
 Every ramp now repeats its lowest saturated rung at the end and reports the gap. **Read that line before quoting anything else in the run.** Past a few percent the redline is reading low and the run is a draft.
 
-While a measurement is running, do nothing else on this machine — no builds, no `git`, no `gh`, no file edits. The observer is not free. [The Defender estimate](docs/measurements/2026-07-30-defender-at-scale.md) was wrong by two orders of magnitude partly because `gh` ran during the run that produced it, and the drift figure above came from a ramp with edits happening alongside it.
+While a measurement is running, do nothing else on this machine — no builds, no `git`, no `gh`, no file edits. The observer is not free. [The Defender estimate](docs/measurements/2026-07-30-142218-defender-at-scale.md) was wrong by two orders of magnitude partly because `gh` ran during the run that produced it, and the drift figure above came from a ramp with edits happening alongside it.
 
 Between runs, keep the footprint from accumulating:
 

@@ -1,6 +1,6 @@
-# The duty relation is derivable · 2026-07-30
+# The duty relation is derivable · 2026-07-30 15:43:48
 
-[The duty record](2026-07-30-duty-and-redline.md) holds two numbers it never connects: `redline × duty ≈ 25`, and sessions receiving 84% of a proportional core share. Connecting them turns a constant fitted to three points into a formula — and a formula carries to hardware this machine cannot speak for, which is what [G0](../../ROADMAP.md#current-priority-m0--attribution) is waiting on.
+[The duty record](2026-07-30-130619-duty-and-redline.md) holds two numbers it never connects: `redline × duty ≈ 25`, and sessions receiving 84% of a proportional core share. Connecting them turns a constant fitted to three points into a formula — and a formula carries to hardware this machine cannot speak for, which is what [G0](../../ROADMAP.md#current-priority-m0--attribution) is waiting on.
 
 ## The derivation
 
@@ -60,7 +60,7 @@ Within 6% across a fourfold range, reading about 2% high on average. The 0.50 an
 
 ## Why the earlier 84% was wrong, and why it mattered
 
-It was measured on a hold whose spin-up was too short to clear session startup — [the earlier record says so about its own core figures](2026-07-30-duty-and-redline.md). At 60 s the figure is 0.77. Seven points of `η` is 9% of the redline, and it is the whole of why both predictions here came in at the floor rather than the middle.
+It was measured on a hold whose spin-up was too short to clear session startup — [the earlier record says so about its own core figures](2026-07-30-130619-duty-and-redline.md). At 60 s the figure is 0.77. Seven points of `η` is 9% of the redline, and it is the whole of why both predictions here came in at the floor rather than the middle.
 
 **Which is the argument for the control ramp.** Without it, `24` at duty 1.00 against the earlier `25` would have read as drift, and there would have been no way to tell a changed relation from a changed hold.
 
@@ -91,7 +91,7 @@ The gate needs a redline for a session this machine cannot run. It now needs **t
 
 ## What is still assumed
 
-- **How a session waits does not matter, which was worth checking.** `cpu-spin` pauses proportionally, so its duty survives contention; a session waiting on a model gets a fixed pause instead and its duty climbs as its compute slows. Run as a matched pair at equal solo duty, the two agree within 1.6% at every rung — 1.50× against 1.50× at 25 sessions, 1.99× against 2.01× at 34 — so the curves are the same at every load rather than only where the condition bites. Their redlines came out 31 and 34, which looked like a difference until [three runs of each interleaved completely](2026-07-30-redline-reproducibility.md).
+- **How a session waits does not matter, which was worth checking.** `cpu-spin` pauses proportionally, so its duty survives contention; a session waiting on a model gets a fixed pause instead and its duty climbs as its compute slows. Run as a matched pair at equal solo duty, the two agree within 1.6% at every rung — 1.50× against 1.50× at 25 sessions, 1.99× against 2.01× at 34 — so the curves are the same at every load rather than only where the condition bites. Their redlines came out 31 and 34, which looked like a difference until [three runs of each interleaved completely](2026-07-30-164912-redline-reproducibility.md).
 - **`η` was measured on one working-set size.** 20 MiB per session is a knob, and a session that fits in cache should show `η` nearer 1.
 - **Memory never became the limiting condition.** At 100 sessions and quarter duty the ceiling was still work rate.
 

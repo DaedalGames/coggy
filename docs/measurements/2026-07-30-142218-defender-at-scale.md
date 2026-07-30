@@ -1,4 +1,4 @@
-# Defender at scale, and a figure withdrawn · 2026-07-30
+# Defender at scale, and a figure withdrawn · 2026-07-30 14:22:18
 
 Two identical ladders of a write-heavy workload, one with the sessions' writes hidden from real-time scanning. The result settles the exclusion axis and **withdraws a `[measured]` claim that had reached [PLAN](../PLAN.md#why-this-exists) and three other records.**
 
