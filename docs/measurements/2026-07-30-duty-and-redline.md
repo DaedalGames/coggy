@@ -16,6 +16,8 @@ A session's redline moves inversely with how much of its time it spends computin
 
 The mechanism is in the runs rather than inferred. Cores plateau at **15.1 to 15.3 of 16 at every break**, whatever the duty — the machine has the same ceiling each time, and duty only decides how many sessions it takes to reach it. Memory is nowhere near involved: a hundred sessions at quarter duty held in 2.35 GiB.
 
+Those core figures were taken with a fifteen-second hold, whose spin-up was too short to clear session startup, so they read somewhat high — see [the correction](2026-07-30-first-redlines.md#correction-the-cores-columns-above-read-high). The plateau itself survives it: at these session counts the machine is saturated by a wide margin, and the redline values come from work rate rather than cores.
+
 ## Why this matters more than the number
 
 [Gate G0](../../ROADMAP.md#current-priority-m0--attribution) needs a redline for a real generation session, and no such session exists on this machine. That looked like a blocked gate. It is a **missing scalar**:

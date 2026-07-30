@@ -50,10 +50,15 @@ use crate::sampler::{Sample, Sampler};
 use crate::session::{self, Output, Session, SessionMode};
 use crate::tree::{ArmedTree, Membership, SessionTree};
 
-/// Share of each hold spent letting the step settle before measuring.
+/// Share of each hold spent letting the rung settle before measuring.
 ///
 /// Sessions spawned together fault in their pages together, so the first
 /// moments of a rung are a spike that belongs to nothing being asked about.
+/// Floored at [`STARTUP_WINDOW`], which is the same cut `observe` makes for
+/// the same reason: at the default ninety-second hold a third *is* thirty
+/// seconds and the two agree, but a short hold left the spin-up at five and
+/// let page faults into the measurement. A single session at quarter duty read
+/// 0.4 cores that way against a true 0.24.
 const SPINUP_FRACTION: f64 = 1.0 / 3.0;
 
 /// Fewest measured samples a rung needs before its verdict means anything.
@@ -413,7 +418,10 @@ fn hold(
     let mut samples_file = BufWriter::new(File::create(step_dir.join("samples.jsonl"))?);
 
     let started = Instant::now();
-    let spinup = config.hold.mul_f64(SPINUP_FRACTION);
+    let spinup = config
+        .hold
+        .mul_f64(SPINUP_FRACTION)
+        .max(crate::observe::STARTUP_WINDOW);
     let mut measured: Vec<Sample> = Vec::new();
     let mut units_at_spinup = None;
     let mut last: Option<Sample> = None;
@@ -503,12 +511,25 @@ fn hold(
     teardown.scratch_ms = at.elapsed().as_millis() as u64;
 
     let elapsed_secs = started.elapsed().as_secs_f64();
+    // Two different failures, named apart. A hold that never outlasts its own
+    // spin-up has nothing to measure by construction; a hold that did outlast
+    // it and still came back with almost nothing was starved. Calling both
+    // "the sampler could not keep up" sends the next reader to fix the wrong
+    // thing.
     let inconclusive = (measured.len() < MIN_SAMPLES_PER_RUNG).then(|| {
-        format!(
-            "{} sample(s) over {elapsed_secs:.1}s of a {:.1}s hold — the sampler could not keep up, so nothing here describes the machine",
-            measured.len(),
-            config.hold.as_secs_f64(),
-        )
+        if config.hold <= spinup {
+            format!(
+                "a {:.1}s hold leaves nothing after the {:.1}s spin-up, which is where sessions are still faulting in their pages",
+                config.hold.as_secs_f64(),
+                spinup.as_secs_f64(),
+            )
+        } else {
+            format!(
+                "{} sample(s) over {elapsed_secs:.1}s of a {:.1}s hold — the sampler could not keep up, so nothing here describes the machine",
+                measured.len(),
+                config.hold.as_secs_f64(),
+            )
+        }
     });
 
     let total_rss_bytes = median(measured.iter().map(|s| s.rss_bytes)).unwrap_or(0);

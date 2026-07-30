@@ -76,6 +76,14 @@ The worst tick ran **34 to 49 ms throughout the `cpu-spin` ramp**, including at 
 
 Both runs used a release build. A debug build pays several times over for the same tick, which is why every report now says which it was.
 
+## Correction: the cores columns above read high
+
+Both ladders ran with holds of 20 and 30 seconds, and at the time the ramp cut its spin-up as a *fraction* of the hold rather than the fixed thirty seconds `observe` uses. That left six to ten seconds of settling, which is not enough — sessions are still faulting in their resident memory, and that work lands in the measured window.
+
+Validated against a known duty afterwards: one session that truly occupies 0.24 cores read **0.4** when measured that way, and 0.240 when measured past a thirty-second window. The effect is largest where the session's own CPU is smallest.
+
+**redline, RSS, work rate, and every verdict above are unaffected** — RSS is a median of the final quarter, and work rate is a delta over the window rather than a mean of per-sample readings. Only the cores columns read high, most at the low rungs. The ramp now floors its spin-up at the same thirty seconds, and a hold too short to clear it is reported as inconclusive rather than measured.
+
 ## Provenance
 
 | | |
