@@ -22,6 +22,12 @@ Of 31.4 GiB, 22.7 were held by everything else on this desktop. Ten concurrent c
 
 That is a condition on the reading rather than a fact about the engine, and it is the first time [the background figure `doctor` now reports](../../sessionbench/README.md#running-it) has ruled a measurement out in advance rather than explained one afterwards.
 
+**A census an hour later says what holds it, and it is not the engine or the instrument.** Of 21.1 GiB spoken for, browsers and chat clients hold about seven — Chrome 3.0, VS Code 1.8, rust-analyzer 0.9, Slack 0.6, Discord 0.5, a Steam helper 0.5. Every process's working set together comes to roughly 12 GiB, and the remainder is kernel and pool that no process shows.
+
+**The free figure is not hiding a reclaimable cache, which was worth checking rather than assuming.** `FreePhysicalMemory` reads 10.30 GiB and `\Memory\Available MBytes` reads 10.28 — they agree to 0.2%, so the free list already carries the standby cache and there is no ninth gigabyte to recover. `sessionbench` reads the right one of the two either way, through `sysinfo`'s `available_memory`.
+
+So the shortfall is user applications rather than anything this project put there, and closing it is the desktop owner's call rather than the instrument's. The requirement has also grown: [a session is the engine plus the agent driving it](2026-07-31-054657-the-driven-duty.md), which puts ten of them at **23.9 GiB** rather than 19.
+
 ## What is settled and what is not
 
 | | |
@@ -29,7 +35,7 @@ That is a condition on the reading rather than a fact about the engine, and it i
 | Cooks contend at startup | **Measured** — the lock message, from ten sessions that never cooked |
 | Two cooks run concurrently past that point | [Measured](2026-07-31-040348-cooking-is-the-governed-state.md) — two editors for a full test |
 | Whether peaks align | [Settled twenty minutes later](2026-07-31-043156-cook-peaks-scatter.md), by four sessions rather than ten — they scatter |
-| Ten cooks specifically | **Unmeasured**, and the shared shader cache is the reason it might differ from four |
+| Ten cooks specifically | **Unmeasured**, and the shared shader cache is the reason it might differ from four. Blocked on 23.9 GiB against 10.3 available, of which about seven sit in browsers and chat clients |
 
 The ten-session ramp turned out not to be what the question needed. Four sessions answered it on the same machine minutes afterwards, which is [the lesson this record was written one step too early to know](../../CLAUDE.md): shrink the measurement before blaming the machine.
 
