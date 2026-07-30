@@ -27,6 +27,7 @@ serde_json.workspace = true
 sysinfo.workspace = true
 portable-pty.workspace = true
 win32job.workspace = true
+thread-priority.workspace = true
 
 [lints]
 workspace = true

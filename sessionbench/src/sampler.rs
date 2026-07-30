@@ -45,10 +45,15 @@ pub struct Sampler {
     sys: System,
     /// Defender's pid, so it can be refreshed by name only once.
     defender: Option<Pid>,
+    /// Why the sampling thread could not be raised above the sessions, when it
+    /// could not. Carried into reports, since a starved sampler produces
+    /// numbers that describe the observer.
+    unprioritised_reason: Option<String>,
 }
 
 impl Sampler {
-    /// Builds a sampler with its CPU counters already primed.
+    /// Builds a sampler on the calling thread, raised above what it will watch,
+    /// with its CPU counters already primed.
     ///
     /// sysinfo reports usage as the delta between two refreshes, so a sampler
     /// used immediately would report every process at zero.
@@ -56,9 +61,18 @@ impl Sampler {
         let mut sampler = Self {
             sys: System::new(),
             defender: None,
+            unprioritised_reason: raise_current_thread().err(),
         };
+        if let Some(reason) = &sampler.unprioritised_reason {
+            eprintln!("warning: the sampler runs at ordinary priority — {reason}");
+        }
         sampler.refresh(None);
         sampler
+    }
+
+    /// `None` when the sampling thread outranks the sessions, as it should.
+    pub fn unprioritised_reason(&self) -> Option<&str> {
+        self.unprioritised_reason.as_deref()
     }
 
     /// Re-reads the machine. Call once per tick, however many sessions are up.
@@ -159,4 +173,30 @@ impl Default for Sampler {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Puts the sampling thread ahead of the sessions it measures.
+///
+/// Without this, twenty-five sessions that never yield leave the sampler
+/// unscheduled for fifteen seconds at a time, and everything it then reports
+/// describes the observer rather than the machine. The thread costs about
+/// fifty milliseconds a second and sleeps for the rest, so outranking the
+/// sessions takes nothing measurable from them — and what it does take is
+/// recorded, since every tick's cost is in the artifact.
+///
+/// One step below time-critical on purpose. The sampler has no business being
+/// the highest-priority thread on someone's machine.
+fn raise_current_thread() -> Result<(), String> {
+    thread_priority::set_current_thread_priority(desired_priority())
+        .map_err(|error| format!("{error:?}"))
+}
+
+#[cfg(windows)]
+fn desired_priority() -> thread_priority::ThreadPriority {
+    thread_priority::ThreadPriority::Os(thread_priority::WinAPIThreadPriority::Highest.into())
+}
+
+#[cfg(not(windows))]
+fn desired_priority() -> thread_priority::ThreadPriority {
+    thread_priority::ThreadPriority::Max
 }

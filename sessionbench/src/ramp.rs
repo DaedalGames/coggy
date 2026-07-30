@@ -144,6 +144,11 @@ pub struct RampReport {
     pub host: HostFacts,
     pub membership: Membership,
     pub membership_fallback_reason: Option<String>,
+    /// Set when the sampling thread could not be raised above the sessions.
+    ///
+    /// Every figure below is suspect while this is present, because a starved
+    /// sampler reports its own scheduling as the machine's behaviour.
+    pub sampler_unprioritised_reason: Option<String>,
     pub started_unix: u64,
     pub interval_ms: u64,
     pub hold_ms: u64,
@@ -243,6 +248,7 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         host,
         membership,
         membership_fallback_reason,
+        sampler_unprioritised_reason: sampler.unprioritised_reason().map(str::to_string),
         started_unix,
         interval_ms: config.interval.as_millis() as u64,
         hold_ms: config.hold.as_millis() as u64,
