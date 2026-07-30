@@ -41,7 +41,6 @@ pub fn ramp_markdown(report: &RampReport) -> String {
                 report.machine.label(),
                 defender_state(report.host.defender.realtime_protection),
             );
-            drift_paragraph(&mut out, report);
             if let Some(fit) = &redline.fitted {
                 let _ = writeln!(
                     out,
@@ -74,6 +73,11 @@ pub fn ramp_markdown(report: &RampReport) -> String {
             );
         }
     }
+
+    // Outside the match, matching the console: a ramp that reached no redline
+    // still measured rungs, and whether the machine held still while it did is
+    // the same question either way.
+    drift_paragraph(&mut out, report);
 
     let _ = writeln!(out, "## Rungs\n");
     let _ = writeln!(

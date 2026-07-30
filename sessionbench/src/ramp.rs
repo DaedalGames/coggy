@@ -1007,6 +1007,41 @@ mod tests {
     }
 
     #[test]
+    fn the_markdown_carries_the_drift_line_and_says_what_it_means() {
+        // CLAUDE.md tells a reader to check this before quoting anything else
+        // in a run, and for one commit the line existed only on the console —
+        // so the rule pointed at something a reader holding `ramp.md` did not
+        // have.
+        let slowed = crate::report::ramp_markdown(&report_with(
+            vec![rung(25, 40.02)],
+            Some(rung(25, 38.11)),
+        ));
+        assert!(slowed.contains("40.02"), "{slowed}");
+        assert!(slowed.contains("38.11"), "{slowed}");
+        assert!(slowed.contains("reads low"), "{slowed}");
+
+        let steady = crate::report::ramp_markdown(&report_with(
+            vec![rung(25, 40.02)],
+            Some(rung(25, 40.00)),
+        ));
+        assert!(steady.contains("held still"), "{steady}");
+        assert!(!steady.contains("reads low"), "{steady}");
+    }
+
+    #[test]
+    fn a_ramp_that_reached_no_redline_still_reports_its_drift() {
+        // The console prints the control outside the redline match, and the
+        // markdown has to agree: a ladder that ran out still measured rungs,
+        // and whether the machine held still is the same question.
+        let markdown = crate::report::ramp_markdown(&report_with(
+            vec![rung(25, 40.02)],
+            Some(rung(25, 38.11)),
+        ));
+        assert!(markdown.contains("no redline"), "{markdown}");
+        assert!(markdown.contains("Drift check"), "{markdown}");
+    }
+
+    #[test]
     fn no_repeat_and_no_matching_rung_both_give_nothing() {
         assert_eq!(report_with(vec![rung(25, 40.0)], None).drift(), None);
         // The ladder never held the count the control repeated, so there is
