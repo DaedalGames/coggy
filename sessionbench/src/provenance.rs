@@ -30,6 +30,12 @@ pub struct Provenance {
     pub working_tree_dirty: Option<bool>,
     /// Full `rustc -V` of the compiler that built the binary.
     pub rustc: String,
+    /// Whether the instrument itself was built without optimisation.
+    ///
+    /// The sampler's own cost is part of every report, and a debug build pays
+    /// several times over for the same tick. A run taken with one is not wrong,
+    /// but it is not comparable against a run that was not.
+    pub debug_build: bool,
     /// Resolved versions of the crates that can move a measured number.
     pub measurement_crates: BTreeMap<String, String>,
 }
@@ -62,6 +68,7 @@ impl Provenance {
                 &env!("VERGEN_RUSTC_COMMIT_HASH")[..9.min(env!("VERGEN_RUSTC_COMMIT_HASH").len())],
                 env!("VERGEN_RUSTC_COMMIT_DATE"),
             ),
+            debug_build: env!("VERGEN_CARGO_DEBUG") == "true",
             measurement_crates: measurement_crates(env!("VERGEN_CARGO_DEPENDENCIES")),
         }
     }
@@ -89,7 +96,16 @@ impl Provenance {
             .join(", ");
 
         vec![
-            ("sessionbench", self.sessionbench_version.clone()),
+            (
+                "sessionbench",
+                match self.debug_build {
+                    true => format!(
+                        "{} (debug build — its own ticks cost more)",
+                        self.sessionbench_version
+                    ),
+                    false => self.sessionbench_version.clone(),
+                },
+            ),
             ("commit", commit),
             ("rustc", self.rustc.clone()),
             ("measured by", deps),

@@ -22,7 +22,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .commit_date(true)
                 .build()?,
         )?
-        .add_instructions(&CargoBuilder::default().dependencies(true).build()?)?
+        .add_instructions(
+            &CargoBuilder::default()
+                .dependencies(true)
+                .debug(true)
+                .build()?,
+        )?
         .emit()?;
     Ok(())
 }

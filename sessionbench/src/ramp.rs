@@ -335,6 +335,15 @@ impl Search<'_> {
     }
 }
 
+/// Where a rung's sessions may write.
+///
+/// Removed when the rung ends, which is the only chance anything has to remove
+/// it: the rung ends by killing every session, and a killed process runs no
+/// cleanup.
+fn scratch_dir(step_dir: &Path) -> PathBuf {
+    step_dir.join("scratch")
+}
+
 /// Holds `sessions` alive for one hold window and measures what it cost.
 fn hold(
     config: &RampConfig,
@@ -344,6 +353,7 @@ fn hold(
     sampler: &mut Sampler,
     budget: u64,
 ) -> Result<Step> {
+    fs::create_dir_all(scratch_dir(step_dir))?;
     let mut pool = Pool::new(config, step_dir, sessions, tree)?;
     let mut samples_file = BufWriter::new(File::create(step_dir.join("samples.jsonl"))?);
 
@@ -402,6 +412,10 @@ fn hold(
     let worst_replacement_secs = pool.worst_replacement_secs;
     pool.shut_down(sampler, last.as_ref())?;
     let dropped_units = count_dropped_units(step_dir)?;
+    // Errors ignored on purpose: a file still held by a session that has not
+    // finished dying is not worth failing a measured rung over, and the next
+    // run starts from a fresh output directory anyway.
+    let _ = fs::remove_dir_all(scratch_dir(step_dir));
 
     let elapsed_secs = started.elapsed().as_secs_f64();
     let inconclusive = (measured.len() < MIN_SAMPLES_PER_RUNG).then(|| {
@@ -546,7 +560,7 @@ fn start(
     tree: &mut SessionTree,
 ) -> Result<Slot> {
     let base = step_dir.join(format!("s{index:03}-g{generation:02}"));
-    let spawned = session::spawn(&config.command, config.mode, &base)?;
+    let spawned = session::spawn(&config.command, config.mode, &base, &scratch_dir(step_dir))?;
     if let Some(pid) = spawned.session.pid() {
         tree.add_root(Pid::from_u32(pid));
     }

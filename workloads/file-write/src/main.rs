@@ -52,7 +52,10 @@ struct Args {
 
     /// Directory to work under. A fresh subdirectory is made inside it.
     ///
-    /// Defaults to the system temporary directory.
+    /// Defaults to `SESSIONBENCH_SCRATCH` when the benchmark set it, and the
+    /// system temporary directory otherwise. Honouring that variable is what
+    /// lets the benchmark clean up after a session it killed, which is how
+    /// every ramp rung ends.
     #[arg(long)]
     out: Option<PathBuf>,
 
@@ -68,6 +71,7 @@ fn main() -> std::io::Result<()> {
     // real-time scanning is measured rather than its cache.
     let root = args
         .out
+        .or_else(|| std::env::var_os("SESSIONBENCH_SCRATCH").map(PathBuf::from))
         .unwrap_or_else(std::env::temp_dir)
         .join(format!("file-write-{}", std::process::id()));
     std::fs::create_dir_all(&root)?;

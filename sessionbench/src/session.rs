@@ -176,11 +176,26 @@ impl Session {
     }
 }
 
+/// The directory a session may write under.
+///
+/// Every rung of a ramp ends by killing its sessions, and `TerminateProcess`
+/// runs no destructor, so a workload can never be relied on to clean up after
+/// itself. Naming its scratch directory here is what lets the benchmark do it
+/// instead — one ramp left 299 directories behind before this existed, and
+/// that was a working ramp rather than a broken one.
+pub const SCRATCH_VAR: &str = "SESSIONBENCH_SCRATCH";
+
 /// Starts a session and the threads that keep its output moving.
 ///
 /// `log_base` is a path prefix rather than a directory, so many sessions can
-/// share one and still be told apart afterwards.
-pub fn spawn(command: &[String], mode: SessionMode, log_base: &Path) -> Result<Spawned> {
+/// share one and still be told apart afterwards. `scratch` is where the
+/// workload may write, and the caller owns removing it.
+pub fn spawn(
+    command: &[String],
+    mode: SessionMode,
+    log_base: &Path,
+    scratch: &Path,
+) -> Result<Spawned> {
     let (program, args) = command.split_first().context("no command to run")?;
     let output = Arc::new(Output::new());
     let log = |suffix: &str| -> PathBuf {
@@ -193,6 +208,7 @@ pub fn spawn(command: &[String], mode: SessionMode, log_base: &Path) -> Result<S
         SessionMode::Pipe => {
             let mut child = std::process::Command::new(program)
                 .args(args)
+                .env(SCRATCH_VAR, scratch)
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
@@ -238,6 +254,7 @@ pub fn spawn(command: &[String], mode: SessionMode, log_base: &Path) -> Result<S
 
             let mut builder = portable_pty::CommandBuilder::new(program);
             builder.args(args);
+            builder.env(SCRATCH_VAR, scratch);
             // `CommandBuilder` inherits the environment but leaves the working
             // directory unset, which lands the child in the user's profile
             // instead. Pipe mode inherits it, and the two modes have to differ

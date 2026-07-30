@@ -174,6 +174,11 @@ pub fn run(config: &ObserveConfig) -> Result<RunReport> {
         .with_context(|| format!("creating {}", config.out_dir.display()))?;
     let mut samples_file = BufWriter::new(File::create(config.out_dir.join("samples.jsonl"))?);
 
+    // Named here so it can be removed here. A session ended by `--duration` is
+    // killed, and a killed process runs no cleanup of its own.
+    let scratch = config.out_dir.join("scratch");
+    fs::create_dir_all(&scratch)?;
+
     let started_unix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -197,6 +202,7 @@ pub fn run(config: &ObserveConfig) -> Result<RunReport> {
         &config.command,
         config.mode,
         &config.out_dir.join("session"),
+        &scratch,
     )?;
     let mut tree = armed.attach(Pid::from_u32(
         session
@@ -251,6 +257,7 @@ pub fn run(config: &ObserveConfig) -> Result<RunReport> {
     // threads see EOF and stop counting.
     drop(session);
     Spawned::finish(drains)?;
+    let _ = fs::remove_dir_all(&scratch);
 
     let duration = started.elapsed();
     let summary = summarize(&samples, &output, duration);

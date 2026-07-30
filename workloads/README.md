@@ -12,7 +12,7 @@ The shape is [vtebench's](../sessionbench/README.md#what-we-take-from-prior-art)
 2. **Runs identically alone and alongside ninety-nine others.** No coordination, no shared paths, no ports.
 3. **Knows nothing about COGGY.** A workload that takes a COGGY-specific path stops being evidence, which is [the second integrity rule](../sessionbench/README.md#keeping-it-honest).
 4. **Exits zero when it finishes, and finishes on its own.** `--duration` exists for the workloads that do not, and a run stopped that way is labelled in its report.
-5. **Writes only under a directory it created for this run.** Real-time scanning charges far less the second time a file is written, so a workload that reuses paths measures Defender's cache instead of Defender.
+5. **Writes only under a directory it created inside `SESSIONBENCH_SCRATCH`,** falling back to the temporary directory when the variable is unset. Two rules in one: a fresh directory every run, because real-time scanning charges far less the second time a file is written and a workload reusing paths measures Defender's cache instead of Defender; and a directory the benchmark named, because **the benchmark is the only thing that can remove it.** Every ramp rung ends by killing its sessions, and a killed process runs no cleanup — one working ramp left 299 directories behind before this rule existed.
 
 ## Why a unit is a line
 
