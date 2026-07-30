@@ -8,7 +8,7 @@ The shape is [vtebench's](../sessionbench/README.md#what-we-take-from-prior-art)
 
 ## The contract
 
-1. **One line of stdout is one unit of work.** A unit means whatever the workload says it means — a file written, a frame rendered, a request served. It only ever gets compared against itself.
+1. **One line of stdout is one unit of work, and the line opens with that unit's ordinal.** A unit means whatever the workload says it means — a file written, a frame rendered, a request served — and it only ever gets compared against itself. The ordinal counts from one and never repeats, which is what makes a *missing* line visible: a gap below the highest ordinal seen is dropped output, and dropped output is one of the four conditions. Everything after the ordinal is free, including a payload for workloads that exist to stress bandwidth.
 2. **Runs identically alone and alongside ninety-nine others.** No coordination, no shared paths, no ports.
 3. **Knows nothing about COGGY.** A workload that takes a COGGY-specific path stops being evidence, which is [the second integrity rule](../sessionbench/README.md#keeping-it-honest).
 4. **Exits zero when it finishes, and finishes on its own.** `--duration` exists for the workloads that do not, and a run stopped that way is labelled in its report.

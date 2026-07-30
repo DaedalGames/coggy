@@ -85,9 +85,10 @@ fn main() -> std::io::Result<()> {
         // session whose heap is live does not go quiet.
         touch(&mut held, unit as usize);
 
-        // One line, one unit of work. Flushed because a benchmark counting
+        // One line, one unit of work, opening with the ordinal so a gap in the
+        // sequence is visible afterwards. Flushed because a benchmark counting
         // these must see them as they happen, not when a buffer fills.
-        writeln!(stdout, "unit {unit}")?;
+        writeln!(stdout, "{unit} unit-{unit}.dat")?;
         stdout.flush()?;
 
         std::thread::sleep(Duration::from_millis(args.interval));

@@ -80,6 +80,18 @@ impl Output {
         }
     }
 
+    /// A frozen counter, for summing a pool of sessions into one view.
+    ///
+    /// Nothing writes to it: a ramp's sessions each own a live `Output`, and
+    /// the sampler wants their total rather than a list.
+    pub fn from_counts(bytes: u64, units: u64) -> Self {
+        Self {
+            stdout: Arc::new(AtomicU64::new(bytes)),
+            stderr: Arc::new(AtomicU64::new(0)),
+            units: Arc::new(AtomicU64::new(units)),
+        }
+    }
+
     pub fn total(&self) -> u64 {
         self.stdout.load(Ordering::Relaxed) + self.stderr.load(Ordering::Relaxed)
     }

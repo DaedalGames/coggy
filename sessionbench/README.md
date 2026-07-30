@@ -65,6 +65,16 @@ cargo run -p sessionbench -- observe --duration 300 -- <command>
 
 Add `--pty` to give the session a pseudoconsole instead of pipes. Running one workload both ways is the direct measurement behind [Decision 1](../docs/PLAN.md#four-core-decisions), since the difference between the two is one conhost per session, resident for as long as the session lives.
 
+```
+cargo run -p sessionbench -- ramp --hold 90 -- <command>
+```
+
+`ramp` climbs the ladder and produces the redline. Each rung holds its session count for the whole window — **replacing any session that finishes**, which is both what keeps the count honest and what makes the replacement condition measurable at all. A rung that let finished sessions stay finished would report the count it asked for while measuring a decaying one, and the machine gets easier as that happens, so the number would climb exactly when it should fall.
+
+`--max-sessions` caps the climb. The full ladder reaches 200 and will take the machine with it for the duration.
+
+Rungs are judged on all four conditions, so a run that cannot evaluate one does not print a smaller redline — it prints none.
+
 ## What we measure against
 
 A benchmark that only measures `coggyd` is marketing. At minimum, these run on identical hardware.

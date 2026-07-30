@@ -13,6 +13,7 @@ use sessionbench::host::HostFacts;
 use sessionbench::machine::Machine;
 use sessionbench::observe::{self, ObserveConfig, RunReport};
 use sessionbench::provenance::Provenance;
+use sessionbench::ramp::{self, RampConfig, RampReport};
 use sessionbench::session::SessionMode;
 use sessionbench::tree::Membership;
 
@@ -70,6 +71,47 @@ enum Command {
         #[arg(last = true, required = true, value_name = "COMMAND")]
         command: Vec<String>,
     },
+
+    /// Climb the session ladder until a redline condition breaks.
+    ///
+    /// Each rung holds its session count for the whole window, replacing any
+    /// that finish, and is judged against all four conditions before the next
+    /// is attempted.
+    Ramp {
+        /// Name for this ramp, used in the output directory and the report.
+        #[arg(long, default_value = "ramp")]
+        label: String,
+
+        /// Directory ramps are written under.
+        #[arg(long, default_value = "bench-out")]
+        out: PathBuf,
+
+        /// Seconds between samples.
+        #[arg(long, default_value_t = 1.0, value_name = "SECONDS")]
+        interval: f64,
+
+        /// How long each rung is held before it is judged.
+        ///
+        /// The first third is spin-up and is not measured, since sessions
+        /// spawned together fault in their pages together.
+        #[arg(long, default_value_t = 90.0, value_name = "SECONDS")]
+        hold: f64,
+
+        /// Highest rung to attempt.
+        ///
+        /// The full ladder reaches 200 sessions and will take the machine with
+        /// it for the duration. Lower this when something else needs the box.
+        #[arg(long, default_value_t = 200)]
+        max_sessions: u32,
+
+        /// Give every session a pseudoconsole instead of pipes.
+        #[arg(long)]
+        pty: bool,
+
+        /// The command each session runs, after `--`.
+        #[arg(last = true, required = true, value_name = "COMMAND")]
+        command: Vec<String>,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -112,7 +154,48 @@ fn main() -> anyhow::Result<()> {
             print_run(&report, &config.out_dir);
             Ok(())
         }
+        Command::Ramp {
+            label,
+            out,
+            interval,
+            hold,
+            max_sessions,
+            pty,
+            command,
+        } => {
+            let mode = if pty {
+                SessionMode::Pty
+            } else {
+                SessionMode::Pipe
+            };
+            let config = RampConfig {
+                out_dir: out.join(format!("{}-{label}-{}", stamp(), mode.label())),
+                label,
+                interval: Duration::from_secs_f64(interval),
+                hold: Duration::from_secs_f64(hold),
+                max_sessions,
+                mode,
+                command,
+            };
+
+            println!(
+                "ramping {} · {} · holding each rung {hold}s, sampling every {interval}s",
+                config.command.join(" "),
+                config.mode.label(),
+            );
+            let report = ramp::run(&config)?;
+            print_ramp(&report, &config.out_dir);
+            Ok(())
+        }
     }
+}
+
+/// Seconds since the epoch, for naming an output directory.
+fn stamp() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or_default()
 }
 
 /// Reports hardware, provenance, and axis availability.
@@ -281,6 +364,63 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
             ),
         ],
     );
+
+    println!("\nwritten to {}", out_dir.display());
+}
+
+fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
+    let target = report
+        .command
+        .first()
+        .map(|c| {
+            std::path::Path::new(c)
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| c.clone())
+        })
+        .unwrap_or_default();
+    let defender = match report.host.defender.realtime_protection {
+        Some(true) => "Defender on",
+        Some(false) => "Defender off",
+        None => "Defender unknown",
+    };
+
+    println!();
+    match &report.redline {
+        Some(redline) => println!(
+            "redline: {} sessions ({:?}) · {target} · {} · {} · {defender}",
+            redline.sessions,
+            redline.limited_by,
+            report.mode.label(),
+            report.machine.label(),
+        ),
+        // Not a redline. The ladder ran out with every condition still holding,
+        // which locates the ceiling above what was tried rather than at it.
+        None => println!(
+            "no redline reached: every rung up to {} sessions held · {target} · {} · {} · {defender}",
+            report.steps.last().map(|s| s.sessions).unwrap_or(0),
+            report.mode.label(),
+            report.machine.label(),
+        ),
+    }
+
+    println!("\nrungs");
+    for step in &report.steps {
+        let verdict = if step.broken.is_empty() {
+            "held".to_string()
+        } else {
+            format!("broke on {:?}", step.broken)
+        };
+        println!(
+            "  {:>3}  rss {:>10}  {:.2} units/s/session  {:.1} cores  {:>2} replaced  {} dropped  {verdict}",
+            step.sessions,
+            human_bytes(step.total_rss_bytes),
+            step.units_per_session_per_sec,
+            step.session_cores + step.defender_cores,
+            step.replacements,
+            step.dropped_units,
+        );
+    }
 
     println!("\nwritten to {}", out_dir.display());
 }

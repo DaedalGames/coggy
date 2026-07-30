@@ -13,6 +13,7 @@ pub mod host;
 pub mod machine;
 pub mod observe;
 pub mod provenance;
+pub mod ramp;
 pub mod redline;
 pub mod sampler;
 pub mod session;

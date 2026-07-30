@@ -136,8 +136,19 @@ impl ArmedTree {
 
     /// Binds the armed job to the session that has now been spawned.
     pub fn attach(self, root: Pid) -> SessionTree {
+        let mut tree = self.attach_pool();
+        tree.add_root(root);
+        tree
+    }
+
+    /// Binds the armed job to a pool whose sessions arrive later.
+    ///
+    /// A ramp puts every session in the one job this process joined, which is
+    /// what makes the aggregate exact: the kernel counts them together and the
+    /// instrument never has to sum a hundred separate walks.
+    pub fn attach_pool(self) -> SessionTree {
         SessionTree {
-            root,
+            roots: HashSet::new(),
             observer: self.observer,
             job: self.job,
             baseline: self.baseline,
@@ -148,7 +159,9 @@ impl ArmedTree {
 
 /// The set of processes belonging to one session, sampled over time.
 pub struct SessionTree {
-    root: Pid,
+    /// The spawned commands themselves. More than one once a ramp is running,
+    /// and it grows as finished sessions are replaced.
+    roots: HashSet<Pid>,
     observer: Pid,
     job: Option<win32job::Job>,
     baseline: HashSet<usize>,
@@ -158,7 +171,12 @@ pub struct SessionTree {
 }
 
 impl SessionTree {
-    /// Samples every process currently belonging to the session.
+    /// Adds a session that has just been spawned.
+    pub fn add_root(&mut self, pid: Pid) {
+        self.roots.insert(pid);
+    }
+
+    /// Samples every process currently belonging to the session or pool.
     pub fn sample(&mut self, sys: &System) -> Vec<ProcessSample> {
         let members = if self.job.is_some() {
             self.job_members()
@@ -171,7 +189,7 @@ impl SessionTree {
             .filter_map(|pid| {
                 let process = sys.process(pid)?;
                 let name = process.name().to_string_lossy().into_owned();
-                let attribution = if pid == self.root {
+                let attribution = if self.roots.contains(&pid) {
                     Attribution::Root
                 } else if is_pseudoconsole(&name) {
                     Attribution::Pseudoconsole
@@ -197,9 +215,10 @@ impl SessionTree {
     /// Everything the kernel says is in the job, minus the observer and
     /// anything that was already there.
     ///
-    /// `query_process_id_list` reads at most 1024 entries. One session cannot
-    /// approach that, and the ramp gives each session its own job, so the cap
-    /// is recorded rather than worked around.
+    /// `query_process_id_list` reads at most 1024 entries. A ramp of 200
+    /// sessions each holding a shell and a pseudoconsole reaches 400, so the
+    /// cap has headroom — but it is a real ceiling and it is recorded here
+    /// rather than discovered at 512 sessions.
     fn job_members(&self) -> Vec<Pid> {
         self.job
             .as_ref()
@@ -227,8 +246,10 @@ impl SessionTree {
                 .is_some_and(|process| process.start_time() == *start_time)
         });
 
-        if let Some(process) = sys.process(self.root) {
-            self.walked.insert(self.root, process.start_time());
+        for root in &self.roots {
+            if let Some(process) = sys.process(*root) {
+                self.walked.insert(*root, process.start_time());
+            }
         }
 
         loop {
