@@ -36,6 +36,7 @@ See [sessionbench/README.md](sessionbench/README.md) for the metric definition, 
 |---|---|
 | [ROADMAP.md](ROADMAP.md) | What order it happens in, and the gate that closes each milestone |
 | [sessionbench/README.md](sessionbench/README.md) | The benchmark: metric, axes, comparison set, report format |
+| [workloads/README.md](workloads/README.md) | What a workload is and what it must promise |
 | [CLAUDE.md](CLAUDE.md) | How to approach the work: reuse before building, measure before optimizing |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute: setup, conventions, what gets closed |
 | [docs/PLAN.md](docs/PLAN.md) | What is true: architecture, scope boundary, constraints |

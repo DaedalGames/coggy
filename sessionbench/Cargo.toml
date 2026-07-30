@@ -28,8 +28,5 @@ sysinfo.workspace = true
 portable-pty.workspace = true
 win32job.workspace = true
 
-[lints.rust]
-unsafe_code = "forbid"
-
-[lints.clippy]
-all = { level = "deny", priority = -1 }
+[lints]
+workspace = true

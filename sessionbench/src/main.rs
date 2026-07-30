@@ -185,6 +185,22 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
             ("peak processes", format!("{}", summary.peak_processes)),
             ("peak conhost", format!("{}", summary.peak_pseudoconsoles)),
             (
+                "work rate",
+                format!(
+                    "{:.2} units/s ({} units)",
+                    summary.work_units_per_sec, summary.work_units
+                ),
+            ),
+            (
+                "cores",
+                match (summary.session_cores, summary.defender_cores) {
+                    (Some(session), Some(defender)) => {
+                        format!("{session:.2} session + {defender:.2} defender")
+                    }
+                    _ => "no steady state to measure over".into(),
+                },
+            ),
+            (
                 "output",
                 format!(
                     "{} at {}/s",
@@ -195,10 +211,16 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
             (
                 "defender",
                 match &summary.defender {
-                    Some(cost) => format!(
-                        "{:.2}s over startup, then {:.2}s per minute",
-                        cost.startup_cpu_seconds, cost.steady_cpu_seconds_per_min
-                    ),
+                    Some(cost) => match cost.steady_cpu_seconds_per_min {
+                        Some(rate) => format!(
+                            "{:.2}s over startup, then {rate:.2}s per minute",
+                            cost.startup_cpu_seconds
+                        ),
+                        None => format!(
+                            "{:.2}s over startup; the run was too short to have a steady state",
+                            cost.startup_cpu_seconds
+                        ),
+                    },
                     None => "not running".into(),
                 },
             ),
@@ -233,6 +255,21 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
                         "BREAKS the RSS condition"
                     }
                 ),
+            ),
+            (
+                "cores",
+                match (projection.cores_needed, projection.cpu_oversubscribed) {
+                    (Some(needed), Some(over)) => format!(
+                        "{needed:.1} needed against {} available — {}",
+                        projection.cores_available,
+                        if over {
+                            "OVERSUBSCRIBED, which is how the work-rate condition trips"
+                        } else {
+                            "fits"
+                        }
+                    ),
+                    _ => "not projectable — the run had no steady state".into(),
+                },
             ),
             ("processes", format!("{}", projection.processes)),
             ("conhost", format!("{}", projection.pseudoconsoles)),

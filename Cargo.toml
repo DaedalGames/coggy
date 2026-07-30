@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["sessionbench"]
+members = ["sessionbench", "workloads/file-write"]
 
 [workspace.package]
 version = "0.0.0"
@@ -13,6 +13,14 @@ rust-version = "1.88"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/DaedalGames/coggy"
 authors = ["Daedal Games"]
+
+# Lints live here rather than per crate so a workload cannot be held to a looser
+# standard than the instrument measuring with it.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
 
 [workspace.dependencies]
 anyhow = "1"
