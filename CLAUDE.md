@@ -69,7 +69,8 @@ One question decides whether to start any piece of work: **does this move the nu
 Two consequences that are easy to miss:
 
 - **Order holds inside a milestone too.** M0 runs one session to completion *before* the ramp harness exists, because the single run is what says whether the redline conditions are pointed at the right thing.
-- **Engine adapters are blocked on hardware, not on sequence.** Unity, Unreal, Blender, and Godot are not installed here, so [M5](ROADMAP.md#m5--engine-adapters-exploratory) waits for a configured machine. Anything that would have to be redone once a real engine is attached waits with it.
+- **Engine adapters wait on sequence, and only partly on hardware.** [M5](ROADMAP.md#m5--engine-adapters-exploratory) is four milestones out whatever is installed, and anything that would have to be redone once an engine is attached waits with it. But **Unreal Engine 5.8 is installed here**, with Visual Studio and MSVC, so measuring against a real engine was available the whole time it was being called impossible — and [the reading reversed M0's conclusion about which condition binds](docs/measurements/2026-07-31-022200-an-unreal-session.md). Unity, Blender and Godot are genuinely absent.
+- **Check what the machine has before writing down what it lacks.** The claim above was carried through a day of decisions — it sent G0 to "blocked", picked a Rust build as a stand-in, and shaped this file. Confirming it cost one directory listing, and the cheapest moment to spend that was when the sentence was first written.
 
 ## Commits
 

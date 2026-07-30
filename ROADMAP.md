@@ -131,6 +131,8 @@ Attach the four official MCP servers from [the semantic layer reference](docs/PL
 
 **Nothing is built new.** All four engines have official or quasi-official MCP, and COGGY only consumes. Godot is where we have the most room to contribute.
 
+**Adapters wait on sequence rather than on hardware.** Unreal 5.8 is installed on the development machine with Visual Studio and MSVC beside it, which is enough to build and to measure but not a reason to start here — an adapter written before M1 has a daemon to attach to would be rewritten. What that install did buy is M0's last input: [a real engine session, measured](docs/measurements/2026-07-31-022200-an-unreal-session.md), which turned out to break a different condition than every synthetic one before it.
+
 ## Non-Goals
 
 The seven ways to lose live in [PLAN's anti-patterns](docs/PLAN.md#anti-patterns-these-kill-the-project), with the reasoning attached to each. One list rather than three, because a rule restated in three documents is a rule that drifts in two of them.
