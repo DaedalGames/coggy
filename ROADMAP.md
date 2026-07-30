@@ -29,7 +29,9 @@ We build `sessionbench` and nothing else. It establishes the as-is **redline** a
 
 **Before the ramp, run one session to completion.** A single real generation session, logged for RSS over time, Defender's cost at startup versus during file writes, and output volume. One afternoon, one machine, no ramp harness. Multiply by 100 on paper and compare against the redline conditions: if the shape contradicts them, fix the conditions before building the instrument that applies them. Arithmetic already retired spawn time as a ceiling; this is the same move applied to what replaced it.
 
-Done on 2026-07-30 as far as a machine without the harness can take it, and [the conditions survived](docs/measurements/2026-07-30-conhost-and-defender.md#do-the-redline-conditions-survive-this) — memory has room, cores do not, and the condition that would trip is the one the metric already leans on. The ramp is unblocked. What that run could not produce is the baseline itself, which needs a real generation session.
+Done on 2026-07-30 as far as a machine without the harness can take it, and [the conditions survived](docs/measurements/2026-07-30-conhost-and-defender.md#do-the-redline-conditions-survive-this) — memory has room, cores do not, and the condition that would trip is the one the metric already leans on. The ramp was then built and run, and it [brackets this machine between 25 and over 100 sessions](docs/measurements/2026-07-30-first-redlines.md) depending only on how much CPU one session wants.
+
+**That bracket is what is left of G0.** The instrument works; what it needs is a session whose shape is real, and the difference between the two ends of that range is the entire question.
 
 **Gate G0:** an as-is redline, frozen, with its limiting cause named.
 

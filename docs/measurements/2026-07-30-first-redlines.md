@@ -1,0 +1,75 @@
+# First redlines · 2026-07-30
+
+**This is not the M0 baseline either.** [Gate G0](../../ROADMAP.md#current-priority-m0--attribution) freezes an as-is redline taken against a real generation session, and that freeze happens once. These two runs characterise the machine and prove the instrument; the baseline stays reserved.
+
+What they establish is a **bracket**. The answer to "how many sessions" turns almost entirely on how much CPU one session wants, and these are the two ends of that:
+
+| Workload | Session shape | redline |
+|---|---|---|
+| [cpu-spin](../../workloads/cpu-spin/) | never yields | **25 sessions** (work rate) |
+| [file-write](../../workloads/file-write/) | writes 64 KiB, then waits 900 ms | **above 100** — every rung held |
+
+A generation session is neither. It waits on a model, then writes, then waits again, and where it falls between these two is the number G0 exists to find. Anyone quoting a redline for this machine without saying which shape it was measured on is quoting a range of 25 to over 100.
+
+## The core ceiling — `cpu-spin`
+
+Climbed to 50, which broke, then narrowed the 25-to-50 interval to a single session.
+
+| Sessions | RSS | Per-session rate | Against solo | Cores | Verdict |
+|---|---|---|---|---|---|
+| 1 | 23.98 MiB | 81.56 units/s | 1.00× | 1.1 | held |
+| 10 | 239.74 MiB | 70.45 units/s | 1.16× | 10.0 | held |
+| **25** | **598.88 MiB** | **41.44 units/s** | **1.97×** | **15.2** | **held** |
+| 26 | 622.78 MiB | 39.77 units/s | 2.05× | 15.2 | broke |
+| 28 | 670.60 MiB | 36.92 units/s | 2.21× | 15.2 | broke |
+| 31 | 742.41 MiB | 33.47 units/s | 2.44× | 15.2 | broke |
+| 37 | 886.11 MiB | 28.26 units/s | 2.89× | 15.3 | broke |
+| 50 | 1.17 GiB | 20.89 units/s | 3.91× | 15.3 | broke |
+
+```
+redline: 25 sessions (WorkRate) · cpu-spin · pipe · 16C/31GiB · Defender on
+```
+
+**Cores plateau at 15.2 of 16 from 25 sessions onward**, and the per-session rate falls in exact proportion after that. That is the whole explanation: the machine is saturated at 25, and every session past it divides the same cores.
+
+**The count sits where the budget was drawn.** 25 held at 1.97× and 26 broke at 2.05×, so the 2× line decided it. Work rate is a budget across a slope rather than an edge, and this run is what that warning looks like in practice.
+
+Climbing alone would have reported **10**, because 10 was simply the last rung tried before 25. The refinement cost four extra holds.
+
+## The realistic shape — `file-write`
+
+| Sessions | RSS | Per-session rate | Against solo | Cores | Instrument tick |
+|---|---|---|---|---|---|
+| 1 | 84.16 MiB | 1.10 units/s | 1.00× | 0.1 | 52 ms |
+| 10 | 841.59 MiB | 1.10 units/s | 1.00× | 0.1 | 39 ms |
+| 25 | 2.05 GiB | 1.10 units/s | 1.00× | 0.2 | 51 ms |
+| 50 | 4.11 GiB | 1.10 units/s | 1.00× | 0.3 | 62 ms |
+| 75 | 6.16 GiB | 1.11 units/s | 1.00× | 0.5 | 111 ms |
+| 100 | 8.15 GiB | 1.12 units/s | 0.99× | 0.5 | 207 ms |
+
+**A hundred sessions of this shape cost 8.15 GiB and half a core, and run at solo speed.** RSS is linear to within a percent across two orders of magnitude, no output was dropped, and no rung came near a condition — 8.15 GiB is 37% of the 22 GiB budget.
+
+The ladder ended before the machine did, so there is no redline here, only a floor: **above 100**.
+
+## What the instrument cost itself
+
+Worth its own line, because a scaling benchmark that quietly becomes the bottleneck reports that collapse as the machine's.
+
+The worst tick ran **34 to 49 ms throughout the `cpu-spin` ramp**, including at 50 saturating sessions — the sampler outranks the sessions, so saturation does not starve it. Under `file-write` it grew with the process count, from 52 ms at one session to **207 ms at a hundred**, which is the refresh walking a hundred processes rather than one. Sub-linear, and still a fifth of the one-second interval, but it is the term that would decide how far a ladder can climb before the interval has to widen.
+
+Both runs used a release build. A debug build pays several times over for the same tick, which is why every report now says which it was.
+
+## Provenance
+
+| | |
+|---|---|
+| Machine | 16 physical / 16 logical cores · 31 GiB usable · Windows 11 (26200) |
+| sessionbench | 0.0.0 at commit `013bad4a8e54`, clean tree, release build |
+| rustc | 1.97.1 (8bab26f4f 2026-07-14) |
+| Measurement crates | portable-pty 0.9.0 · sysinfo 0.37.2 |
+| Defender | real-time protection on, **no exclusions configured** |
+| Membership | job object · sampler raised above the sessions |
+| Holds | 20 s per rung for `cpu-spin`, 30 s for `file-write`, first third unmeasured |
+| Resolution | 1 session |
+
+Raw `samples.jsonl` and `ramp.json` are not committed; both runs reproduce from the commands in [sessionbench/README.md](../../sessionbench/README.md#running-it) at that commit.
