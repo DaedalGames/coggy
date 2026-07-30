@@ -34,13 +34,9 @@ The bottleneck is neither CPU nor RAM in the usual sense. It is **what 100 simul
 
 That is the finding M0 exists to produce, and it is not the one this section was written expecting.
 
-**[measured]** The hundred above is a demand figure — sessions needed to clear a thousand games a day. Against it now sits a capacity figure, taken against Unreal rather than a stand-in: a session building the engine's blank C++ template [holds 1.69 GiB and demands 1.24 cores](measurements/2026-07-31-022200-an-unreal-session.md), so a hundred of them want 169 GiB against a 22 GiB budget. **The gap between the two figures is the whole of what COGGY is for**, and it is a factor of eight rather than a margin.
+**[measured]** The hundred above is a demand figure — sessions needed to clear a thousand games a day. The capacity figure beside it comes from Unreal rather than a stand-in, and it is not what this section expected either. **A generation session between builds holds nine megabytes**, so [a hundred of them at rest come to 897 MiB](measurements/2026-07-31-035111-between-builds.md) against a 22 GiB budget. While compiling the same session takes up to 3.27 GiB and 1.24 cores — but that state is transient, leaves nothing resident when it ends, and [only one session per engine installation can be in it](measurements/2026-07-31-034150-unreal-builds-serialise.md).
 
-**[measured]** **Memory is what binds, not cores** — the reverse of what the four costs above concluded, because they were measured against sessions holding 20 MiB. RSS trips at thirteen sessions where work rate would not until twenty. A blank template is the smallest thing an engine can build; a generated game carries assets, shaders and a cook, all of which move both figures up.
-
-**[measured]** **And a machine builds one of them at a time.** [Unreal serialises build actions per engine installation](measurements/2026-07-31-034150-unreal-builds-serialise.md), so ten sessions compile no faster than one. Epic's own answer is Unreal Build Accelerator, which ships in the engine — [something to consume](../CLAUDE.md) rather than route around.
-
-**[measured]** **Between builds the same session holds nine megabytes.** [An engine build leaves nothing resident](measurements/2026-07-31-035111-between-builds.md), so a hundred sessions at rest come to 897 MiB and the figures above describe the moment a session is least like itself. **The constraint is the build queue rather than the machine** — which puts it inside the governor's reach and outside the redline's.
+**So what limits a hundred engine sessions is the build queue rather than the machine.** That is a different kind of constraint from the one this project was scoped around: it sits inside the governor's reach and outside the redline's, and Epic already ships the distribution answer as Unreal Build Accelerator — [something to consume](../CLAUDE.md). Memory and cores both bind for sessions that compute continuously, which is what the four costs above were measured against and what a synthetic workload is.
 
 **[measured]** Windows Terminal is already C++ with a GPU renderer, so the lag is not a language problem.
 
