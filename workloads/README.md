@@ -26,7 +26,7 @@ The comparison is always **the same workload, solo against concurrent**, so a un
 |---|---|---|
 | [file-write](file-write/) | one file written | Sessions that hold memory and write continuously, which is what generation does to a disk |
 
-`file-write` defaults to holding 80 MiB resident and writing sixty 64 KiB files at 900 ms intervals — roughly the footprint and write rate of the PowerShell session the [first measurement](../docs/measurements/2026-07-30-conhost-and-defender.md) used, now in a form anyone can run.
+`file-write` defaults to holding 80 MiB resident and writing sixty 64 KiB files at 900 ms intervals, which is roughly the footprint and write rate of an agent CLI session. Its steady memory reproduces to 0.01 MiB across runs, which is what made [the first measurement](../docs/measurements/2026-07-30-conhost-and-defender.md) able to resolve a difference of 8.6 MiB.
 
 ## Adding one
 
