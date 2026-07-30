@@ -587,6 +587,13 @@ fn start(
 /// highest ordinal seen is output that went missing between the session and
 /// this process. A truncated final line is not a gap — that is a session that
 /// was killed, which is how every rung ends.
+///
+/// Control sequences are stripped first, and that is not cosmetic. A
+/// pseudoconsole renders a screen rather than a stream, and ConPTY opens by
+/// writing its startup sequences onto the same line as the workload's first
+/// output — so unit one arrives as `ESC[6n…ESC[?25h1 unit-1.dat` and its
+/// ordinal is unreadable. Every ramp under `--pty` reported a spurious redline
+/// of zero until this existed, and only running one in that mode showed it.
 fn count_dropped_units(step_dir: &Path) -> Result<u64> {
     let mut dropped = 0;
     for entry in fs::read_dir(step_dir)? {
@@ -604,7 +611,8 @@ fn count_dropped_units(step_dir: &Path) -> Result<u64> {
             .lines()
             .map_while(Result::ok)
         {
-            if let Some(ordinal) = line
+            let plain = strip_ansi_escapes::strip_str(&line);
+            if let Some(ordinal) = plain
                 .split_whitespace()
                 .next()
                 .and_then(|token| token.parse::<u64>().ok())
@@ -692,6 +700,19 @@ mod tests {
     #[test]
     fn a_truncated_final_line_is_not_a_gap() {
         let dir = logged("truncated", "1 a\n2 b\n3 c");
+        assert_eq!(count_dropped_units(&dir).expect("readable"), 0);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn conpty_startup_sequences_do_not_swallow_the_first_unit() {
+        // What a pseudoconsole actually writes: its own startup sequences run
+        // straight into the workload's first line, so the ordinal is only
+        // reachable once they are stripped.
+        let dir = logged(
+            "conpty",
+            "\x1b[6n\x1b[?9001h\x1b[?1004h\x1b[m\x1b[?25h1 unit-1.dat\n2 unit-2.dat\n",
+        );
         assert_eq!(count_dropped_units(&dir).expect("readable"), 0);
         let _ = fs::remove_dir_all(&dir);
     }
