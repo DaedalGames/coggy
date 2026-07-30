@@ -31,7 +31,7 @@ We build `sessionbench` and nothing else. It establishes the as-is **redline** a
 
 Done on 2026-07-30 as far as a machine without the harness can take it, and [the conditions survived](docs/measurements/2026-07-30-conhost-and-defender.md#do-the-redline-conditions-survive-this) — memory has room, cores do not, and the condition that would trip is the one the metric already leans on. The ramp was then built and run, and it [brackets this machine between 25 and over 100 sessions](docs/measurements/2026-07-30-first-redlines.md) depending only on how much CPU one session wants.
 
-**That bracket is what is left of G0.** The instrument works; what it needs is a session whose shape is real, and the difference between the two ends of that range is the entire question.
+**That bracket has since collapsed to one number.** A session's redline moves inversely with how much of its time it spends computing, and [the product holds flat across a fourfold range](docs/measurements/2026-07-30-duty-and-redline.md): the machine's ceiling at full duty is 25 sessions, and dividing by a real session's duty gives its redline. So G0 no longer waits on a harness for a whole measurement — it waits for **one scalar**, which `observe` already reports for any session it is pointed at.
 
 **Gate G0:** an as-is redline, frozen, with its limiting cause named.
 
