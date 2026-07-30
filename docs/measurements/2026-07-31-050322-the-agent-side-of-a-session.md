@@ -27,7 +27,11 @@ The lifetime mean is the figure that matters. A turn is a burst against long str
 
 **And the condition measures the smaller of two numbers.** `sessionbench`'s RSS condition reads the working set — what a process holds in physical memory now — while the commit charge is what it has reserved and Windows must be able to back. At 1,096 MiB against 559, a hundred sessions reserve **110 GiB** where the condition sees 58. Paging keeps the resident figure low and does not make the reservation go away, so the ceiling this arithmetic gives is the optimistic one. Neither number settles it — a working set understates pressure and a commit charge overstates it — which is why `observe` now reports the machine's own headroom beside them.
 
-Cores are comfortable: `2ηC/d` with `d = 0.112` gives well over two hundred, so the [duty relation](2026-07-30-154348-duty-is-derivable.md) says the CPU side is not what stops this.
+Cores look comfortable at `d = 0.112`, and that figure belongs to a session waiting on a human rather than on a harness.
+
+**How much waiting is in it comes out of the same numbers.** A turn costs about 0.42 cores while it runs and the lifetime mean is 0.112, so this session spent roughly **27% of its life inside a turn** and the rest waiting for someone to type. A harness driving a hundred sessions back to back pushes that fraction towards one, taking `d` towards 0.42 and [the duty relation](2026-07-30-154348-duty-is-derivable.md) from over two hundred sessions to about **59**.
+
+Memory still binds first, at 38 against 59. But any CPU headroom quoted from this figure is an idle session's headroom, and a driven one has a third of it. That is arithmetic on measured numbers rather than a measurement, and a harness would settle it.
 
 Set beside the engine, the two costs behave differently. **The CLI's 580 MiB is held for the session's whole life; the engine's 1.865 GiB only while it cooks.** A hundred sessions therefore pay 58 GiB always and the cooking share on top, which is why the agent is the floor and the engine is what lands on it.
 
