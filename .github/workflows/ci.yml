@@ -26,15 +26,20 @@ jobs:
 
       # -D warnings goes here rather than in RUSTFLAGS, which would apply it to
       # dependencies too and let a warning in someone else's crate fail our CI.
+      # `--locked` on every cargo step from here down. Without it CI proves
+      # that this commit plus a lockfile CI just generated will build, which
+      # is not what a clone gets: a crate added without staging `Cargo.lock`
+      # went five commits unnoticed because the working tree's lockfile was
+      # always current and nothing else ever read the committed one.
       - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
       # Compiles every target, so a separate build step would add nothing. Also
       # covers tests/docs.rs, which resolves every cross-document link and
       # anchor — doc integrity is a test rather than a separate tool, so the
       # repository stays pure Rust with no second toolchain.
       - name: Test
-        run: cargo test --all-features
+        run: cargo test --locked --all-features
 
       - name: Smoke-run the binary
         run: cargo run -p sessionbench -- doctor
@@ -101,4 +106,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.88.0
       - uses: Swatinem/rust-cache@v2
       - name: Check against declared MSRV
-        run: cargo check --all-targets
+        run: cargo check --locked --all-targets
