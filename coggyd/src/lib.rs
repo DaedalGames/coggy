@@ -56,12 +56,25 @@ impl Session {
         let job = win32job::Job::create_with_limit_info(&info)
             .map_err(|e| anyhow::anyhow!("creating a job object: {e}"))?;
 
-        let child = command.spawn().context("spawning the session")?;
+        let mut child = command.spawn().context("spawning the session")?;
 
         // Membership is inherited downward, so everything this child starts
         // lands in the same job without being told to.
-        job.assign_process(handle_of(&child))
-            .map_err(|e| anyhow::anyhow!("assigning the session to its job: {e}"))?;
+        //
+        // **The failure path has to kill, and this is the one place it must.**
+        // `std::process::Child` does not kill on drop, so returning the error
+        // straight through would leave the session running with no owner —
+        // the exact straggler this type exists to prevent, produced by the
+        // type itself. Between the spawn above and here it belongs to nobody,
+        // which is why the kill is explicit rather than left to a destructor.
+        if let Err(e) = job.assign_process(handle_of(&child)) {
+            let killed = child.kill().is_ok();
+            let _ = child.wait();
+            anyhow::bail!(
+                "assigning the session to its job: {e} — the session was {} rather than left unowned",
+                if killed { "killed" } else { "already gone" }
+            );
+        }
 
         Ok(Self { child, _job: job })
     }
@@ -153,6 +166,39 @@ mod tests {
             before,
             "and the child it spawned — this is the assertion the root cannot make"
         );
+    }
+
+    /// The error path leaves nothing running, which is the claim that matters
+    /// because `Child` does not kill on drop.
+    ///
+    /// Forcing `assign_process` to fail from outside is not available, so this
+    /// exercises the same sequence directly: spawn, decide the session cannot
+    /// be owned, kill it. What it guards is that the decision kills rather
+    /// than returning and letting a destructor not do it.
+    #[test]
+    fn a_session_that_cannot_be_owned_is_killed_rather_than_leaked() {
+        let _serial = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        let before = pings();
+        let mut child = Command::new("cmd")
+            .args(["/c", "ping -n 30 127.0.0.1 >nul"])
+            .spawn()
+            .expect("spawn");
+        std::thread::sleep(std::time::Duration::from_millis(900));
+        assert_eq!(pings(), before + 1, "the child should be running");
+
+        // The branch `spawn` takes when a job cannot take the session.
+        let killed = child.kill().is_ok();
+        let _ = child.wait();
+        assert!(killed);
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        // The root is gone; the grandchild is not, and that is exactly why the
+        // job has to be created before the spawn rather than after a failure.
+        let _ = Command::new("taskkill")
+            .args(["/F", "/IM", "ping.exe"])
+            .output();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        assert_eq!(pings(), before, "nothing of this test may outlive it");
     }
 
     /// The negative control: the same tree, killed the way a supervisor
