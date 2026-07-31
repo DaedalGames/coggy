@@ -31,6 +31,7 @@ pub mod scrollback;
 
 use std::io::{BufRead, BufReader};
 use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
@@ -53,6 +54,7 @@ pub const DEFAULT_SCROLLBACK_LINES: usize = 2_000;
 /// Dropping this ends the session and its whole tree. That is the point: the
 /// alternative is killing a root and reaping whatever outlived it.
 pub struct Session {
+    id: u64,
     child: Child,
     /// Taken in `drop` before the drains are joined. The job carries
     /// `KILL_ON_JOB_CLOSE`, so releasing the last handle is what terminates
@@ -82,6 +84,8 @@ impl Session {
         // Piped rather than inherited, because a session nobody drains fills
         // its pipe and blocks — which reads as a slow session rather than a
         // stuck one, and is the failure condition 3 exists to catch.
+        let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
+        command.env(SESSION_ID_VAR, id.to_string());
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
 
         let mut info = win32job::ExtendedLimitInfo::new();
@@ -119,6 +123,7 @@ impl Session {
         }
 
         Ok(Self {
+            id,
             child,
             job: Some(job),
             drains,
@@ -126,7 +131,16 @@ impl Session {
         })
     }
 
-    pub fn id(&self) -> u32 {
+    /// This session's identity, which outlives the pid and is never reused.
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
+    /// The root process id, for asking the operating system about it.
+    ///
+    /// Distinct from [`Session::id`] on purpose: this one is the kernel's
+    /// and may be handed to something else once the session is gone.
+    pub fn pid(&self) -> u32 {
         self.child.id()
     }
 
@@ -155,6 +169,20 @@ impl Session {
         self.scrollback.lock().unwrap_or_else(|e| e.into_inner())
     }
 }
+
+/// The variable a session finds itself by, following the `CMUX_WORKSPACE_ID`
+/// and `CMUX_SURFACE_ID` precedent [the contracts bind us
+/// to](../../docs/PLAN.md#fixed-contracts).
+pub const SESSION_ID_VAR: &str = "COGGY_SESSION_ID";
+
+/// Hands out session identities.
+///
+/// **Not the pid, and the reason is measured.** Windows reuses process ids,
+/// and the instrument already carries a note about what that costs: a
+/// remembered set of pids silently deletes a session Windows later handed one
+/// of those numbers to. A supervisor whose identity is a pid would do worse —
+/// hand a new process the dead session's slot and keep counting.
+static NEXT_SESSION_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Whether a session is still running, and nothing else.
 ///
@@ -329,7 +357,8 @@ mod tests {
 
         let before = pings();
         let session = Session::spawn(&mut command).expect("spawn");
-        let root = session.id();
+        // The kernel is being asked, so the kernel's number is what it wants.
+        let root = session.pid();
 
         // Give the shell time to start its child, or the test proves nothing:
         // an empty tree is trivially reclaimed.
@@ -421,7 +450,7 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(1200));
         assert_eq!(pings(), before + 1, "the grandchild should be running");
         assert!(
-            !alive(session.id()),
+            !alive(session.pid()),
             "and the root should already have exited, or this proves nothing"
         );
         assert_eq!(
@@ -433,6 +462,41 @@ mod tests {
         drop(session);
         std::thread::sleep(std::time::Duration::from_millis(500));
         assert_eq!(pings(), before, "and dropping still takes the tree");
+    }
+
+    #[test]
+    fn a_session_can_find_itself_by_the_variable_the_contract_names() {
+        let _serial = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        let mut command = Command::new("cmd");
+        command.args(["/c", "echo %COGGY_SESSION_ID%"]);
+        let session = Session::spawn(&mut command).expect("spawn");
+        let id = session.id();
+        std::thread::sleep(std::time::Duration::from_millis(900));
+
+        let back = session.scrollback();
+        assert_eq!(
+            back.tail(1),
+            vec![id.to_string()],
+            "the child has to be able to say where it lives"
+        );
+    }
+
+    #[test]
+    fn two_sessions_never_share_an_identity_even_when_one_has_gone() {
+        let _serial = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        // The hazard this identity exists against: a pid is the operating
+        // system's to reuse, and a supervisor keyed on one would hand a dead
+        // session's slot to whatever inherited the number.
+        let mut first = Command::new("cmd");
+        first.args(["/c", "exit 0"]);
+        let a = Session::spawn(&mut first).expect("spawn");
+        let a_id = a.id();
+        drop(a);
+
+        let mut second = Command::new("cmd");
+        second.args(["/c", "exit 0"]);
+        let b = Session::spawn(&mut second).expect("spawn");
+        assert_ne!(a_id, b.id(), "an identity is never handed out twice");
     }
 
     #[test]
