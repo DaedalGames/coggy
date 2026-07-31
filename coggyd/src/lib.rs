@@ -130,10 +130,50 @@ impl Session {
         self.child.id()
     }
 
+    /// Whether anything in this session's job is still running.
+    ///
+    /// **Asked of the job rather than the root**, because G0 measured that
+    /// those are different questions: fifty sessions whose roots had been
+    /// killed left fifty children running. A supervisor that reads the root
+    /// would call those slots free and hand them out again.
+    pub fn status(&mut self) -> Status {
+        let code = match self.child.try_wait() {
+            Ok(Some(exit)) => exit.code(),
+            Ok(None) => return Status::Running,
+            // The root is unreadable, but the job may still hold its tree.
+            Err(_) => None,
+        };
+        match self.job.as_ref().map(win32job::Job::query_process_id_list) {
+            Some(Ok(pids)) if pids.is_empty() => Status::Exited { code },
+            Some(Ok(_)) => Status::Running,
+            _ => Status::Unknown,
+        }
+    }
+
     /// What the session has said, under its ceiling.
     pub fn scrollback(&self) -> std::sync::MutexGuard<'_, Scrollback> {
         self.scrollback.lock().unwrap_or_else(|e| e.into_inner())
     }
+}
+
+/// Whether a session is still running, and nothing else.
+///
+/// **The daemon knows only whether a session is alive.** Retry, repair and
+/// verification verdicts belong to the harness and never enter here — [a
+/// fixed contract](../../docs/PLAN.md#fixed-contracts) rather than a
+/// simplification, so this type has no room to grow one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Status {
+    /// Something in the session's job is still running.
+    Running,
+    /// The job is empty. The code is the root's, when it was still there to
+    /// be asked; a session whose root exited before its children finished
+    /// reports `None` rather than inventing one.
+    Exited { code: Option<i32> },
+    /// The job could not be read, so nothing here is a fact about the
+    /// session. Distinct from `Exited`, because reporting a session gone on
+    /// the strength of a failed query is how a supervisor loses one.
+    Unknown,
 }
 
 /// Which stream a drain is reading.
@@ -365,6 +405,44 @@ mod tests {
         assert_eq!(back.retained(), 2, "and the ceiling held");
         assert_eq!(back.evicted(), 2, "the difference is policy, not a gap");
         assert_eq!(back.tail(2), vec!["three", "four"]);
+    }
+
+    #[test]
+    fn a_session_reads_as_running_while_its_child_outlives_its_root() {
+        let _serial = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        // The exact shape G0 measured: a shell that exits while the thing it
+        // started keeps going. Asked of the root this session is finished;
+        // asked of the job it is not, and the job is right.
+        let before = pings();
+        let mut command = Command::new("cmd");
+        command.args(["/c", "start /b ping -n 30 127.0.0.1"]);
+        let mut session = Session::spawn(&mut command).expect("spawn");
+
+        std::thread::sleep(std::time::Duration::from_millis(1200));
+        assert_eq!(pings(), before + 1, "the grandchild should be running");
+        assert!(
+            !alive(session.id()),
+            "and the root should already have exited, or this proves nothing"
+        );
+        assert_eq!(
+            session.status(),
+            Status::Running,
+            "a slot is not free while anything in its job is alive"
+        );
+
+        drop(session);
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        assert_eq!(pings(), before, "and dropping still takes the tree");
+    }
+
+    #[test]
+    fn a_finished_session_reads_as_exited_with_its_code() {
+        let _serial = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        let mut command = Command::new("cmd");
+        command.args(["/c", "exit 3"]);
+        let mut session = Session::spawn(&mut command).expect("spawn");
+        std::thread::sleep(std::time::Duration::from_millis(900));
+        assert_eq!(session.status(), Status::Exited { code: Some(3) });
     }
 
     #[test]
