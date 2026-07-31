@@ -74,7 +74,9 @@ Three rules set the order.
 
 2–3 weeks. Requires G0.
 
-Build the `coggyd` daemon and the `coggy` CLI: pipe-first spawning, ring-buffer scrollback, session status events, socket API.
+Build the `coggyd` daemon and the `coggy` CLI: pipe-first spawning, ring-buffer scrollback, session status events, socket API, and **a job object per session**.
+
+**G0 moved that last item forward from [M3](#m3--resource-governor), where it sits as a quota mechanism.** A daemon that owns sessions has to be able to end one, and killing the process it spawned does not do that: fifty wrapped sessions left [exactly fifty stragglers and a teardown 361× slower](docs/measurements/2026-07-31-141334-the-shell-costs-teardown.md), because the shell dies and its child does not. The same asymmetry appears from the other side, where [a pseudoconsole belongs to whoever created it rather than to the session it serves](docs/measurements/2026-07-30-101141-conhost-and-defender.md). Job membership is inherited downward, so terminating the job takes the tree — which is how `sessionbench` already does it, through `win32job`. **Reclaiming a slot is what a session supervisor is for, and without this the daemon cannot.**
 
 **What it consumes:**
 
@@ -110,7 +112,7 @@ Job Object quotas, core budget scheduler, build queueing, automated Defender exc
 
 **What it consumes:**
 
-- **Windows Job Objects** — `CreateJobObject` plus `JOBOBJECT_CPU_RATE_CONTROL_INFORMATION` for per-session CPU and memory ceilings
+- **Windows Job Objects** — `JOBOBJECT_CPU_RATE_CONTROL_INFORMATION` for per-session CPU and memory ceilings. The job itself lands in [M1](#m1--headless-daemon), where it is what lets the daemon end a session at all; this milestone adds the quotas to a thing already there.
 - **Defender exclusion automation** — a five-minute implementation, and M0 has now measured the term: [0.034 cores a session against a cooking workload](docs/measurements/2026-07-31-041923-what-an-exclusion-buys-a-cook.md), real and small. It returns CPU, and [the ceiling it would have to move is made of memory](docs/measurements/2026-07-31-045604-an-error-bar-for-the-engine.md), so it buys comfort rather than sessions. Still worth five minutes; no longer worth sequencing around.
 
 **Gate M3:** the governor admits sessions up to the measured ceiling, refuses past it, and the machine does not swap while they run — with per-session work rate staying within 2× of solo.
