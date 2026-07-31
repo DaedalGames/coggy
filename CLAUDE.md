@@ -111,4 +111,6 @@ Two consequences that are easy to miss:
 
 [CONTRIBUTING's commit rules](CONTRIBUTING.md#commit-messages) are binding: Conventional Commits, one of eleven types, no co-author trailers of any kind. Commit when a change is coherent and green, not per edit.
 
+**Read `git status` before writing the message, not `git add` from memory.** Scoping the add to the paths you edited keeps a commit focused and silently drops what the change *caused* — `Cargo.lock` sat unstaged across five commits that added a crate, so a clean clone could not build any of them with `--locked`. No local gate says so, because `--locked` compares the manifests against the lockfile on disk and that one was always current. The commit is where a generated file gets lost, so that is where to look for it.
+
 **And commit before any wait whose end you cannot see** — a ramp, a long build, anything measured in hours. The session that resumes is not always the process that started: one ended mid-ramp and came back seven hours later, leaving an instrument fix uncommitted and three finished ramps recorded nowhere but `bench-out/`. Everything survived, and none of that was by design. Work that exists only in a working tree or a gitignored directory is invisible the moment the thing holding it stops.
