@@ -4,13 +4,15 @@ COGGS builds games. COGGY decides **how many it can build at once.**
 
 COGGY is a session supervisor and resource governor for Windows-native agent workloads: a headless daemon that owns terminal sessions, a governor that keeps a hundred of them from killing the machine, and an audit surface for watching them. It is not an editor, not an agent, and not a generation harness.
 
-## Status: M0 — measuring, before building
+## Status: M0 measured, nothing built yet
 
 **Nothing described above exists yet.** The daemon, the CLI, the governor, and the UI are a target state, not shipped code, because a daemon built around an unmeasured assumption reproduces the lag it exists to remove.
 
-So exactly one crate exists, and it is the instrument — and it has now been pointed at the assumptions. [Three of the four costs this project was designed around have been measured, and none of them is the bottleneck](docs/PLAN.md): processes are cheap in memory, Windows Defender was overstated by two orders of magnitude, and the output path has three to four orders of headroom. What actually limits the machine is plainer than any of them — sessions competing for cores — and it scales with how much of the time a session spends computing rather than waiting.
+So exactly one crate exists, and it is the instrument. Pointed at this project's own assumptions, it found that [three of the four costs it was designed around are not the bottleneck](docs/PLAN.md): processes are cheap in memory, Windows Defender was overstated by two orders of magnitude, and the output path has three to four orders of headroom.
 
-That result is the argument for M0 existing. **A governor built to the original list would have been tuned against three things that were not the problem.**
+**What binds is memory, and the ceiling is nine.** [G0 is frozen there](docs/measurements/2026-07-31-150258-g0-frozen.md): a generation session is an agent CLI holding 0.52 GiB for its whole life plus a game engine holding 1.87 GiB while it cooks, and a 31 GiB machine runs out at `21.97 ÷ 2.39`. Cores would not bind until 93.
+
+**That answer reversed twice while it was being measured**, which is the argument for M0 existing. Synthetic sessions holding 20 MiB said cores were the limit and memory had orders to spare; a real engine holding 1.87 GiB said the opposite; and the agent driving it — the largest resident cost of the three — had never been measured at all. **A governor built to the original list would have been tuned against three things that were not the problem, then sized against a ceiling eleven times too high.**
 
 ## [sessionbench](sessionbench/) — the measuring instrument
 
