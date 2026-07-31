@@ -60,7 +60,7 @@ Every earlier ramp held **80 MiB** resident and re-touched it once a second. Tha
 
 ## What it opens
 
-- `doctor` reports a core count that hides three tiers. It should report the split, the way it already reports background load as a condition on the reading.
+- **`doctor` reports a core count that hides three tiers, and this was tried and put back.** Windows keeps the split as an efficiency class per processor, reachable only through `GetSystemCpuSetInformation` — and the workspace sets `unsafe_code = "forbid"`, which no local allow can override. The pure-Rust alternative, [`cpu_info`](https://crates.io/crates/cpu_info), groups cores by observed clock frequency; those converge on an idle machine, which is exactly when `doctor` runs, so it would report one tier on this machine and be believed. Weakening a workspace-wide safety invariant to print a figure already recorded here is the worse trade, and a heuristic that fails silently in the common case is worse than both. [Intel's HybridDetect](https://github.com/GameTechDev/HybridDetect) is the reference if that balance ever changes.
 - A redline quoted for this machine is a redline for **8 performance + 4 efficient + 4 low-power cores**, and does not transfer to sixteen equal ones. `C` in the relation wants an effective figure, and finding it is a measurement nobody has designed yet.
 - The machine is a **laptop on a vendor power plan**, which no record has said. Ceilings taken here are ceilings for that.
 
