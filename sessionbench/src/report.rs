@@ -79,6 +79,25 @@ pub fn ramp_markdown(report: &RampReport) -> String {
     // the same question either way.
     drift_paragraph(&mut out, report);
 
+    // The other control, and the one that decides whether this run may be set
+    // against another at all.
+    if let Some(spread) = report.solo_spread_percent() {
+        let verdict = if spread.abs() <= 2.0 {
+            "so the baseline every rate above is read against is one this run can reproduce."
+        } else {
+            "**so the baseline every rate above is read against did not hold**, and any difference finer than that is this run's own noise."
+        };
+        let _ = writeln!(
+            out,
+            "**Solo check:** one session ran {:.2} units/s at the start and {:.2} at the end, {spread:+.1}% — {verdict}\n",
+            report.solo_units_per_sec,
+            report
+                .solo_check
+                .as_ref()
+                .map_or(0.0, |s| s.units_per_session_per_sec),
+        );
+    }
+
     let _ = writeln!(out, "## Rungs\n");
     let _ = writeln!(
         out,

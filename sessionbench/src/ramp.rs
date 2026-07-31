@@ -269,6 +269,16 @@ pub struct RampReport {
     /// `steps` it says whether the machine ran the same at the end as at the
     /// start — which every other figure here assumes and none of them checks.
     pub drift_check: Option<Step>,
+    /// The solo rung, held once more after everything else.
+    ///
+    /// Every rate in this report is read against one measured window at one
+    /// session, taken once and never repeated — and that same figure is the
+    /// fingerprint [`compare`](crate::compare) uses to decide whether two ramps
+    /// may be set against each other. It is load-bearing twice and was measured
+    /// neither time. This is what a rung reproduces to under the run's own
+    /// conditions, which is the floor on any difference two ramps can claim.
+    #[serde(default)]
+    pub solo_check: Option<Step>,
 }
 
 impl RampReport {
@@ -277,6 +287,22 @@ impl RampReport {
     /// Lives here rather than in either reporter because both of them need it
     /// and a figure computed twice is a figure that ends up disagreeing with
     /// itself.
+    /// How far the solo rung moved when it was held a second time, as a
+    /// percentage of the first reading.
+    ///
+    /// The floor under any cross-ramp claim: two ramps cannot be told apart
+    /// more finely than one ramp reproduces its own baseline.
+    pub fn solo_spread_percent(&self) -> Option<f64> {
+        let again = self.solo_check.as_ref()?;
+        if again.inconclusive.is_some() || self.solo_units_per_sec <= 0.0 {
+            return None;
+        }
+        Some(
+            (again.units_per_session_per_sec - self.solo_units_per_sec) / self.solo_units_per_sec
+                * 100.0,
+        )
+    }
+
     pub fn drift(&self) -> Option<Drift> {
         let again = self.drift_check.as_ref()?;
         if let Some(reason) = &again.inconclusive {
@@ -447,6 +473,16 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         }
     };
 
+    // The fingerprint's own error bar, and the last thing measured so it also
+    // catches a machine that moved after the drift control cleared.
+    let solo_check = if config.skip_drift_check {
+        None
+    } else {
+        println!("\nsolo check: holding 1 session again");
+        search.measure_as(1, "solo-repeat")?;
+        search.steps.pop()
+    };
+
     let solo_units_per_sec = search.solo_units_per_sec;
     let steps = search.steps;
 
@@ -469,6 +505,7 @@ pub fn run(config: &RampConfig) -> Result<RampReport> {
         steps,
         redline,
         drift_check,
+        solo_check,
     };
 
     // Two artifacts: the record, and the thing anyone actually reads. The
@@ -1043,7 +1080,36 @@ mod tests {
             steps,
             redline: None,
             drift_check,
+            solo_check: None,
         }
+    }
+
+    #[test]
+    fn a_solo_rung_that_repeats_itself_reports_no_spread() {
+        let mut report = report_with(vec![rung(25, 40.0)], None);
+        report.solo_units_per_sec = 60.0;
+        report.solo_check = Some(rung(1, 60.0));
+        assert_eq!(report.solo_spread_percent(), Some(0.0));
+    }
+
+    #[test]
+    fn a_solo_rung_that_moved_reports_which_way() {
+        let mut report = report_with(vec![rung(25, 40.0)], None);
+        report.solo_units_per_sec = 60.0;
+        report.solo_check = Some(rung(1, 57.0));
+        let spread = report
+            .solo_spread_percent()
+            .expect("a repeat that measured");
+        assert!((spread + 5.0).abs() < 1e-9, "got {spread}");
+    }
+
+    #[test]
+    fn a_solo_repeat_that_could_not_be_measured_is_not_a_spread_of_zero() {
+        let mut report = report_with(vec![rung(25, 40.0)], None);
+        let mut unusable = rung(1, 0.0);
+        unusable.inconclusive = Some("too few samples".to_string());
+        report.solo_check = Some(unusable);
+        assert_eq!(report.solo_spread_percent(), None);
     }
 
     /// A rung that sampled fine and had sessions resident throughout.

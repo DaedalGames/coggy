@@ -540,6 +540,17 @@ fn compare(left: &std::path::Path, right: &std::path::Path) -> anyhow::Result<()
             .right_redline
             .map_or_else(|| "none reached".into(), |n| n.to_string()),
     );
+    println!(
+        "  solo repeats {}",
+        match (comparison.left_solo_spread, comparison.right_solo_spread) {
+            (None, None) => "neither ramp held its solo rung again".to_string(),
+            (l, r) => format!(
+                "{} against {}",
+                l.map_or_else(|| "—".into(), |v| format!("{v:+.1}%")),
+                r.map_or_else(|| "—".into(), |v| format!("{v:+.1}%")),
+            ),
+        }
+    );
     println!("\n{}", comparison.verdict());
 
     if !comparison.comparable() {

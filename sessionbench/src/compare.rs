@@ -57,6 +57,12 @@ pub struct Comparison {
     pub machine_mismatch: Option<String>,
     pub left_redline: Option<u32>,
     pub right_redline: Option<u32>,
+    /// How far each ramp's own solo rung moved when it was held again.
+    ///
+    /// A ramp whose baseline does not reproduce cannot lend that baseline to a
+    /// comparison, however close the two happen to land.
+    pub left_solo_spread: Option<f64>,
+    pub right_solo_spread: Option<f64>,
 }
 
 impl Comparison {
@@ -73,12 +79,33 @@ impl Comparison {
             machine_mismatch,
             left_redline: left.redline.as_ref().map(|r| r.sessions),
             right_redline: right.redline.as_ref().map(|r| r.sessions),
+            left_solo_spread: left.solo_spread_percent(),
+            right_solo_spread: right.solo_spread_percent(),
+        }
+    }
+
+    /// The worst either ramp's own baseline moved, when both measured it.
+    pub fn worst_solo_spread(&self) -> Option<f64> {
+        match (self.left_solo_spread, self.right_solo_spread) {
+            (Some(l), Some(r)) => Some(l.abs().max(r.abs())),
+            (Some(one), None) | (None, Some(one)) => Some(one.abs()),
+            (None, None) => None,
         }
     }
 
     /// Whether the two redlines may be subtracted.
+    ///
+    /// Two tests, and the second is the one a measured ramp brings with it: the
+    /// gap between the baselines has to fit the allowance, **and** each ramp's
+    /// own baseline has to reproduce at least that well. A ramp whose solo rung
+    /// moved 8% on a repeat cannot lend that rung to a 5% judgement — the
+    /// allowance would be finer than the thing it is measuring.
     pub fn comparable(&self) -> bool {
-        self.machine_mismatch.is_none() && self.solo_gap_percent.abs() <= SOLO_AGREEMENT_PERCENT
+        self.machine_mismatch.is_none()
+            && self.solo_gap_percent.abs() <= SOLO_AGREEMENT_PERCENT
+            && self
+                .worst_solo_spread()
+                .is_none_or(|spread| spread <= SOLO_AGREEMENT_PERCENT)
     }
 
     /// The difference in sessions, when there is one worth quoting.
@@ -97,6 +124,13 @@ impl Comparison {
         if let Some(mismatch) = &self.machine_mismatch {
             return format!(
                 "**Different hardware** — {mismatch}. Nothing about these two belongs in one table."
+            );
+        }
+        if let Some(spread) = self.worst_solo_spread()
+            && spread > SOLO_AGREEMENT_PERCENT
+        {
+            return format!(
+                "**Not comparable.** One of these ramps moved {spread:.1}% when it held its own solo rung again, against a {SOLO_AGREEMENT_PERCENT:.0}% allowance. Its baseline is noisier than the judgement being asked of it, so the two redlines cannot be told apart however close they land."
             );
         }
         if self.solo_gap_percent.abs() > SOLO_AGREEMENT_PERCENT {
@@ -154,6 +188,52 @@ mod tests {
             gap.abs() > SOLO_AGREEMENT_PERCENT,
             "a half-speed machine has to fail the check, got {gap}"
         );
+    }
+
+    /// Two ramps whose baselines agree, so only the spread can refuse them.
+    fn agreeing_pair() -> Comparison {
+        Comparison {
+            left_label: "a".into(),
+            right_label: "b".into(),
+            left_solo: 74.11,
+            right_solo: 74.90,
+            solo_gap_percent: solo_gap_percent(74.11, 74.90),
+            machine_mismatch: None,
+            left_redline: Some(27),
+            right_redline: Some(26),
+            left_solo_spread: None,
+            right_solo_spread: None,
+        }
+    }
+
+    #[test]
+    fn agreeing_baselines_permit_a_subtraction() {
+        assert!(agreeing_pair().comparable());
+        assert_eq!(agreeing_pair().redline_delta(), Some(-1));
+    }
+
+    #[test]
+    fn a_ramp_whose_own_baseline_moved_cannot_lend_it() {
+        // Baselines 1.1% apart, but one ramp's solo rung moved 8% on a repeat:
+        // the allowance is finer than the thing it would be judging.
+        let noisy = Comparison {
+            left_solo_spread: Some(-8.0),
+            ..agreeing_pair()
+        };
+        assert!(!noisy.comparable(), "a noisy baseline cannot be lent");
+        assert_eq!(noisy.redline_delta(), None);
+        assert!(noisy.verdict().contains("8.0%"), "{}", noisy.verdict());
+    }
+
+    #[test]
+    fn a_baseline_that_reproduces_still_permits_it() {
+        let steady = Comparison {
+            left_solo_spread: Some(0.4),
+            right_solo_spread: Some(-1.2),
+            ..agreeing_pair()
+        };
+        assert!(steady.comparable());
+        assert_eq!(steady.worst_solo_spread(), Some(1.2));
     }
 
     #[test]
