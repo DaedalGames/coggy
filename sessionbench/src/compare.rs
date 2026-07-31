@@ -36,17 +36,21 @@ use crate::ramp::RampReport;
 /// saturated rung repeated inside one ladder, where a fresh solo rung pays
 /// process startup and a cold cache again.
 ///
-/// Five leaves room above the only clean triple available and still refuses
-/// the case this exists for by an order of magnitude — a pair whose solo rungs
-/// sat 51.6% apart.
+/// **[Since measured](../../docs/measurements/2026-07-31-171719-what-a-baseline-is-worth.md),
+/// and five survives for a better reason than it was chosen for.** The solo
+/// rung reproduces to **0.37%** over two and a half minutes, so measurement
+/// noise is well under a percent; what grows with the interval is the machine,
+/// reaching 2.72% across a ten-minute ladder. Across ramps the gaps form a band
+/// rather than a trend — 0.0%, 1.0%, 1.0%, 3.1%, 3.2%, 4.2% — and ten hours
+/// apart is no worse than ten minutes.
 ///
-/// **Running the tool on that triple then undercut its own justification.** Two
-/// of the three ramps agree to 0.0% (76.44 against 76.45) and only the first of
-/// the batch sits 3.1% from both, so the 3.1% is a consistent offset rather
-/// than the spread a solo rung carries — the rung reproduces far better than
-/// this number assumes. What that offset is has not been established. Until it
-/// has, five is a tolerance for drift and not a measurement of noise, and the
-/// solo check each ramp now carries is what will separate the two.
+/// So five sits just above the widest gap this machine produces while being
+/// itself, and more than ten times below the pair this exists to refuse, whose
+/// solo rungs sat 51.6% apart. The first justification — *the spread is 3.1%,
+/// so allow 5* — read a single offset as noise and was wrong about both.
+///
+/// Still one machine on one afternoon: the band is this laptop's, not the
+/// metric's.
 pub const SOLO_AGREEMENT_PERCENT: f64 = 5.0;
 
 /// Two ramps, and whether their redlines mean anything set side by side.
