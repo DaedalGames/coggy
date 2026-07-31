@@ -122,11 +122,13 @@ A benchmark that only measures `coggyd` is marketing. At minimum, these run on i
 |---|---|---|
 | A pseudoconsole per session | The as-is baseline — what a terminal gives a session today | [measured](../docs/measurements/2026-07-30-101141-conhost-and-defender.md) |
 | Pipes, no pseudoconsole | The floor, and what the daemon intends to default to | [measured](../docs/measurements/2026-07-30-120002-first-redlines.md) |
-| pwsh 7 against cmd against the workload alone | Control that isolates shell startup cost | this instrument |
+| pwsh 7 against cmd against the workload alone | Control that isolates what a shell wrapper costs | [measured](../docs/measurements/2026-07-31-141334-the-shell-costs-teardown.md) — same redline three times, 361× the teardown |
 | coggyd | Ours. **Added only after M1** | M1 |
 | Windows Terminal, WezTerm, Alacritty, wmux | What an emulator costs to host N sessions | a different instrument · M4 |
 
 **These do not need retaking against an engine-shaped session, and the arithmetic says why.** What separates a pseudoconsole from pipes is one conhost per session, 8.7 MiB, and that is a property of the wiring rather than of the workload. Against a synthetic session holding 20 MiB it came to 3.9% of the budget; against [a real one holding 580 MiB of agent CLI](../docs/measurements/2026-07-31-050322-the-agent-side-of-a-session.md) and [1.87 GiB of engine](../docs/measurements/2026-07-31-045604-an-error-bar-for-the-engine.md) it is 0.35%. Retaking the comparison would move [Decision 1](../docs/PLAN.md#four-core-decisions) further in the direction it already went.
+
+**The shell row came back saying the wrapper is not where the cost is either.** Bare, `cmd` and `pwsh` gave 27, 26 and 26 sessions — three fitted crossings inside 3.6%, because a shell sleeps while its child computes and the condition that binds is work rate. What it does cost is 9 MiB for `cmd` and 70 for `pwsh`, and **361× the teardown**: every wrapped session leaves exactly one straggler, since killing the process that was spawned does not kill the session. Shell *startup* cost, which this row was originally written to isolate, is still unmeasured — these sessions never exited.
 
 **One thing about it does change.** An engine session does not carry one conhost — [a cook spawned nineteen and a build three](../docs/measurements/2026-07-31-043951-the-editor-is-the-cost.md), all from a session started on pipes, because the tools it runs open consoles of their own. So the count is a property of what a session runs and not only of how it was spawned, which is the part of Decision 1 that survives.
 
