@@ -35,6 +35,8 @@ Done on 2026-07-30 as far as a machine without the harness can take it, and [the
 
 So G0 no longer waits on a harness for a whole measurement. It waits for **two scalars and one rung** — a real session's duty, an `η` from any rung held past saturation, and a ladder to check the answer rather than to find it. **`C` being in the formula is the part that travels**, since the configured machine will not have sixteen logical processors and the flat `25/d` this replaces would have been wrong there in proportion.
 
+**Gate G0 — frozen 2026-07-31 at [nine sessions, limited by RSS](docs/measurements/2026-07-31-150258-g0-frozen.md).** A generation session is an agent CLI holding 0.52 GiB for its whole life plus an engine holding 1.87 GiB while it cooks, and `21.97 ÷ 2.39` is where this machine stops. Cores would not bind until 93. The pseudoconsole row of the comparison set is open and recorded as such, because the decision it would have informed was settled by arithmetic before a ramp could reach it.
+
 **Gate G0:** an as-is redline, frozen, with its limiting cause named. [The steps, for whoever runs it on a machine with the engines attached](sessionbench/README.md#running-gate-g0-on-a-configured-machine) — including why the agent CLI is what you measure once, not what you ramp.
 
 - **Pass:** a redline pair such as `84 / RSS` for every reachable target in [the comparison set](sessionbench/README.md#what-we-measure-against), each reproducible from its recorded hardware, each carrying a drift check inside a couple of percent, and each rigorous in the way its own limiting condition allows.
