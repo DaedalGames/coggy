@@ -634,6 +634,7 @@ fn print_run(report: &RunReport, out_dir: &std::path::Path) {
                 ),
             ),
             ("rss drift", rss_drift(summary)),
+            ("work drift", work_drift(summary)),
             (
                 "machine headroom",
                 format!(
@@ -773,6 +774,31 @@ fn rss_drift(summary: &observe::Summary) -> String {
         "{} early, {:+.1}% by the end — {verdict}",
         human_bytes(summary.early_rss_bytes),
         moved
+    )
+}
+
+/// How much the session's work rate moved between the two ends of a run.
+///
+/// The same control as `rss_drift`, on the axis G0 leans on hardest: this run's
+/// cores figure becomes `d` in `2ηC/d`, and a machine that changed while it was
+/// being observed hands that field a number with nothing beside it to say so.
+fn work_drift(summary: &observe::Summary) -> String {
+    if summary.early_work_units_per_sec <= 0.0 {
+        return "no early window to compare against".to_string();
+    }
+    let moved = (summary.late_work_units_per_sec - summary.early_work_units_per_sec)
+        / summary.early_work_units_per_sec
+        * 100.0;
+    let verdict = if moved.abs() < 5.0 {
+        "held, so the cores figure describes one machine"
+    } else if moved > 0.0 {
+        "**sped up — the machine freed cores mid-run and `d` is read low**"
+    } else {
+        "**slowed — something took cores mid-run and `d` is read high**"
+    };
+    format!(
+        "{:.2} units/s early, {:+.1}% by the end — {verdict}",
+        summary.early_work_units_per_sec, moved
     )
 }
 

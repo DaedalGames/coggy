@@ -110,6 +110,17 @@ pub struct Summary {
     /// Comparable only against the same workload, since a unit means whatever
     /// that workload says it means.
     pub work_units_per_sec: f64,
+    /// Work rate over the first measured quarter and over the last.
+    ///
+    /// The counterpart to the RSS control above, and it guards the figure G0
+    /// leans on hardest: `d` is read off this run's cores, and a machine that
+    /// moved while it was being observed puts a number in that field with
+    /// nothing beside it to say so. A ramp repeats a rung to catch this; a
+    /// single session has no rung to repeat, so it compares its own ends.
+    #[serde(default)]
+    pub early_work_units_per_sec: f64,
+    #[serde(default)]
+    pub late_work_units_per_sec: f64,
     /// Cores the session occupied in steady state, where 1.0 is one full core.
     ///
     /// Recorded beside Defender's because `WorkRate` names a symptom: a redline
@@ -364,6 +375,18 @@ fn summarize(samples: &[Sample], output: &Output, duration: Duration) -> Summary
         rss.sort_unstable();
         rss.get(rss.len() / 2).copied().unwrap_or(0)
     };
+    // Units arrive as a running total, so a window's rate is its own delta over
+    // its own span. A window of one sample spans nothing and rates as zero,
+    // which `work_drift_percent` reads as unmeasurable rather than as a stop.
+    let window_rate = |window: &[Sample]| -> f64 {
+        match (window.first(), window.last()) {
+            (Some(first), Some(last)) if last.t_ms > first.t_ms => {
+                last.work_units.saturating_sub(first.work_units) as f64
+                    / ((last.t_ms - first.t_ms) as f64 / 1000.0)
+            }
+            _ => 0.0,
+        }
+    };
     // A quarter, or one sample, or nothing at all — a run shorter than a single
     // sample has no ends to compare and must not be sliced as though it did.
     let cut = (samples.len() / 4).max(1).min(samples.len());
@@ -384,6 +407,8 @@ fn summarize(samples: &[Sample], output: &Output, duration: Duration) -> Summary
         output_bytes_per_sec: output_bytes as f64 / seconds,
         work_units,
         work_units_per_sec: work_units as f64 / seconds,
+        early_work_units_per_sec: window_rate(&samples[..cut]),
+        late_work_units_per_sec: window_rate(&samples[samples.len() - cut..]),
         session_cores: cpu.map(|c| c.session),
         defender_cores: cpu.map(|c| c.defender),
         defender: defender_cost(samples, cpu),
@@ -477,6 +502,57 @@ mod tests {
             work_units: 0,
             members: Vec::new(),
         }
+    }
+
+    /// Eight samples a second apart, carrying a running unit total that grows
+    /// at `early` units/s for the first half and `late` for the second.
+    fn ramping_units(early: u64, late: u64) -> Vec<Sample> {
+        let mut total = 0;
+        (0..8)
+            .map(|i| {
+                let mut s = sample(i * 1000, 0.0, None);
+                s.work_units = total;
+                total += if i < 4 { early } else { late };
+                s
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_steady_session_reports_no_work_drift() {
+        let summary = summarize(
+            &ramping_units(10, 10),
+            &Output::new(),
+            Duration::from_secs(8),
+        );
+        assert_eq!(summary.early_work_units_per_sec, 10.0);
+        assert_eq!(summary.late_work_units_per_sec, 10.0);
+    }
+
+    #[test]
+    fn a_session_that_slowed_shows_it_in_the_ends_rather_than_the_mean() {
+        let summary = summarize(
+            &ramping_units(20, 5),
+            &Output::new(),
+            Duration::from_secs(8),
+        );
+        assert!(
+            summary.early_work_units_per_sec > summary.late_work_units_per_sec,
+            "early {} late {}",
+            summary.early_work_units_per_sec,
+            summary.late_work_units_per_sec
+        );
+    }
+
+    #[test]
+    fn a_window_too_short_to_span_time_rates_as_zero_rather_than_dividing_by_it() {
+        let summary = summarize(
+            &[sample(0, 0.0, None)],
+            &Output::new(),
+            Duration::from_secs(1),
+        );
+        assert_eq!(summary.early_work_units_per_sec, 0.0);
+        assert_eq!(summary.late_work_units_per_sec, 0.0);
     }
 
     #[test]

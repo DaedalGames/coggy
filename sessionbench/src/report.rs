@@ -218,6 +218,27 @@ pub fn run_markdown(report: &RunReport) -> String {
     );
     let _ = writeln!(
         out,
+        "| Work drift | {} |",
+        if summary.early_work_units_per_sec > 0.0 {
+            let moved = (summary.late_work_units_per_sec - summary.early_work_units_per_sec)
+                / summary.early_work_units_per_sec
+                * 100.0;
+            format!(
+                "{:.2} units/s early, {:.2} late, {moved:+.1}%{}",
+                summary.early_work_units_per_sec,
+                summary.late_work_units_per_sec,
+                if moved.abs() < 5.0 {
+                    " — one machine throughout"
+                } else {
+                    " — **the machine changed under this run, so its cores figure is a blend**"
+                }
+            )
+        } else {
+            "no early window to compare against".into()
+        }
+    );
+    let _ = writeln!(
+        out,
         "| Cores | {} |",
         match (summary.session_cores, summary.defender_cores) {
             (Some(session), Some(defender)) =>
