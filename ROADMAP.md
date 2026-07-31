@@ -81,7 +81,7 @@ Build the `coggyd` daemon and the `coggy` CLI: pipe-first spawning, ring-buffer 
 **What it consumes:**
 
 - **wezterm/portable-pty** — ConPTY wrapping is already done. We do not write it.
-- **alacritty_terminal** or **termwiz** — VT parser and grid model. Both are designed to be used as libraries.
+- **alacritty_terminal** or **termwiz** — VT parser and grid model. Both are designed to be used as libraries. **Not needed to clear this gate**, which asks for held sessions, RSS, work rate and dropped output: a pipe session's scrollback is the ring buffer, and parsing those bytes into a grid only matters once something renders them. Pick the library here and reach for it when a consumer appears — `capture-pane` at [M2](#m2--harness-contract) if the harness calls it, otherwise [M4](#m4--audit-surface). A PTY session needs it sooner, and [PTY is opt-in](docs/PLAN.md#four-core-decisions).
 - **Zellij** — Rust session daemon plus thin client. The prototype for the `coggyd` / `coggy-ui` boundary.
 - **Ghostty / libghostty** — boundary design for extracting a core as a library. That cmux wrapped it into a product is evidence the design is right.
 - **cmux socket API** — naming conventions across 40+ subcommands. [PLAN's fixed contracts](docs/PLAN.md#fixed-contracts) bind us to this vocabulary.
