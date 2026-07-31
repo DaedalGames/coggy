@@ -36,8 +36,6 @@ The project's own reason for existing. [M0](ROADMAP.md#current-priority-m0--attr
   The same holds for rules rather than numbers: **an invariant only exercised by things that cannot break it has not been exercised.** [The workload contract](workloads/README.md#the-contract) forbids shared paths and the ramp handed every session one directory, which three synthetic workloads never noticed because each names its files uniquely. The contract was correct and unenforced for as long as nothing needed it.
 - Claims in PLAN are marked **[measured]** or **[assumed]**. If you turn one into the other, edit the marker in the same change.
 
-- **Write a run up before starting the next one.** A ramp's artifacts land in `bench-out/`, which is gitignored and which the pruning rule below tells you to delete. Until the record exists, the only copy of a measurement is sitting in the directory you are instructed to clear — and an agent session that ends takes its plans with it while leaving that state behind. Three shell-control ramps once sat there unwritten for seven hours across a process restart, alongside an uncommitted instrument fix, and both survived on luck rather than design. The record is the artifact; `bench-out/` is scratch.
-
 ### Do not degrade the machine you are measuring
 
 A long session of back-to-back ramps makes the box slower, and a slower box is not a different mood — it is a different machine, so late measurements stop being comparable with early ones. This is measured rather than suspected: **a rung that ran 40.02 units/s at the start of one ramp ran 38.11 at the end of it, 4.8% down**, and that alone dragged the fitted redline from ~33.6 to 32.3.
@@ -46,11 +44,13 @@ Every ramp now repeats its lowest saturated rung at the end and reports the gap.
 
 **When a measurement will not fit the machine, shrink the measurement before blaming the machine.** A ten-session cook ramp needed 19 GiB against 8.7 free and was written up as blocked; four sessions answered the same question twenty minutes later, because aligned peaks would have shown 20 GiB and nothing came within a factor of two. The narrow memory was a condition rather than an obstacle — wide enough to leave the signal intact, narrow enough to make alignment visible. Reach for the smallest design that can still be wrong in the way you care about.
 
+Whatever you watch a run with must emit a per-rung line, not only its verdict. A watch filtered down to redlines and failures cannot tell a working run from a hung one, and that ambiguity gets settled by reaching for the box — which is the one thing forbidden below.
+
 While a measurement is running, do nothing else on this machine — no builds, no `git`, no `gh`, no file edits. The observer is not free. [The Defender estimate](docs/measurements/2026-07-30-142218-defender-at-scale.md) was wrong by two orders of magnitude partly because `gh` ran during the run that produced it, and the drift figure above came from a ramp with edits happening alongside it.
 
 Between runs, keep the footprint from accumulating:
 
-- **Prune `bench-out/`.** Each ramp leaves roughly 500 files, all of them on the scanned side of Defender's line. Keep the newest run or two; it is gitignored and nothing committed points into it.
+- **Prune `bench-out/`, once the record exists.** Each ramp leaves roughly 500 files, all on the scanned side of Defender's line, and thirty-five of them once reached 7 GB. Keep the newest run or two. It is gitignored and nothing committed points into it, which is exactly why an unwritten run has its only copy there — the record is the artifact, this is scratch.
 - **Check for survivors** before trusting a run — `Get-Process cpu-spin,file-write,stdout-storm,sessionbench`. Teardown reaps its own scratch and its own sessions, and has been verified to leave nothing, but a killed ramp is a different story.
 - **Do not reach for `cargo clean`.** It buys back a few GiB and costs a full rebuild, which is the slow thing the cleanup was supposed to fix.
 
@@ -70,6 +70,17 @@ cargo run -p sessionbench -- doctor    # and read it
 
 When an independent check disagrees with the code, suspect the check first — but say so either way. [CONTRIBUTING's three accident modes](CONTRIBUTING.md#the-one-rule-that-matters) are each a real mistake made in this repository.
 
+### Verify before you launch, too
+
+Two ramps in one afternoon measured nothing, and both were launched from a parameter that was never read back from whatever would consume it.
+
+- `--max-sessions 40` fell between the ladder's own steps of 25 and 50, so it could not bracket and returned a floor. Those steps are a constant in `redline.rs` that nothing stopped anyone reading first.
+- `cmd /c` arrived as `cmd C:/`, because Git Bash rewrites a leading-slash argument as a Windows path. Every session died instantly, the shell's error lines were counted as completed units, and four rungs came back "held" at zero bytes resident. `ramp.json` records the argv it really spawned.
+
+**A smoke test written beside the script does not cover the script.** The one that passed here used `cmd //c` — differing from the real command in exactly the character that was broken, so it confirmed a shape nothing would run.
+
+So for anything that will occupy the machine for more than a rung: read the parameter back from the code or the artifact that consumes it, and pre-flight the real command shape. A twenty-second `observe` that prints the recorded argv costs a six-hundredth of the ramp it protects.
+
 ## Stay inside the open gate
 
 One question decides whether to start any piece of work: **does this move the number on the gate that is currently open?** If not, it belongs to a later milestone.
@@ -83,3 +94,5 @@ Two consequences that are easy to miss:
 ## Commits
 
 [CONTRIBUTING's commit rules](CONTRIBUTING.md#commit-messages) are binding: Conventional Commits, one of eleven types, no co-author trailers of any kind. Commit when a change is coherent and green, not per edit.
+
+**And commit before any wait whose end you cannot see** — a ramp, a long build, anything measured in hours. The session that resumes is not always the process that started: one ended mid-ramp and came back seven hours later, leaving an instrument fix uncommitted and three finished ramps recorded nowhere but `bench-out/`. Everything survived, and none of that was by design. Work that exists only in a working tree or a gitignored directory is invisible the moment the thing holding it stops.
