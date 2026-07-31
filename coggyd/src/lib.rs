@@ -27,6 +27,8 @@
 
 #![cfg(windows)]
 
+pub mod scrollback;
+
 use std::process::{Child, Command};
 
 use anyhow::{Context, Result};
