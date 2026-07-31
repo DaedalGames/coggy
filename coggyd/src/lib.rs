@@ -29,9 +29,24 @@
 
 pub mod scrollback;
 
-use std::process::{Child, Command};
+use std::io::{BufRead, BufReader};
+use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 
 use anyhow::{Context, Result};
+
+use crate::scrollback::Scrollback;
+
+/// Lines a session keeps by default.
+///
+/// A ceiling rather than a guess: a hundred sessions holding this many lines
+/// of a few hundred bytes is tens of megabytes, against [a budget the engine
+/// and agent have already
+/// spent](../../docs/measurements/2026-07-31-150258-g0-frozen.md). What it may
+/// not do is grow with the session's lifetime, which is how a supervisor of
+/// long-lived sessions runs out of memory without anything looking wrong.
+pub const DEFAULT_SCROLLBACK_LINES: usize = 2_000;
 
 /// A session and the job that owns everything it spawns.
 ///
@@ -39,9 +54,15 @@ use anyhow::{Context, Result};
 /// alternative is killing a root and reaping whatever outlived it.
 pub struct Session {
     child: Child,
-    /// Held only to be dropped. The job carries `KILL_ON_JOB_CLOSE`, so
-    /// releasing the last handle is what terminates the tree.
-    _job: win32job::Job,
+    /// Taken in `drop` before the drains are joined. The job carries
+    /// `KILL_ON_JOB_CLOSE`, so releasing the last handle is what terminates
+    /// the tree — and an `Option` is what lets that happen in a chosen order
+    /// rather than whatever order the fields were declared in.
+    job: Option<win32job::Job>,
+    /// One per stream. They end when their pipe reaches end-of-file, which
+    /// happens when the tree dies, which is why the job goes first.
+    drains: Vec<JoinHandle<()>>,
+    scrollback: Arc<Mutex<Scrollback>>,
 }
 
 impl Session {
@@ -52,7 +73,17 @@ impl Session {
     /// `CREATE_SUSPENDED` and a resume, which needs unsafe — so it stays open
     /// and is named here rather than hidden. It is microseconds wide and the
     /// session cannot have spawned a tree inside it.
+    /// Spawns with the default scrollback ceiling.
     pub fn spawn(command: &mut Command) -> Result<Self> {
+        Self::spawn_with_scrollback(command, DEFAULT_SCROLLBACK_LINES)
+    }
+
+    pub fn spawn_with_scrollback(command: &mut Command, capacity: usize) -> Result<Self> {
+        // Piped rather than inherited, because a session nobody drains fills
+        // its pipe and blocks — which reads as a slow session rather than a
+        // stuck one, and is the failure condition 3 exists to catch.
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+
         let mut info = win32job::ExtendedLimitInfo::new();
         info.limit_kill_on_job_close();
         let job = win32job::Job::create_with_limit_info(&info)
@@ -78,11 +109,90 @@ impl Session {
             );
         }
 
-        Ok(Self { child, _job: job })
+        let scrollback = Arc::new(Mutex::new(Scrollback::new(capacity)));
+        let mut drains = Vec::new();
+        if let Some(out) = child.stdout.take() {
+            drains.push(drain(Reader::Out(out), Arc::clone(&scrollback)));
+        }
+        if let Some(err) = child.stderr.take() {
+            drains.push(drain(Reader::Err(err), Arc::clone(&scrollback)));
+        }
+
+        Ok(Self {
+            child,
+            job: Some(job),
+            drains,
+            scrollback,
+        })
     }
 
     pub fn id(&self) -> u32 {
         self.child.id()
+    }
+
+    /// What the session has said, under its ceiling.
+    pub fn scrollback(&self) -> std::sync::MutexGuard<'_, Scrollback> {
+        self.scrollback.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
+/// Which stream a drain is reading.
+///
+/// Both land in one scrollback, in the order they arrive, because a reader
+/// asking what a session said wants what it said.
+/// The bytes a line ends with, named because writing them as literals
+/// here has been collapsed by tooling twice.
+const NEWLINE: u8 = 10;
+const CARRIAGE_RETURN: u8 = 13;
+
+enum Reader {
+    Out(ChildStdout),
+    Err(ChildStderr),
+}
+
+/// Reads one stream to end-of-file, recording every line.
+///
+/// A lossy decode rather than a failure: a session that emits one invalid byte
+/// has not stopped being worth reading, and dropping the whole line would look
+/// exactly like the gap condition 3 reports.
+fn drain(reader: Reader, into: Arc<Mutex<Scrollback>>) -> JoinHandle<()> {
+    std::thread::spawn(move || {
+        let mut buf: Box<dyn BufRead> = match reader {
+            Reader::Out(out) => Box::new(BufReader::new(out)),
+            Reader::Err(err) => Box::new(BufReader::new(err)),
+        };
+        let mut line = Vec::new();
+        loop {
+            line.clear();
+            match buf.read_until(NEWLINE, &mut line) {
+                Ok(0) | Err(_) => return,
+                Ok(_) => {
+                    while matches!(line.last(), Some(&NEWLINE | &CARRIAGE_RETURN)) {
+                        line.pop();
+                    }
+                    let text = String::from_utf8_lossy(&line).into_owned();
+                    into.lock().unwrap_or_else(|e| e.into_inner()).push(text);
+                }
+            }
+        }
+    })
+}
+
+impl Drop for Session {
+    /// Ends the tree, then waits for the readers it just unblocked.
+    ///
+    /// The order is the whole of it. Dropping the job kills everything in it,
+    /// which closes the write ends, which is the only thing that brings the
+    /// drains to end-of-file — join them first and this blocks for as long as
+    /// the session would have run. `Vec<JoinHandle>` detaches on its own, so
+    /// leaving it to the default would let a reader outlive the session it
+    /// reads, which is this crate's own failure wearing a thread.
+    fn drop(&mut self) {
+        drop(self.job.take());
+        let _ = self.child.wait();
+        for drain in self.drains.drain(..) {
+            let _ = drain.join();
+        }
     }
 }
 
@@ -201,6 +311,46 @@ mod tests {
             .output();
         std::thread::sleep(std::time::Duration::from_millis(300));
         assert_eq!(pings(), before, "nothing of this test may outlive it");
+    }
+
+    #[test]
+    fn a_session_records_what_it_says_and_says_how_much_it_read() {
+        let _serial = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        // Four lines out of a ceiling of two: the gate cares that all four
+        // were read, the ceiling cares that only two are kept, and one
+        // counter could not say both.
+        let mut command = Command::new("cmd");
+        command.args(["/c", "echo one& echo two& echo three& echo four"]);
+
+        let session = Session::spawn_with_scrollback(&mut command, 2).expect("spawn");
+        std::thread::sleep(std::time::Duration::from_millis(900));
+
+        let back = session.scrollback();
+        assert_eq!(back.read(), 4, "every line the session emitted was read");
+        assert_eq!(back.retained(), 2, "and the ceiling held");
+        assert_eq!(back.evicted(), 2, "the difference is policy, not a gap");
+        assert_eq!(back.tail(2), vec!["three", "four"]);
+    }
+
+    #[test]
+    fn dropping_a_session_does_not_leave_its_readers_behind() {
+        let _serial = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        // A session that never exits on its own: if drop joined the drains
+        // before ending the tree, this would hang rather than fail.
+        let before = pings();
+        let mut command = Command::new("cmd");
+        command.args(["/c", "ping -n 30 127.0.0.1"]);
+        let session = Session::spawn(&mut command).expect("spawn");
+        std::thread::sleep(std::time::Duration::from_millis(900));
+
+        let at = std::time::Instant::now();
+        drop(session);
+        assert!(
+            at.elapsed() < std::time::Duration::from_secs(5),
+            "drop waited on a reader it had not yet unblocked"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        assert_eq!(pings(), before, "and the tree went with it");
     }
 
     /// The negative control: the same tree, killed the way a supervisor
