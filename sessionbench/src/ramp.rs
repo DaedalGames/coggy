@@ -694,20 +694,15 @@ fn hold(
     // it and still came back with almost nothing was starved. Calling both
     // "the sampler could not keep up" sends the next reader to fix the wrong
     // thing.
-    let inconclusive = (measured.len() < MIN_SAMPLES_PER_RUNG).then(|| {
-        if config.hold <= spinup {
-            format!(
-                "a {:.1}s hold leaves nothing after the {:.1}s spin-up, which is where sessions are still faulting in their pages",
-                config.hold.as_secs_f64(),
-                spinup.as_secs_f64(),
-            )
-        } else {
-            format!(
-                "{} sample(s) over {elapsed_secs:.1}s of a {:.1}s hold — the sampler could not keep up, so nothing here describes the machine",
-                measured.len(),
-                config.hold.as_secs_f64(),
-            )
-        }
+    let peak_processes = measured.iter().map(|s| s.processes).max().unwrap_or(0);
+    let inconclusive = why_unmeasurable(&Reading {
+        samples: measured.len(),
+        peak_processes,
+        sessions,
+        replacements,
+        hold: config.hold,
+        spinup,
+        elapsed_secs,
     });
 
     let total_rss_bytes = median(measured.iter().map(|s| s.rss_bytes)).unwrap_or(0);
@@ -741,7 +736,7 @@ fn hold(
                 .iter()
                 .map(|s| f64::from(s.defender_cpu_percent.unwrap_or(0.0)) / 100.0),
         ),
-        processes: measured.iter().map(|s| s.processes).max().unwrap_or(0),
+        processes: peak_processes,
         pseudoconsoles: measured.iter().map(|s| s.pseudoconsoles).max().unwrap_or(0),
         replacements,
         worst_replacement_secs,
@@ -751,6 +746,59 @@ fn hold(
         teardown,
         inconclusive,
         broken,
+    })
+}
+
+/// What a rung came back with, before anything is concluded from it.
+struct Reading {
+    samples: usize,
+    peak_processes: usize,
+    sessions: u32,
+    replacements: u32,
+    hold: Duration,
+    spinup: Duration,
+    elapsed_secs: f64,
+}
+
+/// Why a rung describes the observer rather than the machine, when it does.
+///
+/// Separate from `hold_rung` so it can be exercised without spawning anything.
+/// All three cases below were found by a run going wrong rather than by a
+/// test, which is the argument for making the decision reachable from one.
+fn why_unmeasurable(reading: &Reading) -> Option<String> {
+    // Two ways to come back with too little, named apart. A hold that never
+    // outlasts its own spin-up has nothing to measure by construction; a hold
+    // that did outlast it and still came back with almost nothing was starved.
+    // Calling both "the sampler could not keep up" sends the next reader to
+    // fix the wrong thing.
+    if reading.samples < MIN_SAMPLES_PER_RUNG {
+        return Some(if reading.hold <= reading.spinup {
+            format!(
+                "a {:.1}s hold leaves nothing after the {:.1}s spin-up, which is where sessions are still faulting in their pages",
+                reading.hold.as_secs_f64(),
+                reading.spinup.as_secs_f64(),
+            )
+        } else {
+            format!(
+                "{} sample(s) over {:.1}s of a {:.1}s hold — the sampler could not keep up, so nothing here describes the machine",
+                reading.samples,
+                reading.elapsed_secs,
+                reading.hold.as_secs_f64(),
+            )
+        });
+    }
+
+    // The third, and the only one that reads as a result rather than a
+    // failure. A command that cannot start still produces a work rate, because
+    // the pool keeps respawning it: a wrapper mistyped by the shell once gave
+    // four rungs of "held" at zero bytes resident and three thousand
+    // replacements, and the ramp reported a floor of fifty sessions from it.
+    // Nothing was ever running to scale.
+    (reading.peak_processes == 0).then(|| {
+        format!(
+            "{} session(s) asked for and not one process resident across {} sample(s), with {} replacement(s) — the command exits faster than it can be seen, so this rung measured the spawn loop and not a workload",
+            reading.sessions, reading.samples, reading.replacements,
+        )
     })
 }
 
@@ -996,6 +1044,64 @@ mod tests {
             redline: None,
             drift_check,
         }
+    }
+
+    /// A rung that sampled fine and had sessions resident throughout.
+    fn reading() -> Reading {
+        Reading {
+            samples: 40,
+            peak_processes: 25,
+            sessions: 25,
+            replacements: 0,
+            hold: Duration::from_secs(60),
+            spinup: Duration::from_secs(20),
+            elapsed_secs: 60.0,
+        }
+    }
+
+    #[test]
+    fn a_rung_that_ran_is_measurable() {
+        assert_eq!(why_unmeasurable(&reading()), None);
+    }
+
+    #[test]
+    fn a_rung_whose_command_never_started_is_not_a_rung_that_held() {
+        // The shape a mistyped wrapper produced: the pool respawning a command
+        // that exits at once, sampled plenty, holding nothing.
+        let never_started = Reading {
+            peak_processes: 0,
+            replacements: 3000,
+            sessions: 50,
+            ..reading()
+        };
+        let reason = why_unmeasurable(&never_started).expect("zero processes cannot be a hold");
+        assert!(reason.contains("3000 replacement"), "got {reason}");
+        assert!(reason.contains("spawn loop"), "got {reason}");
+    }
+
+    #[test]
+    fn starvation_is_reported_ahead_of_an_empty_job() {
+        // Both wrong at once: too few samples is the one to fix first, since
+        // an unsampled rung cannot say whether anything was resident.
+        let starved = Reading {
+            samples: 0,
+            peak_processes: 0,
+            ..reading()
+        };
+        let reason = why_unmeasurable(&starved).expect("no samples cannot be a hold");
+        assert!(reason.contains("sampler could not keep up"), "got {reason}");
+    }
+
+    #[test]
+    fn a_hold_inside_its_own_spinup_says_so_rather_than_blaming_the_sampler() {
+        let too_short = Reading {
+            samples: 0,
+            hold: Duration::from_secs(10),
+            spinup: Duration::from_secs(20),
+            ..reading()
+        };
+        let reason = why_unmeasurable(&too_short).expect("nothing measured cannot be a hold");
+        assert!(reason.contains("spin-up"), "got {reason}");
     }
 
     #[test]
