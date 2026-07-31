@@ -578,7 +578,14 @@ impl Search<'_> {
         )?;
 
         if step.inconclusive.is_none() {
-            if sessions == 1 {
+            // Only the ladder's own first rung sets the baseline. The solo
+            // control is also a one-session rung, and letting it through here
+            // made it overwrite the figure it exists to check: the first ramp
+            // to carry it read 77.24 units/s at rung one, repeated at 79.34,
+            // and reported +0.0% because by then it was comparing 79.34 with
+            // itself. A control that cannot fail is not a control, and it took
+            // the report's whole against-solo column with it.
+            if sessions == 1 && self.solo_units_per_sec <= 0.0 {
                 self.solo_units_per_sec = step.units_per_session_per_sec;
             }
             // The work-rate condition only means anything against the solo
