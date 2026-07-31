@@ -65,6 +65,16 @@ pub struct Comparison {
     /// Set when the two ran on hardware that does not match, which no solo
     /// agreement could excuse.
     pub machine_mismatch: Option<String>,
+    /// Whether the two ran different commands.
+    ///
+    /// The solo rung is a machine fingerprint only for ramps sharing a
+    /// workload. Vary the workload's own duty and the baseline moves by
+    /// design — a duty-1.0 ramp and a duty-0.27 one sat 75.3% apart while both
+    /// held their own solo rungs to under a percent, and the verdict blamed a
+    /// machine that had not moved. Differing commands do not make a pair
+    /// incomparable on their own: the shell-control trio varied its wrapper
+    /// and its solo rates still agreed to 3.2%.
+    pub command_differs: bool,
     pub left_redline: Option<u32>,
     pub right_redline: Option<u32>,
     /// How far each ramp's own solo rung moved when it was held again.
@@ -87,6 +97,7 @@ impl Comparison {
             right_solo: right.solo_units_per_sec,
             solo_gap_percent: solo_gap_percent(left.solo_units_per_sec, right.solo_units_per_sec),
             machine_mismatch,
+            command_differs: left.command != right.command,
             left_redline: left.redline.as_ref().map(|r| r.sessions),
             right_redline: right.redline.as_ref().map(|r| r.sessions),
             left_solo_spread: left.solo_spread_percent(),
@@ -144,10 +155,17 @@ impl Comparison {
             );
         }
         if self.solo_gap_percent.abs() > SOLO_AGREEMENT_PERCENT {
-            return format!(
-                "**Not comparable.** The solo rungs sit {:.1}% apart against a {SOLO_AGREEMENT_PERCENT:.0}% allowance, so the machine moved between these ladders and the gap between their redlines is that move rather than what was varied. Run the pair back to back.",
-                self.solo_gap_percent
-            );
+            return if self.command_differs {
+                format!(
+                    "**Not comparable, and the machine is not why.** The solo rungs sit {:.1}% apart against a {SOLO_AGREEMENT_PERCENT:.0}% allowance, but these ramps ran different commands — so the baseline may have moved because of what was varied rather than because the machine did. A solo rung is a fingerprint only across ramps that share a workload. Compare these by hand, against what the change was expected to do to a single session.",
+                    self.solo_gap_percent
+                )
+            } else {
+                format!(
+                    "**Not comparable.** The solo rungs sit {:.1}% apart against a {SOLO_AGREEMENT_PERCENT:.0}% allowance, so the machine moved between these ladders and the gap between their redlines is that move rather than what was varied. Run the pair back to back.",
+                    self.solo_gap_percent
+                )
+            };
         }
         match self.redline_delta() {
             Some(delta) => format!(
@@ -211,6 +229,7 @@ mod tests {
             machine_mismatch: None,
             left_redline: Some(27),
             right_redline: Some(26),
+            command_differs: false,
             left_solo_spread: None,
             right_solo_spread: None,
         }
@@ -220,6 +239,44 @@ mod tests {
     fn agreeing_baselines_permit_a_subtraction() {
         assert!(agreeing_pair().comparable());
         assert_eq!(agreeing_pair().redline_delta(), Some(-1));
+    }
+
+    #[test]
+    fn a_varied_workload_is_not_blamed_on_the_machine() {
+        // A duty-1.0 ramp against a duty-0.27 one: the baselines are 75% apart
+        // by design, and both held their own solo rungs to under a percent.
+        let varied = Comparison {
+            left_solo: 77.34,
+            right_solo: 19.11,
+            solo_gap_percent: solo_gap_percent(77.34, 19.11),
+            command_differs: true,
+            left_solo_spread: Some(0.91),
+            right_solo_spread: Some(-0.49),
+            ..agreeing_pair()
+        };
+        assert!(
+            !varied.comparable(),
+            "the redlines still cannot be subtracted"
+        );
+        let verdict = varied.verdict();
+        assert!(verdict.contains("machine is not why"), "{verdict}");
+        assert!(!verdict.contains("Run the pair back to back"), "{verdict}");
+    }
+
+    #[test]
+    fn the_same_workload_far_apart_is_still_blamed_on_the_machine() {
+        let drifted = Comparison {
+            left_solo: 74.11,
+            right_solo: 35.89,
+            solo_gap_percent: solo_gap_percent(74.11, 35.89),
+            command_differs: false,
+            ..agreeing_pair()
+        };
+        assert!(
+            drifted.verdict().contains("the machine moved"),
+            "{}",
+            drifted.verdict()
+        );
     }
 
     #[test]

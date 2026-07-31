@@ -556,7 +556,7 @@ fn compare(left: &std::path::Path, right: &std::path::Path) -> anyhow::Result<()
     println!("\n{}", comparison.verdict());
 
     if !comparison.comparable() {
-        anyhow::bail!("these two ramps do not describe the same machine");
+        anyhow::bail!("these two ramps cannot be set against each other");
     }
     Ok(())
 }
