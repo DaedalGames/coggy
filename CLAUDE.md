@@ -68,6 +68,8 @@ Running `cargo build` proves the code compiles, which is not what anyone asked. 
 - **A frequency heuristic is not an efficiency class.** The pure-Rust way to find hybrid cores groups them by observed clock, and clocks converge on an idle machine — which is when `doctor` runs, so it would report one tier here and be believed.
 - **A link checker is not GitHub.** Collapsing runs of spaces where GitHub replaces each one reported 23 sound anchors as broken; every one would have been "fixed" into an actual break.
 
+**And a zero exit is not evidence of work.** Five things this week reported success while doing nothing: `cmd` handed a mangled switch printed three error lines a second and the ramp counted them as units; `timeout /t` returned instantly without a console and a supposed idle loop spun fifty times a second; `waitfor` rejected a hyphen in a signal name by exiting at once with status 0; a control compared a figure with itself and reported a perfect 0.0%; and a failed job assignment returned an error while leaving the process running. **Assert on the effect, not the status** — a file that appeared, a count that moved, a process that is still there.
+
 **The tell is a confident answer from an instrument nobody checked against the one that decides**, and the adjacent instrument is always the convenient one. When several things look wrong at once, suspect the check before the subject — one place being wrong is usually that place, many places being wrong is usually you.
 
 Before saying a change works:
