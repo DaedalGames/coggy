@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use anyhow::Context as _;
 use clap::{Parser, Subcommand};
 use sessionbench::Rows;
 use sessionbench::axes::{self, AxisStatus};
@@ -179,12 +180,26 @@ enum Command {
         #[arg(last = true, required = true, value_name = "COMMAND")]
         command: Vec<String>,
     },
+
+    /// Say whether two ramps may be set against each other.
+    ///
+    /// A drift control tests one ladder against itself. Nothing tested two
+    /// ladders against each other until this, and a pseudoconsole ramp run
+    /// nine hours after its pipes counterpart returned a redline 13 sessions
+    /// lower for reasons that had nothing to do with the transport.
+    Compare {
+        /// The ramp read as the baseline.
+        left: PathBuf,
+        /// The ramp read against it.
+        right: PathBuf,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Doctor { strict } => doctor(strict),
+        Command::Compare { left, right } => compare(&left, &right),
         Command::Observe {
             label,
             out,
@@ -495,6 +510,44 @@ fn stamp() -> u64 {
 /// without it a run silently measures five axes out of six yet still prints a
 /// redline — which is not a smaller result but a wrong one. Unavailable axes
 /// are named here rather than discovered afterward.
+/// Read two ramp reports and say whether their redlines may be subtracted.
+///
+/// Exits non-zero when they may not, so a script that pairs ramps fails rather
+/// than publishing a difference that is really the afternoon moving.
+fn compare(left: &std::path::Path, right: &std::path::Path) -> anyhow::Result<()> {
+    let read = |path: &std::path::Path| -> anyhow::Result<sessionbench::ramp::RampReport> {
+        let text =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))
+    };
+
+    let comparison = sessionbench::compare::Comparison::of(&read(left)?, &read(right)?);
+
+    println!(
+        "{} against {}",
+        comparison.left_label, comparison.right_label
+    );
+    println!(
+        "  solo rungs   {:.2} against {:.2} units/s ({:+.1}%)",
+        comparison.left_solo, comparison.right_solo, comparison.solo_gap_percent
+    );
+    println!(
+        "  redlines     {} against {}",
+        comparison
+            .left_redline
+            .map_or_else(|| "none reached".into(), |n| n.to_string()),
+        comparison
+            .right_redline
+            .map_or_else(|| "none reached".into(), |n| n.to_string()),
+    );
+    println!("\n{}", comparison.verdict());
+
+    if !comparison.comparable() {
+        anyhow::bail!("these two ramps do not describe the same machine");
+    }
+    Ok(())
+}
+
 fn doctor(strict: bool) -> anyhow::Result<()> {
     let machine = Machine::detect();
     let provenance = Provenance::current();

@@ -8,6 +8,7 @@
 //! parsing or report rendering. See `README.md` for the metric this produces.
 
 pub mod axes;
+pub mod compare;
 pub mod format;
 pub mod host;
 pub mod machine;

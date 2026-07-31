@@ -136,6 +136,18 @@ A benchmark that only measures `coggyd` is marketing. At minimum, these run on i
 
 Which is not a defect in either. The question this instrument answers is what a session costs to exist — and a session costs the same whether WezTerm or Windows Terminal is drawing it. What an emulator costs to *host* a hundred of them is a real question and a separate one: it measures one process's rendering rather than a hundred processes' residency, it needs a way to drive a UI into opening sessions, and it belongs with the axis that has a screen to compare against.
 
+## Comparing two ramps
+
+A drift control tests one ladder against itself. Every comparison here spans two, and until `compare` nothing tested that the two saw the same machine.
+
+```
+sessionbench compare <left>/ramp.json <right>/ramp.json
+```
+
+**The solo rung is the fingerprint** — one session, no contention, the same work — and two ramps whose solo rungs disagree by more than 5% are measuring different afternoons. It exits non-zero when they do, so a script that pairs ramps fails rather than publishing a difference that is really the machine moving.
+
+It refuses [the pipes-against-pseudoconsole pair that prompted it](../docs/measurements/2026-07-31-151821-the-pseudoconsole-row.md) at 51.6%, and admits the shell-control trio at 3.1%. That 5% is calibrated on three points and is the weakest part of it.
+
 ## Keeping it honest
 
 Tuning `coggyd` against these results makes the gate grade a bucket it drew itself. Instrument and subject coming from the same hands is the classic failure here.
