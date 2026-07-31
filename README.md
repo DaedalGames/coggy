@@ -4,11 +4,11 @@ COGGS builds games. COGGY decides **how many it can build at once.**
 
 COGGY is a session supervisor and resource governor for Windows-native agent workloads: a headless daemon that owns terminal sessions, a governor that keeps a hundred of them from killing the machine, and an audit surface for watching them. It is not an editor, not an agent, and not a generation harness.
 
-## Status: M0 measured, nothing built yet
+## Status: M0 measured, M1 begun
 
-**Nothing described above exists yet.** The daemon, the CLI, the governor, and the UI are a target state, not shipped code, because a daemon built around an unmeasured assumption reproduces the lag it exists to remove.
+**Almost nothing described above exists yet, and that order was the point:** a daemon built around an unmeasured assumption reproduces the lag it exists to remove. So M0 measured first, and M1 started with what the measurement said mattered — [`coggyd`](coggyd/) owns a session's lifetime and its output, because G0 found that killing the process you spawned does not end a session. The CLI, the socket API, the governor and the UI remain a target state.
 
-So exactly one crate exists, and it is the instrument. Pointed at this project's own assumptions, it found that [three of the four costs it was designed around are not the bottleneck](docs/PLAN.md): processes are cheap in memory, Windows Defender was overstated by two orders of magnitude, and the output path has three to four orders of headroom.
+The instrument was the only crate for as long as M0 ran, and `coggyd` joined it when M1 opened. Pointed at this project's own assumptions, it found that [three of the four costs it was designed around are not the bottleneck](docs/PLAN.md): processes are cheap in memory, Windows Defender was overstated by two orders of magnitude, and the output path has three to four orders of headroom.
 
 **What binds is memory, and the ceiling is nine.** [G0 is frozen there](docs/measurements/2026-07-31-150258-g0-frozen.md): a generation session is an agent CLI holding 0.52 GiB for its whole life plus a game engine holding 1.87 GiB while it cooks, and a 31 GiB machine runs out at `21.97 ÷ 2.39`. Cores would not bind until 93.
 

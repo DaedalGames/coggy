@@ -176,7 +176,7 @@ graph TD
 
 Solid arrows are ownership and calls; dotted are observation and enforcement. That every arrow points one way is the whole content of this diagram. **The harness calls COGGY; COGGY knows nothing about the harness.**
 
-This is the **target state for M1–M5.** Exactly one crate exists today — `sessionbench` — and no other box becomes a crate until measurement justifies it. Scaffolding seven empty crates would freeze module boundaries before a single number earned them.
+This is the **target state for M1–M5.** Two crates exist today — `sessionbench`, and `coggyd` since M1 opened — and no other box becomes a crate until measurement justifies it. Scaffolding seven empty crates would freeze module boundaries before a single number earned them.
 
 ### Four core decisions
 
