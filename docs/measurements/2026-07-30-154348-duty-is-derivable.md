@@ -8,7 +8,7 @@ A session that computes a fraction `d` of its wall time needs `d` cores to run a
 
     slowdown = N·d / (η·C)
 
-**`C` is logical processors**, not physical cores, because that is the unit the ramp's own cores column is measured in — one busy hardware thread reads as 1.0. Mixing the two puts `η` above 1, which cannot happen: on a machine reporting 2 physical and 4 logical, a redline of 7 at full duty gives `η = 1.75` against physical and 0.875 against logical, and only the second is a fraction of anything. The headline's `16C` is [deliberately physical](../../sessionbench/README.md#report-format) because it describes hardware; it is not the `C` in this formula.
+**`C` is logical processors**, not physical cores, because that is the unit the ramp's own cores column is measured in — one busy hardware thread reads as 1.0. [It is also the term this relation is weakest in](2026-07-31-145412-the-cores-are-not-interchangeable.md): the processors it counts are not equal on a hybrid machine, and here they span 2.1×. Mixing the two puts `η` above 1, which cannot happen: on a machine reporting 2 physical and 4 logical, a redline of 7 at full duty gives `η = 1.75` against physical and 0.875 against logical, and only the second is a fraction of anything. The headline's `16C` is [deliberately physical](../../sessionbench/README.md#report-format) because it describes hardware; it is not the `C` in this formula.
 
 Hyperthreads do not each add a full core of throughput, so on a machine that has them `η` carries that shortfall along with everything else. That is a feature of where the term sits rather than a flaw — but it means an `η` measured with hyperthreading is not the same quantity as one measured without.
 
