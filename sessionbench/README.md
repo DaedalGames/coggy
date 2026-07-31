@@ -148,6 +148,15 @@ sessionbench compare <left>/ramp.json <right>/ramp.json
 
 **The solo rung is the fingerprint** — one session, no contention, the same work — and two ramps whose solo rungs disagree by more than 5% are measuring different afternoons. It exits non-zero when they do, so a script that pairs ramps fails rather than publishing a difference that is really the machine moving.
 
+**Recalibrating that 5% takes three ramps and no new code.** Run the same ramp three times back to back on a quiet machine, then compare each pair:
+
+```
+sessionbench ramp --label calib-1 --hold 60 --max-sessions 60 -- <workload>   # and calib-2, calib-3
+sessionbench compare bench-out/<calib-1>/ramp.json bench-out/<calib-2>/ramp.json
+```
+
+Each ramp's own solo check gives the **noise** — what a baseline reproduces to under one run's conditions — and the gaps between the three give **noise plus whatever the machine did in between**. The allowance belongs above the first and around the second, and until both are measured separately it is a tolerance rather than a figure.
+
 It refuses [the pipes-against-pseudoconsole pair that prompted it](../docs/measurements/2026-07-31-151821-the-pseudoconsole-row.md) at 51.6%, and admits the shell-control trio at 3.1%. That 5% is calibrated on three points and is the weakest part of it.
 
 ## Keeping it honest
