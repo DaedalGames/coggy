@@ -23,9 +23,11 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 ## Current Priority: M0 · Attribution
 
-**This is the only work in flight.** No other crate exists.
+**Closed on 2026-07-31.** [Gate G0 is frozen](docs/measurements/2026-07-31-150258-g0-frozen.md) and the work in flight is [M1](#m1--headless-daemon).
 
-We build `sessionbench` and nothing else. It establishes the as-is **redline** and names what limits it. The metric, the six axes, the comparison set, and the rules that keep the benchmark honest live in [sessionbench/README.md](sessionbench/README.md).
+The heading above still says *current* because thirteen references point at its anchor and seven of them are [measurement records](docs/measurements/), which are logs rather than living documents. Renaming it would edit seven files that say what was true when they were written. The section stays; the claims in it are dated.
+
+M0 built `sessionbench` and nothing else. It establishes the as-is **redline** and names what limits it. The metric, the six axes, the comparison set, and the rules that keep the benchmark honest live in [sessionbench/README.md](sessionbench/README.md).
 
 **Before the ramp, run one session to completion.** A single real generation session, logged for RSS over time, Defender's cost at startup versus during file writes, and output volume. One afternoon, one machine, no ramp harness. Multiply by 100 on paper and compare against the redline conditions: if the shape contradicts them, fix the conditions before building the instrument that applies them. Arithmetic already retired spawn time as a ceiling; this is the same move applied to what replaced it.
 
