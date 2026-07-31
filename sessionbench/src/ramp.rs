@@ -95,11 +95,13 @@ pub struct RampConfig {
     /// redlines have neither problem: at a hundred sessions the write volume
     /// is a hundredfold, and a redline is an integer from window deltas.
     pub exclude_scratch: bool,
-    /// Skip repeating a rung at the end to check the machine did not drift.
+    /// Skip both end-of-run controls.
     ///
-    /// The check costs one hold and is what says whether the ladder measured
-    /// one machine or several. Worth skipping only when the ramp is being run
-    /// for its shape rather than its number.
+    /// One hold each: the lowest saturated rung again, which says whether the
+    /// ladder measured one machine or several, and the solo rung again, which
+    /// says whether the baseline every rate is read against reproduces. Worth
+    /// skipping only when the ramp is being run for its shape rather than its
+    /// number.
     pub skip_drift_check: bool,
     pub mode: SessionMode,
     pub command: Vec<String>,

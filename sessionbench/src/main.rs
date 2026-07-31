@@ -158,12 +158,14 @@ enum Command {
         #[arg(long)]
         pty: bool,
 
-        /// Skip holding the lowest saturated rung once more at the end.
+        /// Skip both end-of-run controls, which cost one hold each.
         ///
-        /// That repeat is the ramp's only control on itself: everything it
-        /// reports assumes the machine at the last rung is the machine that
-        /// was at the first, and nothing else here checks it. It costs one
-        /// hold.
+        /// The ramp repeats its lowest saturated rung, which says whether the
+        /// ladder measured one machine, and then its solo rung, which says
+        /// whether the baseline every rate is read against reproduces — and
+        /// that second figure is what decides whether this run may be set
+        /// against another at all. Skipping is for a ramp being run for its
+        /// shape rather than its number.
         #[arg(long)]
         skip_drift_check: bool,
 
@@ -802,7 +804,23 @@ fn work_drift(summary: &observe::Summary) -> String {
     )
 }
 
-fn print_drift(report: &RampReport) {
+/// Both controls, on the console, where a run is read as it finishes.
+///
+/// They answer different questions and only one of them used to be printed
+/// here. Drift says whether this ladder measured one machine; the solo spread
+/// says whether its baseline reproduces, which is what decides whether this
+/// ladder may be set against another at all.
+fn print_controls(report: &RampReport) {
+    if let Some(spread) = report.solo_spread_percent() {
+        println!(
+            "  solo check:  1 session ran {:.2} units/s early and {:.2} at the end ({spread:+.1}%)",
+            report.solo_units_per_sec,
+            report
+                .solo_check
+                .as_ref()
+                .map_or(0.0, |s| s.units_per_session_per_sec),
+        );
+    }
     match report.drift() {
         // A repeat the instrument could not measure is not a machine that
         // slowed to nothing, and reporting it as one would put a drift on the
@@ -887,7 +905,7 @@ fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
     }
     // Outside the match: the control says whether the ladder measured one
     // machine, which is worth knowing whether or not it found a redline.
-    print_drift(report);
+    print_controls(report);
 
     println!("\nrungs");
     for step in &report.steps {
