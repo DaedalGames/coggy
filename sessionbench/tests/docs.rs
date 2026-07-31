@@ -114,6 +114,45 @@ fn link_targets(body: &str) -> Vec<String> {
     found
 }
 
+/// Every component that owns a document is listed in the map that promises to
+/// list them.
+///
+/// A list of components has no way to notice a new component, and this one was
+/// wrong four times in a day: a findings count, a sentence naming three
+/// comparison-set rows after a fourth was filled, a crate count, and the map
+/// itself once `coggyd` existed. Each was fixed alone. The shape is what
+/// recurs, so the check belongs here rather than in a reviewer's memory.
+#[test]
+fn the_documentation_map_lists_every_component_that_has_a_readme() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crate sits one level below the repository root");
+    let map = fs::read_to_string(root.join("README.md")).expect("a root README");
+
+    let mut missing = Vec::new();
+    for entry in fs::read_dir(root)
+        .expect("readable repository root")
+        .flatten()
+    {
+        let dir = entry.path();
+        if !dir.is_dir() || !dir.join("README.md").is_file() {
+            continue;
+        }
+        let name = dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .expect("a directory name");
+        if !map.contains(&format!("{name}/README.md")) {
+            missing.push(name.to_string());
+        }
+    }
+
+    assert!(
+        missing.is_empty(),
+        "these own a README and the documentation map does not list them: {missing:?}"
+    );
+}
+
 #[test]
 fn every_cross_reference_resolves() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
