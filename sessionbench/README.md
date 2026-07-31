@@ -163,13 +163,13 @@ It refuses [the pipes-against-pseudoconsole pair that prompted it](../docs/measu
 
 Tuning `coggyd` against these results makes the gate grade a bucket it drew itself. Instrument and subject coming from the same hands is the classic failure here.
 
-1. **Freeze the as-is baseline at M0.** Measure it before `coggyd` exists and never remeasure. If hardware changes, every target gets remeasured together.
+1. **Freeze the as-is baseline at M0.** Measure it before `coggyd` exists and never remeasure. If hardware changes, every target gets remeasured together. [Frozen on 2026-07-31 at nine sessions, limited by RSS](../docs/measurements/2026-07-31-150258-g0-frozen.md).
 2. **Workloads know nothing about `coggyd`.** Payloads are pure stdout generators and real agent CLI sessions. A workload that takes a COGGY-specific path is banned.
 3. **Distrust one axis improving while five stay flat.** redline is a conjunction of four conditions, so optimizing a single axis cannot raise it. If it rose anyway, the cost moved somewhere we are not looking.
 4. **Give every run a directory Defender has not seen.** Real-time scanning costs far less the second time a file is written, so re-running a workload over the same paths measures the cache rather than the workload. Two otherwise identical runs differed threefold on this axis before the rule existed, and the second one looked like the improvement.
 5. **Watch the instrument's own cost, which every run records.** A scaling benchmark's one undetectable failure is the observer becoming the bottleneck, and it does not announce itself — it arrives looking like the machine collapsing. Twenty-five sessions that saturate every core starve the sampler for fifteen seconds a tick, while twenty-five that yield cost it fifty-six milliseconds at the same process count and the same resident memory. A rung the sampler could not keep up with is reported as inconclusive and stops the ladder, because a rung that could not be read has not failed.
 
-**Those three rules are what buy credibility, not the repo boundary** — so this stays inside the COGGY repo. The evidence agrees: `alacritty/vtebench` split out and has not moved since January 2025 while Alacritty ships continuously, whereas Ghostty keeps its benchmarks in `src/benchmark/` and is the healthiest of the three. Splitting early buys a second CI and a sync problem.
+**Those rules are what buy credibility, not the repo boundary** — so this stays inside the COGGY repo. The evidence agrees: `alacritty/vtebench` split out and has not moved since January 2025 while Alacritty ships continuously, whereas Ghostty keeps its benchmarks in `src/benchmark/` and is the healthiest of the three. Splitting early buys a second CI and a sync problem.
 
 Split it out when the pressure arrives from outside, ordered by how far outside it starts:
 
