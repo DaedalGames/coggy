@@ -25,6 +25,15 @@
 
 use std::collections::VecDeque;
 
+/// Most bytes one line may keep.
+///
+/// A line-count ceiling is not a memory ceiling on its own: `read_until`
+/// grows until it meets a newline, so one session emitting a gigabyte
+/// without one takes the daemon down while every count still looks
+/// healthy. Sixty-four kilobytes is far past any line a session means to
+/// write and far below what a hundred of them can afford to hold.
+pub const MAX_LINE_BYTES: usize = 64 * 1024;
+
 /// A bounded record of a session's most recent output.
 #[derive(Debug)]
 pub struct Scrollback {
@@ -32,6 +41,7 @@ pub struct Scrollback {
     capacity: usize,
     read: u64,
     evicted: u64,
+    truncated: u64,
 }
 
 impl Scrollback {
@@ -48,12 +58,24 @@ impl Scrollback {
             capacity,
             read: 0,
             evicted: 0,
+            truncated: 0,
         }
     }
 
-    /// Records one line the session emitted.
-    pub fn push(&mut self, line: String) {
+    /// Records one line the session emitted, cut to [`MAX_LINE_BYTES`].
+    pub fn push(&mut self, mut line: String) {
         self.read += 1;
+        if line.len() > MAX_LINE_BYTES {
+            // Cut on a character boundary, since a String may not be
+            // split mid-codepoint and the byte at the ceiling usually is not
+            // one.
+            let mut cut = MAX_LINE_BYTES;
+            while cut > 0 && !line.is_char_boundary(cut) {
+                cut -= 1;
+            }
+            line.truncate(cut);
+            self.truncated += 1;
+        }
         if self.capacity == 0 {
             self.evicted += 1;
             return;
@@ -79,6 +101,17 @@ impl Scrollback {
     /// is the thing it exists to prevent.
     pub fn evicted(&self) -> u64 {
         self.evicted
+    }
+
+    /// Lines that arrived longer than the per-line ceiling and were cut.
+    ///
+    /// **A third thing, and neither of the two above.** The line was read,
+    /// so the gate is satisfied, and it was kept, so eviction did not touch
+    /// it — but part of it is gone. Counting it under either of the others
+    /// would hide a session emitting megabytes without a newline, which is
+    /// the shape that makes a line-count ceiling stop being a memory ceiling.
+    pub fn truncated(&self) -> u64 {
+        self.truncated
     }
 
     pub fn retained(&self) -> usize {

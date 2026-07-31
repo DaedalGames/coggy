@@ -36,7 +36,7 @@ use std::thread::JoinHandle;
 
 use anyhow::{Context, Result};
 
-use crate::scrollback::Scrollback;
+use crate::scrollback::{MAX_LINE_BYTES, Scrollback};
 
 /// Lines a session keeps by default.
 ///
@@ -164,7 +164,7 @@ fn drain(reader: Reader, into: Arc<Mutex<Scrollback>>) -> JoinHandle<()> {
         let mut line = Vec::new();
         loop {
             line.clear();
-            match buf.read_until(NEWLINE, &mut line) {
+            match read_line_capped(&mut buf, &mut line) {
                 Ok(0) | Err(_) => return,
                 Ok(_) => {
                     while matches!(line.last(), Some(&NEWLINE | &CARRIAGE_RETURN)) {
@@ -176,6 +176,41 @@ fn drain(reader: Reader, into: Arc<Mutex<Scrollback>>) -> JoinHandle<()> {
             }
         }
     })
+}
+
+/// Reads one line, keeping at most [`MAX_LINE_BYTES`] of it.
+///
+/// **The cap has to be here rather than on the way into the scrollback.**
+/// `read_until` grows its buffer until it meets a newline, so a session
+/// emitting a gigabyte without one has already taken the daemon down before
+/// anything downstream gets a chance to trim it. Truncating what is kept is
+/// not a memory ceiling; refusing to hold it in the first place is.
+///
+/// Bytes past the cap are consumed and discarded rather than left in the
+/// pipe, because leaving them would stall the session — the failure this
+/// whole drain exists to avoid.
+fn read_line_capped(buf: &mut dyn BufRead, out: &mut Vec<u8>) -> std::io::Result<usize> {
+    let mut total = 0usize;
+    loop {
+        let available = match buf.fill_buf() {
+            Ok(&[]) => return Ok(total),
+            Ok(bytes) => bytes,
+            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        };
+        let (chunk, done) = match available.iter().position(|b| *b == NEWLINE) {
+            Some(at) => (&available[..=at], true),
+            None => (available, false),
+        };
+        let room = MAX_LINE_BYTES.saturating_sub(out.len());
+        out.extend_from_slice(&chunk[..room.min(chunk.len())]);
+        let taken = chunk.len();
+        buf.consume(taken);
+        total += taken;
+        if done {
+            return Ok(total);
+        }
+    }
 }
 
 impl Drop for Session {
@@ -330,6 +365,43 @@ mod tests {
         assert_eq!(back.retained(), 2, "and the ceiling held");
         assert_eq!(back.evicted(), 2, "the difference is policy, not a gap");
         assert_eq!(back.tail(2), vec!["three", "four"]);
+    }
+
+    #[test]
+    fn a_line_without_an_end_cannot_grow_past_the_ceiling() {
+        // The shape that makes a line-count ceiling stop being a memory
+        // ceiling: bytes with no newline in them. Read through a reader that
+        // never ends so the cap is what stops it, not the input.
+        let flood = vec![b'x'; MAX_LINE_BYTES * 3];
+        let mut buf: Box<dyn BufRead> = Box::new(BufReader::new(&flood[..]));
+        let mut line = Vec::new();
+        let consumed = read_line_capped(&mut buf, &mut line).expect("read");
+
+        assert_eq!(
+            consumed,
+            MAX_LINE_BYTES * 3,
+            "everything has to leave the pipe or the session stalls"
+        );
+        assert_eq!(
+            line.len(),
+            MAX_LINE_BYTES,
+            "and only the ceiling may be held"
+        );
+    }
+
+    #[test]
+    fn a_line_that_ends_is_kept_whole_and_stripped() {
+        let input = b"first line\r\nsecond";
+        let mut buf: Box<dyn BufRead> = Box::new(BufReader::new(&input[..]));
+        let mut line = Vec::new();
+        read_line_capped(&mut buf, &mut line).expect("read");
+        assert_eq!(line.last(), Some(&NEWLINE), "the terminator comes through");
+
+        // What the drain does with it, so the assertion covers the pair.
+        while matches!(line.last(), Some(&NEWLINE | &CARRIAGE_RETURN)) {
+            line.pop();
+        }
+        assert_eq!(String::from_utf8_lossy(&line), "first line");
     }
 
     #[test]
