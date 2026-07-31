@@ -86,6 +86,8 @@ Build the `coggyd` daemon and the `coggy` CLI: pipe-first spawning, ring-buffer 
 
 **Gate M1:** 100 sessions held for an hour at total RSS under 4GB, per-session work rate within 2× of solo, and no dropped output. Cold start under 30 seconds is a nice-to-have recorded in the startup log, not a gate — [it is 0.02% of the workload](docs/PLAN.md#residency-not-spawning).
 
+**This gate measures the daemon, not capacity, and G0 is why that has to be said.** 4GB across 100 sessions is 40 MiB each; [a real generation session holds 2.39 GiB](docs/measurements/2026-07-31-150258-g0-frozen.md), which is sixty times more and would put a hundred of them at 239GB. The figure is reachable because the sessions here are the daemon's own bookkeeping plus a shell on pipes, which [measures 8.97 MiB](docs/measurements/2026-07-31-035111-between-builds.md) — so it asks whether `coggyd` disappears under load, and answers nothing about how many generation sessions fit. **That number is nine**, it is set by memory the daemon does not own, and admission against it belongs to [M3](#m3--resource-governor). Reading one as the other is [the conflation that cost M0 a day](docs/measurements/2026-07-31-050322-the-agent-side-of-a-session.md).
+
 **Measurement rule:** take these three numbers with **the same harness** used at M0. Build a second bench and the M0 baseline becomes incomparable.
 
 ## M2 · Harness Contract
@@ -109,9 +111,11 @@ Job Object quotas, core budget scheduler, build queueing, automated Defender exc
 **What it consumes:**
 
 - **Windows Job Objects** — `CreateJobObject` plus `JOBOBJECT_CPU_RATE_CONTROL_INFORMATION` for per-session CPU and memory ceilings
-- **Defender exclusion automation** — a five-minute implementation with the largest felt impact on game projects. M0 will already have measured how large this term actually is
+- **Defender exclusion automation** — a five-minute implementation, and M0 has now measured the term: [0.034 cores a session against a cooking workload](docs/measurements/2026-07-31-041923-what-an-exclusion-buys-a-cook.md), real and small. It returns CPU, and [the ceiling it would have to move is made of memory](docs/measurements/2026-07-31-045604-an-error-bar-for-the-engine.md), so it buys comfort rather than sessions. Still worth five minutes; no longer worth sequencing around.
 
-**Gate M3:** the machine survives 100 concurrent session builds without swapping, and per-session work rate stays within 2× of solo while they run.
+**Gate M3:** the governor admits sessions up to the measured ceiling, refuses past it, and the machine does not swap while they run — with per-session work rate staying within 2× of solo.
+
+**This replaces "100 concurrent session builds", which G0 made impossible twice over.** [Builds serialise per engine installation](docs/measurements/2026-07-31-034150-unreal-builds-serialise.md) through a lock that cannot be bypassed, so a hundred at once would need a hundred installations; and [memory binds at nine](docs/measurements/2026-07-31-150258-g0-frozen.md) long before that. A gate no machine can pass grades nothing. **The governor's job is admission against a number it measures, not survival of a number someone chose** — which is also why the ceiling belongs in the daemon as a reading rather than a constant.
 
 ## M4 · Audit Surface
 
