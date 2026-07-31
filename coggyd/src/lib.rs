@@ -27,6 +27,7 @@
 
 #![cfg(windows)]
 
+pub mod pool;
 pub mod scrollback;
 
 use std::io::{BufRead, BufReader};
