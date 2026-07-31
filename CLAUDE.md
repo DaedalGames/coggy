@@ -42,6 +42,8 @@ A long session of back-to-back ramps makes the box slower, and a slower box is n
 
 Every ramp now repeats its lowest saturated rung at the end and reports the gap. **Read that line before quoting anything else in the run.** Past a few percent the redline is reading low and the run is a draft.
 
+**That control covers one ramp, and most claims here span two.** Pipes against pseudoconsoles, `cmd` against `pwsh`, one duty against another — each sets two ladders side by side and assumes they saw the same machine. Nothing checks it. A pseudoconsole ramp ran nine hours after its pipes counterpart and its solo session was **half the speed**, which no drift check could catch because both ramps held still internally. **Two ramps are comparable when their solo rungs agree**; that rung is a machine fingerprint, and comparing redlines whose fingerprints differ measures the afternoon. Run a comparison back to back or not at all.
+
 **When a measurement will not fit the machine, shrink the measurement before blaming the machine.** A ten-session cook ramp needed 19 GiB against 8.7 free and was written up as blocked; four sessions answered the same question twenty minutes later, because aligned peaks would have shown 20 GiB and nothing came within a factor of two. The narrow memory was a condition rather than an obstacle — wide enough to leave the signal intact, narrow enough to make alignment visible. Reach for the smallest design that can still be wrong in the way you care about.
 
 Whatever you watch a run with must emit a per-rung line, not only its verdict. A watch filtered down to redlines and failures cannot tell a working run from a hung one, and that ambiguity gets settled by reaching for the box — which is the one thing forbidden below.
@@ -57,6 +59,8 @@ Between runs, keep the footprint from accumulating:
 ## Verify before you report
 
 Running `cargo build` proves the code compiles, which is not what anyone asked. Run the thing, read its output, and check the output against something independent.
+
+**Read the report, not the console.** A run streams progress and then writes a record, and the two say different things: a rung line printed mid-ladder can be superseded, and a refine pass revisits counts that looked settled. Two findings were built on streaming lines here in one afternoon and both were withdrawn when `ramp.json` disagreed — one of them a process-count anomaly that the finished report showed as exactly 2.00 per session on every rung. Watch the console to know a run is alive; quote nothing from it.
 
 Before saying a change works:
 
