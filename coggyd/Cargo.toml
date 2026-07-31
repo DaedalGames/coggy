@@ -1,0 +1,19 @@
+[package]
+name = "coggyd"
+description = "The session supervisor. One job object per session, so a slot can be reclaimed."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+win32job.workspace = true
+
+[lints]
+workspace = true
