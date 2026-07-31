@@ -390,6 +390,20 @@ fn summarize(samples: &[Sample], output: &Output, duration: Duration) -> Summary
     // A quarter, or one sample, or nothing at all — a run shorter than a single
     // sample has no ends to compare and must not be sliced as though it did.
     let cut = (samples.len() / 4).max(1).min(samples.len());
+
+    // Work rate takes the post-startup window CPU uses, not the whole-run
+    // quarters RSS uses, and getting that wrong made this control's first real
+    // reading a false alarm. A single core boosts hard for its first seconds:
+    // an unpinned session read 50.31 units/s over 1–6s and then 34.0 to 35.0
+    // flat for the remaining forty, at 98% CPU throughout. Quartering the whole
+    // run straddles that and reports −18.8% of drift where the machine never
+    // moved. RSS has no such transient, which is why it can quarter everything.
+    let steady: Vec<Sample> = samples
+        .iter()
+        .filter(|s| Duration::from_millis(s.t_ms) >= STARTUP_WINDOW)
+        .cloned()
+        .collect();
+    let work_cut = (steady.len() / 4).max(1).min(steady.len());
     let cpu = steady_cpu(samples);
 
     Summary {
@@ -407,8 +421,8 @@ fn summarize(samples: &[Sample], output: &Output, duration: Duration) -> Summary
         output_bytes_per_sec: output_bytes as f64 / seconds,
         work_units,
         work_units_per_sec: work_units as f64 / seconds,
-        early_work_units_per_sec: window_rate(&samples[..cut]),
-        late_work_units_per_sec: window_rate(&samples[samples.len() - cut..]),
+        early_work_units_per_sec: window_rate(&steady[..work_cut]),
+        late_work_units_per_sec: window_rate(&steady[steady.len().saturating_sub(work_cut)..]),
         session_cores: cpu.map(|c| c.session),
         defender_cores: cpu.map(|c| c.defender),
         defender: defender_cost(samples, cpu),
@@ -506,16 +520,47 @@ mod tests {
 
     /// Eight samples a second apart, carrying a running unit total that grows
     /// at `early` units/s for the first half and `late` for the second.
+    ///
+    /// Placed past [`STARTUP_WINDOW`], because that is where the work-rate
+    /// windows look: a single core boosts for its first seconds, and quartering
+    /// across that reports drift the machine never had.
     fn ramping_units(early: u64, late: u64) -> Vec<Sample> {
+        let base = STARTUP_WINDOW.as_millis() as u64;
         let mut total = 0;
         (0..8)
             .map(|i| {
-                let mut s = sample(i * 1000, 0.0, None);
+                let mut s = sample(base + i * 1000, 0.0, None);
                 s.work_units = total;
                 total += if i < 4 { early } else { late };
                 s
             })
             .collect()
+    }
+
+    #[test]
+    fn work_drift_ignores_the_startup_window_the_way_the_cores_figure_does() {
+        // Fast for the first six seconds and flat after, which is the shape a
+        // real run has: 50.31 units/s over 1–6s, then 34 for the next forty.
+        let mut total = 0;
+        let samples: Vec<Sample> = (0..40)
+            .map(|i| {
+                let mut s = sample(i * 1000, 0.0, None);
+                s.work_units = total;
+                total += if i < 6 { 50 } else { 34 };
+                s
+            })
+            .collect();
+        let summary = summarize(&samples, &Output::new(), Duration::from_secs(40));
+        let moved = (summary.late_work_units_per_sec - summary.early_work_units_per_sec)
+            / summary.early_work_units_per_sec
+            * 100.0;
+        assert!(
+            moved.abs() < 1.0,
+            "the boost is before the window, so nothing should have drifted — got {moved:+.1}% \
+             from {:.2} early and {:.2} late",
+            summary.early_work_units_per_sec,
+            summary.late_work_units_per_sec
+        );
     }
 
     #[test]
