@@ -39,6 +39,7 @@ See [sessionbench/README.md](sessionbench/README.md) for the metric definition, 
 | Document | Holds |
 |---|---|
 | [ROADMAP.md](ROADMAP.md) | What order it happens in, and the gate that closes each milestone |
+| [coggyd/README.md](coggyd/README.md) | The daemon: what a session is, what owning one means, where its boundary is |
 | [sessionbench/README.md](sessionbench/README.md) | The benchmark: metric, axes, comparison set, report format |
 | [workloads/README.md](workloads/README.md) | What a workload is and what it must promise |
 | [CLAUDE.md](CLAUDE.md) | How to approach the work: reuse before building, measure before optimizing |
