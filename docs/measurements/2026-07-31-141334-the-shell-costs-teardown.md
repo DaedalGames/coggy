@@ -16,6 +16,20 @@ Three ramps, identical in every respect but the wrapper.
 
 A shell adds a process and holds memory, and **demands no CPU while its child computes**. The condition that binds here is work rate, so the shell is invisible to it.
 
+## Checked afterwards by the tool this run prompted
+
+`sessionbench compare`, built later the same day, admits all three pairings — and the pattern inside them is not the one that was assumed:
+
+| Pair | Solo rungs | Redline |
+|---|---|---|
+| bare against `cmd` | +3.1% | 27 → 26 |
+| bare against `pwsh` | +3.2% | 27 → 26 |
+| **`cmd` against `pwsh`** | **+0.0%** | **26 → 26** |
+
+**The two wrapped ramps agree to nothing at all** — 76.44 against 76.45 units/s — while the bare ramp sits 3.1% from both. That is a consistent offset rather than scatter, and time does not explain it: bare and `pwsh` ran thirteen minutes apart and differ by 3.2%, `cmd` and `pwsh` ran twenty-two minutes apart and differ by 0.0%.
+
+It matters for what the allowance in `compare` should be. The 3.1% was read as the spread a solo rung carries between runs, and used to set the threshold. **But 0.0% is equally observed**, so the rung's own measurement noise is far smaller than that, and whatever separates the bare ramp from the two wrapped ones is something else — the first ramp of a batch, or the wrapper genuinely changing how a single session is scheduled. Neither is established here.
+
 ## What it does cost is memory, and the ranking is not the interesting part
 
 | | Per session | Processes |

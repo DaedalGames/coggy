@@ -38,9 +38,15 @@ use crate::ramp::RampReport;
 ///
 /// Five leaves room above the only clean triple available and still refuses
 /// the case this exists for by an order of magnitude — a pair whose solo rungs
-/// sat 51.6% apart. It is calibrated against three points, one of which is the
-/// pair it would admit, so treat it as provisional: widen it from a triple
-/// taken deliberately rather than from one that happened.
+/// sat 51.6% apart.
+///
+/// **Running the tool on that triple then undercut its own justification.** Two
+/// of the three ramps agree to 0.0% (76.44 against 76.45) and only the first of
+/// the batch sits 3.1% from both, so the 3.1% is a consistent offset rather
+/// than the spread a solo rung carries — the rung reproduces far better than
+/// this number assumes. What that offset is has not been established. Until it
+/// has, five is a tolerance for drift and not a measurement of noise, and the
+/// solo check each ramp now carries is what will separate the two.
 pub const SOLO_AGREEMENT_PERCENT: f64 = 5.0;
 
 /// Two ramps, and whether their redlines mean anything set side by side.
