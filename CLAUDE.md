@@ -36,6 +36,8 @@ The project's own reason for existing. [M0](ROADMAP.md#current-priority-m0--attr
   The same holds for rules rather than numbers: **an invariant only exercised by things that cannot break it has not been exercised.** [The workload contract](workloads/README.md#the-contract) forbids shared paths and the ramp handed every session one directory, which three synthetic workloads never noticed because each names its files uniquely. The contract was correct and unenforced for as long as nothing needed it.
 - Claims in PLAN are marked **[measured]** or **[assumed]**. If you turn one into the other, edit the marker in the same change.
 
+- **Write a run up before starting the next one.** A ramp's artifacts land in `bench-out/`, which is gitignored and which the pruning rule below tells you to delete. Until the record exists, the only copy of a measurement is sitting in the directory you are instructed to clear — and an agent session that ends takes its plans with it while leaving that state behind. Three shell-control ramps once sat there unwritten for seven hours across a process restart, alongside an uncommitted instrument fix, and both survived on luck rather than design. The record is the artifact; `bench-out/` is scratch.
+
 ### Do not degrade the machine you are measuring
 
 A long session of back-to-back ramps makes the box slower, and a slower box is not a different mood — it is a different machine, so late measurements stop being comparable with early ones. This is measured rather than suspected: **a rung that ran 40.02 units/s at the start of one ramp ran 38.11 at the end of it, 4.8% down**, and that alone dragged the fitted redline from ~33.6 to 32.3.
