@@ -156,7 +156,7 @@ graph TD
     U["coggy-ui<br/>renders 1-4 focused<br/>other 96 as status lines"]
   end
 
-  S["100 sessions<br/>agent CLIs · builds · headless engines"]
+  S["100 sessions<br/>each an agent CLI<br/>and the builds and engines it spawns"]
   M["official MCP<br/>Unreal 5.8 · Unity 6 · Blender · Godot"]
 
   H -->|"session request"| C
