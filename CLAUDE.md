@@ -46,8 +46,6 @@ Every ramp now repeats its lowest saturated rung at the end and reports the gap.
 
 **When a measurement will not fit the machine, shrink the measurement before blaming the machine.** A ten-session cook ramp needed 19 GiB against 8.7 free and was written up as blocked; four sessions answered the same question twenty minutes later, because aligned peaks would have shown 20 GiB and nothing came within a factor of two. The narrow memory was a condition rather than an obstacle — wide enough to leave the signal intact, narrow enough to make alignment visible. Reach for the smallest design that can still be wrong in the way you care about.
 
-**A guard waiting on a threshold has to read the statistic that threshold is defined by.** `doctor` calls a machine quiet on a mean over a window; a watcher built to wait for exactly that sampled instantaneous CPU instead, reported 8.4% and called it quiet while `doctor` read 23% of the same minute. Two dips are not a quiet machine. A guard that measures something adjacent is optimistic by construction, and it hands you a green light for a red condition — which is worse than no guard, because you stop checking.
-
 Whatever you watch a run with must emit a per-rung line, not only its verdict. A watch filtered down to redlines and failures cannot tell a working run from a hung one, and that ambiguity gets settled by reaching for the box — which is the one thing forbidden below.
 
 While a measurement is running, do nothing else on this machine — no builds, no `git`, no `gh`, no file edits. The observer is not free. [The Defender estimate](docs/measurements/2026-07-30-142218-defender-at-scale.md) was wrong by two orders of magnitude partly because `gh` ran during the run that produced it, and the drift figure above came from a ramp with edits happening alongside it.
@@ -62,7 +60,14 @@ Between runs, keep the footprint from accumulating:
 
 Running `cargo build` proves the code compiles, which is not what anyone asked. Run the thing, read its output, and check the output against something independent.
 
-**Read the report, not the console.** A run streams progress and then writes a record, and the two say different things: a rung line printed mid-ladder can be superseded, and a refine pass revisits counts that looked settled. Two findings were built on streaming lines here in one afternoon and both were withdrawn when `ramp.json` disagreed — one of them a process-count anomaly that the finished report showed as exactly 2.00 per session on every rung. Watch the console to know a run is alive; quote nothing from it.
+**A check has to measure the thing it is checking**, and the cheapest way to get this wrong is to read whatever is nearest. Four in one day, each answering confidently from beside the instrument that decides:
+
+- **The console is not the report.** A run streams progress and then writes a record; a rung line printed mid-ladder can be superseded and a refine pass revisits counts that looked settled. Two findings built on streamed lines were withdrawn when `ramp.json` disagreed — one a process-count anomaly the finished report showed as exactly 2.00 per session on every rung. Watch the console to know a run is alive; quote nothing from it.
+- **A point sample is not a windowed mean.** A watcher waiting for `doctor` to call the machine quiet sampled instantaneous CPU instead, reported 8.4% and called it quiet while `doctor` read 23% of the same minute.
+- **A frequency heuristic is not an efficiency class.** The pure-Rust way to find hybrid cores groups them by observed clock, and clocks converge on an idle machine — which is when `doctor` runs, so it would report one tier here and be believed.
+- **A link checker is not GitHub.** Collapsing runs of spaces where GitHub replaces each one reported 23 sound anchors as broken; every one would have been "fixed" into an actual break.
+
+**The tell is a confident answer from an instrument nobody checked against the one that decides**, and the adjacent instrument is always the convenient one. When several things look wrong at once, suspect the check before the subject — one place being wrong is usually that place, many places being wrong is usually you.
 
 Before saying a change works:
 
