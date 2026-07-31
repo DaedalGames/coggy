@@ -38,7 +38,9 @@ What it does not have is the thing a comparison set exists for. Taking the pty a
 
 **Ramps are compared across time and nothing checks that they can be.** Every cross-ramp claim in this repository — pipes against pseudoconsoles, `cmd` against `pwsh`, one duty against another — assumes the two ran on the same machine. Within a ramp that assumption is tested; between ramps it is not. The shell-control trio was sound because it ran back to back inside twenty minutes, which was luck of scheduling rather than a control.
 
-The cheap fix is the one the drift check already uses: **a ramp's solo rung is a machine fingerprint**, and two ramps whose solo rates differ by more than the metric's own spread cannot be set against each other. Nothing computes that today, and every comparison here was read by eye.
+The cheap fix is the one the drift check already uses: **a ramp's solo rung is a machine fingerprint**, and two ramps whose solo rates differ by more than the metric's own spread cannot be set against each other. Nothing computed that when this was written, and every comparison here had been read by eye.
+
+**Built the same afternoon.** [`sessionbench compare`](../../sessionbench/README.md#comparing-two-ramps) refuses a pair whose solo rungs disagree past an allowance, and every ramp now repeats its solo rung so the fingerprint carries an error bar of its own.
 
 ## Provenance
 
