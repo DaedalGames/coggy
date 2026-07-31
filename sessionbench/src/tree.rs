@@ -107,6 +107,16 @@ impl ArmedTree {
         }
     }
 
+    /// One job for the whole benchmark, joined by this process.
+    ///
+    /// **This shape answers attribution and cannot answer termination.**
+    /// Membership is inherited downward, so every session lands in here and
+    /// the sampler can say who belongs to the measurement — but terminating
+    /// the job would take the benchmark with it, which is why teardown kills
+    /// each root and reaps the survivors instead. A daemon that has to end a
+    /// session wants [one job per session](../../ROADMAP.md#m1--headless-daemon)
+    /// and gets the tree for free; the cost of not having that is the
+    /// straggler reap this file's callers pay.
     fn join_job() -> Result<win32job::Job, String> {
         let job = win32job::Job::create().map_err(|e| format!("creating a job object: {e}"))?;
         job.assign_current_process()
