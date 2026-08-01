@@ -401,7 +401,12 @@ fn main() -> anyhow::Result<()> {
                 human_bytes(report.peak_rss_bytes),
                 human_bytes(report.rss_budget_bytes),
                 report.units,
-                report.output_bytes.unwrap_or(0),
+                // A dash, not a zero. Its neighbour prints None when the
+                // daemon never reported, and unwrapping this one to 0 beside
+                // it read as a measured nothing.
+                report
+                    .output_bytes
+                    .map_or_else(|| "—".to_string(), |b| b.to_string()),
                 report
                     .units_per_session_per_sec
                     .map_or_else(|| "—".to_string(), |r| format!("{r:.3}")),

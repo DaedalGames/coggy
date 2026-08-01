@@ -368,6 +368,13 @@ pub fn hold(
         // The sampler wants one counter. Units and bytes both come from the
         // daemon's own report rather than from a drain this process owns,
         // which is the whole difference between this target and every other.
+        //
+        // **Zero here is right, unlike everywhere else in this file.** These
+        // are timeseries points: before the daemon's first report the count
+        // genuinely was nothing, and a sample saying so is accurate. What must
+        // not become zero is a SUMMARY of a run that could not be measured —
+        // that distinction is why the report's fields are Options and these
+        // two are not.
         let output = crate::session::Output::from_counts(
             seen.latest().map_or(0, |r| r.read_bytes),
             seen.units().unwrap_or(0),

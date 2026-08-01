@@ -91,6 +91,8 @@ The fourth had a different answer, which is the part worth remembering: the numb
 
   **A fifth instance moved the axis from values to processes.** A sampling loop asked its watcher for numbers and never asked whether the thing producing them was still alive; a daemon exiting at five seconds of an hour would have given fifty-nine minutes of empty samples and a session count frozen at its last report. **Something that stopped reporting looks exactly like something reporting the same thing** — so a loop reading a subject has to ask after the subject, not only after its numbers.
 
+  **And a second loop had the same hole**, found hours later. Two sampling loops in two files each read a daemon and neither asked whether it was alive; fixing one is what made the other visible. **When a fix is for a shape rather than a line, grep for the shape.** The tell is a fix whose commit message describes a category — an absence reading as a value, a stopped thing reading as a steady one — and the fix touching one call site.
+
 **The tell is a confident answer from an instrument nobody checked against the one that decides**, and the adjacent instrument is always the convenient one. When several things look wrong at once, suspect the check before the subject — one place being wrong is usually that place, many places being wrong is usually you.
 
 Before saying a change works:
