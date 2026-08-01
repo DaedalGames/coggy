@@ -34,6 +34,21 @@
 # peak against the gate's stated 4 GB, and the two solo sides against each
 # other.
 #
+# IT IS --wait-ms AND NOT --duty, WHICH COST A RUN TO LEARN. `--duty` derives
+# each pause from how long that unit actually took, so contention stretches the
+# unit and stretches the pause with it: the workload backs off instead of
+# competing. Measured mid-run at a hundred sessions -- 0.0655 cores a session
+# against 0.27 requested, the daemon at 0.006, and 6.7 of sixteen cores sitting
+# idle while a hundred sessions that wanted twenty-seven of them slept. A
+# workload that cannot saturate cannot produce a work-rate ceiling.
+#
+# `--wait-ms` holds the pause fixed, which is the shape a session waiting on a
+# model has -- its duty climbs as its compute slows. 61 ms against a 22.5 ms
+# unit gives the same 0.27 solo duty and lets the count decide the rest.
+#
+# The workload's own source says all of this three lines above the flag. The
+# value was read back from what consumes it and the flag was not.
+#
 # THE DUTY IS 0.27 AND THAT IS NOT A DETAIL. Read the gate's own arithmetic
 # before spending an hour on it: one session at duty d wants d cores, a hundred
 # want 100d, and sixteen is what there is. Past saturation each session gets
@@ -85,7 +100,7 @@ $busy = Get-Capture (& $bench doctor 2>&1) 'busy before we start ([\d.]+)'
 
 # --- the precondition: can two baselines agree today? --units 100000000
 # because cpu-spin's default is 60 and it EXITS after them.
-$work = @('--units', '100000000', '--duty', '0.27', '--resident', '20')
+$work = @('--units', '100000000', '--wait-ms', '61', '--resident', '20')
 $probe = foreach ($i in 1..2) {
     $out = & $bench hold --label "m1-probe-$i" --sessions 1 --interval 5 --duration 30 -- $spin @work 2>&1
     $r = Get-Capture $out 'rate       ([\d.]+)'
