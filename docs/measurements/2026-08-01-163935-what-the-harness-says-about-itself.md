@@ -30,6 +30,20 @@ Three twenty-second solo holds of `cpu-spin`, then three more ten minutes later:
 
 It is also why [`compare`'s five-percent allowance](2026-07-31-171719-what-a-baseline-is-worth.md) transfers to holds. Five sits above what one sitting produces and well below what ten minutes does.
 
+## The background swings by more than the thing being measured
+
+Five `doctor` readings twelve seconds apart, on an ordinary afternoon with the desktop in use:
+
+```
+5.71  5.44  6.97  5.07  5.47   cores busy before a session starts
+```
+
+Mean 5.73 of 16, so 36% — and **±16% around it**, against a bracketing effect of 6.9%.
+
+**That is a different condition from "quiet", and a stricter one for this purpose.** A ratio divides one hold by another, so a background sitting *steadily* at 36% hands both the same handicap and the shape of the answer survives. One that swings hands each hold a different machine. Consecutive readings taken through the day spread 25% to 44%, and none of that is visible in a single reading against a threshold.
+
+So the thing to read before a ratio is the spread of a few lines, not one line. [The calibration script](../../sessionbench/scripts/bracket-calibration.ps1) refuses on exactly that and has yet to see a passing afternoon.
+
 ## A rate is steadier than a count, and only slightly
 
 Across one triple, the raw counts spread **2.80%** and the per-second rates **2.44%**.
