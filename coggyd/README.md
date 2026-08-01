@@ -70,6 +70,6 @@ Nothing in the daemon knows an engine exists. [Engine adapters are M5](../ROADMA
 
 ## What is not built
 
-The cmux-compatible CLI, the socket API, the resource governor and the audit surface are [target state](../ROADMAP.md#m1--headless-daemon). The binary above is a process that owns sessions, not that CLI. What exists is the part [G0 said mattered first](../docs/measurements/2026-07-31-150258-g0-frozen.md): a session's lifetime, its output, and its identity.
+The cmux-compatible CLI, the socket API, the resource governor and the audit surface are [target state](../ROADMAP.md#m1--headless-daemon). The binary above is a process that owns sessions, not that CLI. What exists is the part [G0 said mattered first](../docs/measurements/2026-07-31-150258-g0-frozen.md): a session's lifetime, its output, its identity, a pool that counts them, and a process that holds one.
 
 **Known and open:** a session is assigned to its job after spawning rather than before, which leaves a window where it runs unowned. Closing it needs `CREATE_SUSPENDED` and a resume, which needs unsafe, and [the workspace forbids that](../CLAUDE.md). The window is microseconds wide and the session cannot have built a tree inside it.
