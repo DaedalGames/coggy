@@ -18,7 +18,7 @@ So the tree is the unit, and [the frozen ceiling divides by it](../docs/measurem
 
 **Per session is the load-bearing word.** `sessionbench` creates one job and joins it with `assign_current_process`, which answers *who belongs to this measurement* and cannot answer *end this one* — terminating that job would take the benchmark with it. Its 361× teardown follows from that shape rather than from Windows.
 
-Two consequences the code carries:
+Consequences the code carries:
 
 - **A session is alive while its job is, not while its root is.** Asking the root is the natural implementation and the measured-wrong one: a supervisor reading it would call fifty occupied slots free and hand them out again.
 - **`Session::spawn` kills on the error path.** `std::process::Child` does not kill on drop, so returning an assignment failure straight through would leave a running session with no owner — the exact straggler this type exists against, produced by the type itself.

@@ -83,7 +83,7 @@ cargo +1.88.0 check --all-targets      # the declared MSRV, which the tracking t
 cargo run -p sessionbench -- doctor    # and read it
 ```
 
-When an independent check disagrees with the code, suspect the check first — but say so either way. [CONTRIBUTING's three accident modes](CONTRIBUTING.md#the-one-rule-that-matters) are each a real mistake made in this repository.
+When an independent check disagrees with the code, suspect the check first — but say so either way. [CONTRIBUTING's accident modes](CONTRIBUTING.md#the-one-rule-that-matters) are each a real mistake made in this repository.
 
 ### Verify before you launch, too
 
@@ -100,7 +100,7 @@ So for anything that will occupy the machine for more than a rung: read the para
 
 One question decides whether to start any piece of work: **does this move the number on the gate that is currently open?** If not, it belongs to a later milestone.
 
-Two consequences that are easy to miss:
+Consequences that are easy to miss:
 
 - **Order holds inside a milestone too.** M0 runs one session to completion *before* the ramp harness exists, because the single run is what says whether the redline conditions are pointed at the right thing.
 - **Engines are workloads before they are integrations.** [M5](ROADMAP.md#m5--engine-surfaces-exploratory) is four milestones out whatever is installed, and nothing in the daemon will ever know an engine exists. But **Unreal Engine 5.8 and Unity 6000.4.7f1 are both installed here**, with Visual Studio and MSVC, so measuring against a real engine was available the whole time it was being called impossible — and [it reversed which condition binds](docs/measurements/2026-07-31-022200-an-unreal-session.md), then [showed that one engine installation builds one thing at a time](docs/measurements/2026-07-31-034150-unreal-builds-serialise.md). Blender and Godot are genuinely absent.

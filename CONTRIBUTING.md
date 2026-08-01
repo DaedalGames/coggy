@@ -34,7 +34,7 @@ Two more apply only to contributions:
 
 Every performance claim needs a `sessionbench` artifact behind it: a run, on stated hardware, with its provenance block. Not a benchmark you ran once and described in prose.
 
-Three ways the rule gets violated by accident:
+Ways the rule gets violated by accident:
 
 - **Do not swallow stderr in a verification script.** `2>/dev/null` on a check turns a crash into a silent pass. If a script verifies something, its failures must be loud.
 - **Do not let a pinned toolchain stand in for an MSRV check.** Building on your local toolchain proves nothing about the declared `rust-version`. CI runs `cargo +1.88.0 check` for that reason; if you raise a dependency, read its declared MSRV rather than assuming.

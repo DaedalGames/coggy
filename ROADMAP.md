@@ -64,7 +64,7 @@ Digest these before writing code.
 
 ## Sequencing Direction
 
-Three rules set the order.
+These rules set the order.
 
 1. **Measurement precedes structure.** No architecture box becomes a crate before M0 closes.
 2. **Headless precedes screen.** The harness drives batches through the CLI. A UI is only needed for human audit, so it lands at M4.

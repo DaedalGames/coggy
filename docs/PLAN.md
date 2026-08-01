@@ -176,7 +176,7 @@ graph TD
 
 Solid arrows are ownership and calls; dotted are observation and enforcement. That every arrow points one way is the whole content of this diagram. **The harness calls COGGY; COGGY knows nothing about the harness.**
 
-This is the **target state for M1–M5.** Two crates exist today — `sessionbench`, and `coggyd` since M1 opened — and no other box becomes a crate until measurement justifies it. Scaffolding seven empty crates would freeze module boundaries before a single number earned them.
+This is the **target state for M1–M5.** The crates today are `sessionbench`, and `coggyd` since M1 opened — and no other box becomes a crate until measurement justifies it. Scaffolding seven empty crates would freeze module boundaries before a single number earned them.
 
 ### Four core decisions
 
@@ -253,7 +253,7 @@ The repo is public from the start, licensed **`GPL-3.0-or-later`**.
 
 Public is not the same as launched. Visibility costs nothing and buys free CI on the platform this project has to be tested on; announcing does cost something, because something that does not run yet earns issues rather than stars. So the repo is open now and the announcement waits for M2.
 
-Four reasons to open it:
+Reasons to open it:
 
 1. For devtools, open source is the distribution channel. That is how orca reached 27k stars in four months.
 2. paperthin's 118 stars already proved this account's distribution track. A second repo lands cheaper than the first.
