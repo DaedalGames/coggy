@@ -627,6 +627,17 @@ pub struct BracketedReport {
     /// single hold moves.
     pub before_spread_percent: Option<f64>,
     pub after_spread_percent: Option<f64>,
+    /// How well each side's mean is determined, as a percentage of it.
+    ///
+    /// **The spread above is a diagnostic; this is what a judgement rests on.**
+    /// A range answers *how far did two holds sit apart*, and the allowance
+    /// asks *how far apart are the two sides' means* — different quantities,
+    /// and comparing the first against the second demands every hold agree with
+    /// every other. That refused a run whose two means agreed to 3.0%: one of
+    /// nine holds came back 8% low, the other eight sat inside 1.4%, and the
+    /// range it opened swamped a standard error of 2.9%.
+    pub before_error_percent: Option<f64>,
+    pub after_error_percent: Option<f64>,
     /// How far the two sides' means sat apart, as a percentage.
     pub solo_gap_percent: Option<f64>,
     /// Why the pair may not be set against each other, when it may not.
@@ -651,24 +662,30 @@ pub struct BracketedReport {
 ///
 /// `None` mean when any hold on that side produced no rate — a side is a
 /// baseline and a baseline missing a reading is not a smaller baseline.
-fn side(holds: &[HoldReport]) -> (Option<f64>, Option<f64>) {
+fn side(holds: &[HoldReport]) -> (Option<f64>, Option<f64>, Option<f64>) {
     let rates: Option<Vec<f64>> = holds
         .iter()
         .map(|h| h.units_per_session_per_sec)
         .collect::<Option<Vec<_>>>()
         .filter(|r| !r.is_empty());
     let Some(rates) = rates else {
-        return (None, None);
+        return (None, None, None);
     };
-    let mean = rates.iter().sum::<f64>() / rates.len() as f64;
-    let spread = if rates.len() < 2 || mean <= 0.0 {
-        None
-    } else {
-        let low = rates.iter().copied().fold(f64::INFINITY, f64::min);
-        let high = rates.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-        Some((high - low) / mean * 100.0)
-    };
-    (Some(mean), spread)
+    let n = rates.len();
+    let mean = rates.iter().sum::<f64>() / n as f64;
+    if n < 2 || mean <= 0.0 {
+        return (Some(mean), None, None);
+    }
+    let low = rates.iter().copied().fold(f64::INFINITY, f64::min);
+    let high = rates.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let spread = (high - low) / mean * 100.0;
+
+    // Sample standard deviation over root n — how well this side's mean is
+    // pinned, which is the quantity an allowance on a difference of means is
+    // about. See [`BracketedReport::before_error_percent`].
+    let variance = rates.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
+    let error = variance.sqrt() / (n as f64).sqrt() / mean * 100.0;
+    (Some(mean), Some(spread), Some(error))
 }
 
 /// Judges a bracketed run, deciding the ratio and the drift together.
@@ -677,8 +694,8 @@ pub fn bracket(
     concurrent: HoldReport,
     after: Vec<HoldReport>,
 ) -> BracketedReport {
-    let (before_rate, before_spread) = side(&before);
-    let (after_rate, after_spread) = side(&after);
+    let (before_rate, before_spread, before_error) = side(&before);
+    let (after_rate, after_spread, after_error) = side(&after);
     let rates = (
         before_rate,
         concurrent.units_per_session_per_sec,
@@ -700,14 +717,14 @@ pub fn bracket(
     // 4.54% with nothing between them, so a side that spreads past the
     // allowance is reporting that its own placement noise swamps the gap it
     // was going to judge.
-    let too_noisy = [(before_spread, "before"), (after_spread, "after")]
+    let too_noisy = [(before_error, "before"), (after_error, "after")]
         .into_iter()
-        .find_map(|(spread, which)| {
-            spread
-                .filter(|s| *s > crate::compare::SOLO_AGREEMENT_PERCENT)
-                .map(|s| {
+        .find_map(|(error, which)| {
+            error
+                .filter(|e| *e > crate::compare::SOLO_AGREEMENT_PERCENT)
+                .map(|e| {
                     format!(
-                        "the {which} baseline's own holds spread {s:.1}%, past the {:.0}% it would judge with",
+                        "the {which} baseline's mean is pinned only to {e:.1}%, past the {:.0}% it would judge with",
                         crate::compare::SOLO_AGREEMENT_PERCENT,
                     )
                 })
@@ -744,6 +761,8 @@ pub fn bracket(
         after,
         before_spread_percent: before_spread,
         after_spread_percent: after_spread,
+        before_error_percent: before_error,
+        after_error_percent: after_error,
         solo_gap_percent: gap,
         machine_moved: moved,
         slowdown,
@@ -1184,6 +1203,44 @@ mod tests {
             "and says which side, got {:?}",
             noisy.machine_moved
         );
+
+        // **The run that made this rule right**, in its own numbers. Gate M1 at
+        // duty 0.27: one of nine holds came back 8% low and the other eight sat
+        // inside 1.4%. The range that opened is 8.5%, which the first version of
+        // this guard compared against a 5% allowance and refused — while the two
+        // sides' means agreed to 3.0% and the before mean was pinned to 2.9%.
+        // A range is not an error, and demanding every hold agree with every
+        // other is a condition nobody wrote down.
+        let real = bracket(
+            vec![
+                hold_at(1, 21.825, false),
+                hold_at(1, 20.030, false),
+                hold_at(1, 21.643, false),
+            ],
+            hold_at(100, 9.336, false),
+            vec![
+                hold_at(1, 21.795, false),
+                hold_at(1, 21.845, false),
+                hold_at(1, 21.769, false),
+            ],
+        );
+        assert!(
+            real.before_spread_percent.is_some_and(|s| s > 8.0),
+            "the range really is wide: {:?}",
+            real.before_spread_percent
+        );
+        assert!(
+            real.before_error_percent.is_some_and(|e| e < 5.0),
+            "and the mean is still pinned inside the allowance: {:?}",
+            real.before_error_percent
+        );
+        assert_eq!(real.machine_moved, None, "so the run is judged");
+        assert!(
+            real.slowdown.is_some_and(|x| (2.2..2.4).contains(&x)),
+            "a hundred sessions at duty 0.27 break 2x, got {:?}",
+            real.slowdown
+        );
+        assert_eq!(real.work_rate, Verdict::Broke);
 
         // A side of one still passes, because it has claimed nothing. Refusing
         // it would make `--solo-repeats 1` unusable rather than merely blind.

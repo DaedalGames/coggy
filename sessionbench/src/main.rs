@@ -388,9 +388,14 @@ fn main() -> anyhow::Result<()> {
                 let percent =
                     |v: Option<f64>| v.map_or_else(|| "—".to_string(), |x| format!("{x:.1}%"));
                 println!(
-                    "\n  solo spread {} before · {} after\n  solo gap   {}\n  slowdown   {}",
+                    "\n  solo spread {} before · {} after\n  solo error  ±{} before · ±{} after\n  solo gap   {}\n  slowdown   {}",
                     percent(bracketed.before_spread_percent),
                     percent(bracketed.after_spread_percent),
+                    // The spread is what the holds did; the error is what the
+                    // side's mean is worth. Only the second can be set against
+                    // an allowance on a difference of means.
+                    percent(bracketed.before_error_percent),
+                    percent(bracketed.after_error_percent),
                     percent(bracketed.solo_gap_percent),
                     bracketed
                         .slowdown
