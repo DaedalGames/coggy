@@ -34,20 +34,26 @@
 # peak against the gate's stated 4 GB, and the two solo sides against each
 # other.
 #
-# IT IS --wait-ms AND NOT --duty, WHICH COST A RUN TO LEARN. `--duty` derives
-# each pause from how long that unit actually took, so contention stretches the
-# unit and stretches the pause with it: the workload backs off instead of
-# competing. Measured mid-run at a hundred sessions -- 0.0655 cores a session
-# against 0.27 requested, the daemon at 0.006, and 6.7 of sixteen cores sitting
-# idle while a hundred sessions that wanted twenty-seven of them slept. A
-# workload that cannot saturate cannot produce a work-rate ceiling.
+# USE --duty, AND THE ROUTE TO THAT WAS WRONG TWICE. A mid-run reading said
+# `--duty` backs off rather than competing -- 0.0655 cores a session against
+# 0.27 requested, six of sixteen cores idle -- and that aborted a gate run and
+# moved this script to `--wait-ms`. [It did not
+# reproduce](../../docs/measurements/2026-08-01-210316-the-wait-mechanism-cancels.md):
+# back to back at a hundred sessions the two flags take 15.32 and 15.57 cores
+# and their slowdowns sit 2.16% apart with solo fingerprints 0.33% apart. The
+# mechanism cancels, exactly as the workload's own source says it does.
 #
-# `--wait-ms` holds the pause fixed, which is the shape a session waiting on a
-# model has -- its duty climbs as its compute slows. 67 ms against a 24.9 ms
-# unit gives the same 0.27 solo duty and lets the count decide the rest.
+# So pick on the surviving argument instead. `--wait-ms` holds a wall-clock
+# constant, so its duty moves with the machine: calibrated warm and run cold it
+# delivered 0.172 where 0.271 was asked for, because a 79% change in compute
+# speed arrives as 13.6% of rate and is quiet enough to miss. `--duty` is
+# self-calibrating and delivers the duty on any machine. **A gate stated in duty
+# wants the flag that delivers a duty**, and since the slowdown is the same
+# either way that costs nothing.
 #
-# The workload's own source says all of this three lines above the flag. The
-# value was read back from what consumes it and the flag was not.
+# `--wait-ms` is still the more faithful shape of a session waiting on a model,
+# whose duty really does climb as its compute slows. It is the right flag for
+# realism and the wrong one for a stated parameter.
 #
 # THE DUTY IS 0.27 AND THAT IS NOT A DETAIL. Read the gate's own arithmetic
 # before spending an hour on it: one session at duty d wants d cores, a hundred
@@ -115,7 +121,7 @@ $busy = Get-Capture (& $bench doctor 2>&1) 'busy before we start ([\d.]+)'
 
 # --- the precondition: can two baselines agree today? --units 100000000
 # because cpu-spin's default is 60 and it EXITS after them.
-$work = @('--units', '100000000', '--wait-ms', '67', '--resident', '20')
+$work = @('--units', '100000000', '--duty', '0.27', '--resident', '20')
 $probe = foreach ($i in 1..2) {
     $out = & $bench hold --label "m1-probe-$i" --sessions 1 --interval 5 --duration 30 -- $spin @work 2>&1
     $r = Get-Capture $out 'rate       ([\d.]+)'
