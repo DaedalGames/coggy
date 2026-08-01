@@ -37,14 +37,14 @@ $spread = ($stat.Maximum - $stat.Minimum) / $stat.Average * 100
 "background: {0} cores · mean {1:N0}% · spread {2:N1}%" -f ($readings -join ', '), ($stat.Average / 16 * 100), $spread
 if ($spread -gt 10) {
     "REFUSING: spread {0:N1}% — the solo halves would see different machines." -f $spread
-    exit 1
+    throw "background not steady enough"
 }
 
 # --- check for survivors before trusting anything, per the standing rule.
 $stray = Get-Process coggyd, cpu-spin, ping -ErrorAction SilentlyContinue
 if ($stray) {
     "REFUSING: {0} stray process(es) already running" -f $stray.Count
-    exit 1
+    throw "the machine is not clean"
 }
 
 # --units 100000000 because cpu-spin's default is 60 and it EXITS after them.

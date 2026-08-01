@@ -38,7 +38,7 @@ $spread = ($stat.Maximum - $stat.Minimum) / $stat.Average * 100
 "background: {0} cores · mean {1:N0}% · spread {2:N1}%" -f ($readings -join ', '), ($stat.Average / 16 * 100), $spread
 if ($spread -gt 10) {
     "REFUSING: spread {0:N1}% against a 6.9% effect — each hold would see a different machine." -f $spread
-    exit 1
+    throw "background not steady enough"
 }
 
 # --- the five holds. --units 10000 because cpu-spin's default is 60 and it
