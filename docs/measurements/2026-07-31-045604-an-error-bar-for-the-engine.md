@@ -45,3 +45,5 @@ Peak RSS reads 2.41 to 2.43 here against [5.02 in the first cook measurement](20
 | Defender | real-time protection on, no exclusions |
 
 Back to back on a machine whose background was not controlled, and with no drift check between them — the three agreeing to 4.3% is the argument that neither mattered here.
+
+**2026-08-01, on what state the cache was in.** Nothing here cleared Unreal's derived data cache — *cooked output cleared between passes* means the cooked output, and no record in this repository mentions the DDC at all. So **every reading above is a warm-cache reading**, and so is everything derived from them. A question about whether warming the cache would lower the figure was being planned as a measurement; the figure was already the warm one. The nearest thing to a cold pass is the first `TP_BlankBP` run at 1.93 against 1.81–1.89 for the rest, which is 3–6% and points the way a first pass should.
