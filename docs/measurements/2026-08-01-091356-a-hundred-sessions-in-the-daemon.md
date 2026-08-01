@@ -38,7 +38,11 @@ That is the [job-per-session design](../../coggyd/README.md#owning-one) working 
 
 **This reaches the frozen ceiling.** [Nine sessions](2026-07-31-150258-g0-frozen.md) is a per-session figure multiplied by a count, so if sessions share pages the product overstates and the real ceiling is higher.
 
-What keeps it from moving is that G0 already checked this by the other route: [the job object's RSS moved 1.79 GiB while machine headroom moved 1.69](2026-07-31-054657-the-driven-duty.md), agreeing to 6%. **The overcount scales with how identical the sessions are.** A hundred copies of `ping` share almost everything; two Unreal editors cooking different projects share an image and little else, because most of what an editor holds is content it loaded itself.
+What keeps it from moving is that the same pair of routes was read during M0 and agreed. A ten-session `cpu-spin` rung moved the job object's RSS by **1.79 GiB** while machine free memory moved **1.69** — 6% apart, and [the rule that came out of it](../../CLAUDE.md) is why both were being watched.
+
+**So the axis is not how identical the sessions are**, which was the first explanation and does not survive that rung: ten `cpu-spin` processes are as identical as a hundred `ping`s and showed no such gap. **It is how much of a session's footprint is shared image rather than private data.** `cpu-spin` touches 80 MiB of its own per session and its image is a rounding error beside that; `ping` holds about 5.8 MiB that is mostly the executable and its DLLs, which every copy shares.
+
+That reading makes the ceiling firmer rather than weaker. [A generation session's 2.39 GiB](2026-07-31-150258-g0-frozen.md) is engine content and agent context — memory each session faulted in for itself, which no other session can share.
 
 So the ceiling stands, and this run says what would move it: a workload whose sessions are more alike than an engine's are.
 
