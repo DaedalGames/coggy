@@ -60,6 +60,8 @@ Every ramp now repeats its lowest saturated rung at the end and reports the gap.
 
 Whatever you watch a run with must emit a per-rung line, not only its verdict. A watch filtered down to redlines and failures cannot tell a working run from a hung one, and that ambiguity gets settled by reaching for the box — which is the one thing forbidden below.
 
+**Ask what this machine can still answer before calling the window shut.** A loud box spoils *work rate*, which is the whole of a redline's noisy half. It barely touches RSS — an hour-long hold said so in its own opening line — and it touches a teardown less still, because processes leaving is not work being done. A day spent waiting for quiet had the graceful teardown at a hundred sessions available the whole time, untested, and it took fourteen seconds at 48% background. **A window is shut for a quantity, not for the afternoon.**
+
 While a measurement is running, do nothing else on this machine — no builds, no `git`, no `gh`, no file edits. The observer is not free. [The Defender estimate](docs/measurements/2026-07-30-142218-defender-at-scale.md) was wrong by two orders of magnitude partly because `gh` ran during the run that produced it, and the drift figure above came from a ramp with edits happening alongside it.
 
 Between runs, keep the footprint from accumulating:
