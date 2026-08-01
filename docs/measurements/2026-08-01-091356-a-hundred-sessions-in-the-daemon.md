@@ -44,7 +44,7 @@ What keeps it from moving is that the same pair of routes was read during M0 and
 
 That reading makes the ceiling firmer rather than weaker. [A generation session's 2.39 GiB](2026-07-31-150258-g0-frozen.md) is engine content and agent context — memory each session faulted in for itself, which no other session can share.
 
-So the ceiling stands, and this run says what would move it: a workload whose sessions are more alike than an engine's are.
+So the ceiling stands, and this run says what would move it: a workload whose sessions hold little beyond the image they were started from.
 
 ## What this does not claim
 
