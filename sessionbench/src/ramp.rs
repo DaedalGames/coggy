@@ -927,6 +927,16 @@ struct Pool {
     /// becomes unmeasurable rather than zero, and the live session count has
     /// to be asked for because nothing here restarts what exits.
     daemon: Option<Arc<Mutex<crate::daemon::Watch>>>,
+    /// The daemon itself, when there is one.
+    ///
+    /// **Two fields rather than one, and the split is deliberate.** The three
+    /// methods above need only what the daemon *said*, which is a watch and
+    /// can be exercised without spawning anything; teardown needs the process.
+    /// Folding them into one would make every test of the query half spawn a
+    /// daemon, and the tests are what caught this seam's own silent zero.
+    ///
+    /// [`Pool::new`] is the only place that sets them, and it sets both.
+    daemon_process: Option<crate::daemon::Held>,
 }
 
 struct Slot {
@@ -944,15 +954,39 @@ impl Pool {
         scratch: &Path,
         tree: &mut SessionTree,
     ) -> Result<Self> {
+        // A daemon rung is one process holding N, so it spawns nothing here.
+        // The tree is already armed by the caller, and job membership is
+        // inherited at creation — the daemon and everything under it land in
+        // the measurement without being told to.
+        if let Some(path) = &config.daemon {
+            let held = crate::daemon::Held::start(
+                path,
+                sessions,
+                &config.command,
+                step_dir.join("daemon.log"),
+            )
+            .with_context(|| format!("starting {}", path.display()))?;
+            tree.add_root(Pid::from_u32(held.child.id()));
+            return Ok(Self {
+                slots: Vec::new(),
+                daemon: Some(Arc::clone(&held.watch)),
+                daemon_process: Some(held),
+                retired_units: 0,
+                retired_dropped: 0,
+                replacements: 0,
+                worst_replacement_secs: None,
+            });
+        }
+
         let mut slots = Vec::with_capacity(sessions as usize);
         for index in 0..sessions {
             slots.push(start(config, step_dir, scratch, index, 0, tree)?);
         }
         Ok(Self {
             slots,
-            // Filled by the daemon target when one exists; a pool of slots
-            // holds its own sessions and has nothing to watch.
+            // A pool of slots holds its own sessions and has nothing to watch.
             daemon: None,
+            daemon_process: None,
             retired_units: 0,
             retired_dropped: 0,
             replacements: 0,
@@ -1060,6 +1094,14 @@ impl Pool {
     ///
     /// Their children survive this, which is what `Sampler::reap` is for.
     fn kill_all(&mut self) {
+        // One kill takes every tree here: each session sits in a job carrying
+        // KILL_ON_JOB_CLOSE, and the last handle to those jobs closes when the
+        // daemon dies however it dies. Measured leaving zero survivors on both
+        // the graceful and the forced path, at a hundred sessions.
+        if let Some(held) = &mut self.daemon_process {
+            let _ = held.child.kill();
+            return;
+        }
         for slot in &mut self.slots {
             let _ = slot.session.kill();
         }
@@ -1277,6 +1319,7 @@ mod tests {
         Pool {
             slots: Vec::new(),
             daemon,
+            daemon_process: None,
             retired_units: 0,
             retired_dropped: 0,
             replacements: 0,

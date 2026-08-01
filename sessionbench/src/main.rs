@@ -481,12 +481,9 @@ fn main() -> anyhow::Result<()> {
                         path.display()
                     );
                 }
-                // The flag is accepted and Pool::new does not read it yet.
-                // Accepting it silently would run an ordinary ramp while the
-                // caller believed they were measuring the daemon, which is
-                // the failure this repository keeps finding in other shapes.
-                anyhow::bail!(
-                    "--daemon is not wired to the rung yet: RampConfig carries it and Pool::new still spawns sessions here. Use `hold` for a fixed count under the daemon."
+                println!(
+                    "  each rung held by {} — two of the four conditions are out of reach",
+                    path.display()
                 );
             }
             let mode = if pty {
