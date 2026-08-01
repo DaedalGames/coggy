@@ -2,8 +2,6 @@
 // Copyright (C) 2026 Daedal Games
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::fs::File;
-use std::io::{BufWriter, Write as _};
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -340,6 +338,7 @@ fn main() -> anyhow::Result<()> {
                     out_dir.join(format!("{name}.log")),
                     interval,
                     Duration::from_secs_f64(secs),
+                    Some(out_dir.join(format!("{name}-samples.jsonl"))),
                 )?;
                 let samples = run.samples.clone();
                 let report = run.into_report(sessionbench::daemon::Ran {
@@ -354,16 +353,11 @@ fn main() -> anyhow::Result<()> {
                     // claiming it recorded what the run used.
                     started_unix: stamp,
                 });
-                // Each hold's samples, under its own name. Discarding the solo
+                // Each hold's samples are on disk already, written as they were
+                // taken rather than collected here — discarding the solo
                 // passes' would throw away the only per-sample CPU figures the
-                // baselines produce — which is what separates a machine that
-                // did less with the same share from one that was given less.
-                let mut file =
-                    BufWriter::new(File::create(out_dir.join(format!("{name}-samples.jsonl")))?);
-                for sample in &samples {
-                    writeln!(file, "{}", serde_json::to_string(sample)?)?;
-                }
-                file.flush()?;
+                // baselines produce, and writing them a second time from this
+                // Vec would give one run two files that can disagree.
                 Ok((report, samples))
             };
 
@@ -411,11 +405,13 @@ fn main() -> anyhow::Result<()> {
                 take("concurrent", sessions, duration)?
             };
 
-            let mut file = BufWriter::new(File::create(out_dir.join("samples.jsonl"))?);
-            for sample in &samples {
-                writeln!(file, "{}", serde_json::to_string(sample)?)?;
-            }
-            file.flush()?;
+            // **No top-level `samples.jsonl` here, unlike `observe` and
+            // `ramp`.** It held a second copy of what `concurrent-samples.jsonl`
+            // already has, and once the streamed copy exists the duplicate is
+            // strictly worse: it is written at the end, which is precisely the
+            // moment a crash takes. `hold.json` pairs with the concurrent
+            // hold's own file.
+            let _ = &samples;
             std::fs::write(
                 out_dir.join("hold.json"),
                 serde_json::to_string_pretty(&report)?,

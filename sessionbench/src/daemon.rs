@@ -196,6 +196,13 @@ pub fn watch_output(
         for line in std::io::BufReader::new(source).lines() {
             let line = line?;
             writeln!(sink, "{line}")?;
+            // **Flushed per line, because the buffer is where an hour went.**
+            // A machine that stopped unexpectedly forty-one minutes into a
+            // sixty-minute hold left this file at zero bytes: every report the
+            // daemon had made was still in the writer. One flush every ten
+            // seconds costs nothing and is the difference between a partial
+            // run and no run.
+            sink.flush()?;
             watch
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -379,8 +386,10 @@ pub fn hold(
     log: std::path::PathBuf,
     interval: std::time::Duration,
     duration: std::time::Duration,
+    samples_to: Option<std::path::PathBuf>,
 ) -> anyhow::Result<HeldRun> {
     use anyhow::Context;
+    use std::io::Write as _;
 
     let armed = crate::tree::ArmedTree::arm(sysinfo::Pid::from_u32(std::process::id()));
     let membership = armed.membership();
@@ -392,6 +401,28 @@ pub fn hold(
     let mut sampler = crate::sampler::Sampler::new();
     let mut samples = Vec::new();
     let mut left_early = None;
+
+    // **Written as they are taken, not collected and saved at the end.** An
+    // unexpected shutdown forty-one minutes into a sixty-minute hold left
+    // nothing at all: the samples were a `Vec` and the caller wrote them after
+    // this function returned, so a run that was three-quarters done was worth
+    // zero bytes. A crash should cost the tail of a measurement rather than
+    // the whole of it, and on a machine that has now stopped twice in a day
+    // that is not a rare case to design for.
+    let mut sink = samples_to
+        .map(|path| -> anyhow::Result<_> {
+            Ok(std::io::BufWriter::new(
+                std::fs::File::create(&path)
+                    .with_context(|| format!("opening {}", path.display()))?,
+            ))
+        })
+        .transpose()?;
+
+    // Liveness, on its own clock rather than the sampler's. Slower than the
+    // samples because this goes to a human watching a log.
+    const SAY_EVERY: std::time::Duration = std::time::Duration::from_secs(60);
+    let mut last_said = std::time::Instant::now();
+
     while started.elapsed() < duration {
         std::thread::sleep(interval);
 
@@ -421,7 +452,31 @@ pub fn hold(
             seen.latest().map_or(0, |r| r.read_bytes),
             seen.units().unwrap_or(0),
         );
-        samples.push(sampler.take(&mut tree, &output, started.elapsed()));
+        let sample = sampler.take(&mut tree, &output, started.elapsed());
+        if let Some(sink) = sink.as_mut() {
+            writeln!(sink, "{}", serde_json::to_string(&sample)?)?;
+            sink.flush()?;
+        }
+        samples.push(sample);
+
+        // **A liveness line, and quote nothing from it.** Between the phase
+        // line and the verdict a sixty-minute hold used to say nothing at all,
+        // which leaves inspecting processes as the only way to tell a working
+        // run from a hung one — the reach-for-the-box this repository forbids.
+        // The unit count is in it because a stalled run is a line whose
+        // numbers stop moving rather than a line that stops arriving.
+        if last_said.elapsed() >= SAY_EVERY {
+            println!(
+                "    {:.0}s of {:.0}s · running {:?} · units {:?}",
+                started.elapsed().as_secs_f64(),
+                duration.as_secs_f64(),
+                seen.fewest_running(),
+                seen.units(),
+            );
+            use std::io::Write as _;
+            std::io::stdout().flush().ok();
+            last_said = std::time::Instant::now();
+        }
     }
 
     // **Read after the stop, not before.** The daemon reports on a ten-second

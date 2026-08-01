@@ -44,6 +44,7 @@ fn main() -> anyhow::Result<()> {
         log.clone(),
         Duration::from_secs(2),
         Duration::from_secs(26),
+        None,
     )?;
 
     println!("samples          {}", run.samples.len());
