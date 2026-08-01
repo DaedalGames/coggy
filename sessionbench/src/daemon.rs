@@ -446,6 +446,82 @@ impl HeldRun {
     }
 }
 
+/// A concurrent hold with a solo baseline on either side of it.
+///
+/// **Three holds rather than two, because the baseline is the thing that
+/// moves.** A ratio needs its denominator taken on the same machine as its
+/// numerator, and two triples of solo holds ten minutes apart had means 8.5%
+/// apart where within either the spread was 2.8%. One solo pass before the run
+/// would be a baseline from a machine that may not still be there; two bracket
+/// it, and their gap is the control.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BracketedReport {
+    pub before: HoldReport,
+    pub concurrent: HoldReport,
+    pub after: HoldReport,
+    /// How far the two solo holds sat apart, as a percentage.
+    pub solo_gap_percent: Option<f64>,
+    /// Why the pair may not be set against each other, when it may not.
+    pub machine_moved: Option<String>,
+    /// How many times slower a concurrent session ran than a solo one.
+    ///
+    /// **Solo over concurrent, matching [the ramp's own
+    /// column](../report.rs).** The inverse reads just as naturally and would
+    /// give two artifacts a similarly named field meaning opposite things —
+    /// the condition is "within 2× of solo", so the number a reader compares
+    /// against 2 is this one.
+    ///
+    /// `None` when either half is missing or the machine moved under the run.
+    /// **Not computed anyway and labelled**: a ratio across a machine that
+    /// changed is the afternoon, and offering it invites quoting it.
+    pub slowdown: Option<f64>,
+    /// Whether the concurrent rate stayed within the budget factor of solo.
+    pub work_rate: Verdict,
+}
+
+/// Judges a bracketed run, deciding the ratio and the drift together.
+pub fn bracket(before: HoldReport, concurrent: HoldReport, after: HoldReport) -> BracketedReport {
+    let rates = (
+        before.units_per_session_per_sec,
+        concurrent.units_per_session_per_sec,
+        after.units_per_session_per_sec,
+    );
+    let (gap, moved) = match (rates.0, rates.2) {
+        (Some(b), Some(a)) => match solo_agrees(b, a) {
+            Ok(gap) => (Some(gap), None),
+            Err(why) => (None, Some(why)),
+        },
+        _ => (None, Some("a solo hold produced no rate".to_string())),
+    };
+
+    // Every reason to distrust either half is checked before a ratio exists,
+    // rather than after it has been printed.
+    let blocked = moved.is_some()
+        || before.inconclusive.is_some()
+        || concurrent.inconclusive.is_some()
+        || after.inconclusive.is_some();
+    let slowdown = match (blocked, rates.0, rates.1, rates.2) {
+        (false, Some(b), Some(c), Some(a)) if c > 0.0 => Some((b + a) / 2.0 / c),
+        _ => None,
+    };
+
+    let work_rate = match slowdown {
+        Some(x) if x <= crate::redline::WORK_RATE_BUDGET_FACTOR => Verdict::Held,
+        Some(_) => Verdict::Broke,
+        None => Verdict::NotTaken,
+    };
+
+    BracketedReport {
+        before,
+        concurrent,
+        after,
+        solo_gap_percent: gap,
+        machine_moved: moved,
+        slowdown,
+        work_rate,
+    }
+}
+
 /// Whether two solo holds bracketing a run saw the same machine.
 ///
 /// **The allowance is [`compare`'s](crate::compare), not a new one.** That
@@ -746,6 +822,62 @@ mod tests {
         let whole = run_of(4, Some(4), 30).into_report(about());
         assert_eq!(whole.inconclusive, None);
         assert_eq!(whole.rss, Verdict::Held, "and a whole run is judged");
+    }
+
+    fn hold_at(sessions: u32, rate: f64, doubtful: bool) -> HoldReport {
+        let mut r = run_of(sessions, Some(u64::from(sessions)), 30).into_report(about());
+        r.units_per_session_per_sec = Some(rate);
+        if doubtful {
+            r.inconclusive = Some("something".into());
+        }
+        r
+    }
+
+    #[test]
+    fn the_ratio_is_a_slowdown_and_reads_against_two() {
+        // Solo over concurrent, which is the ramp's own column. The inverse
+        // reads as naturally and would give two artifacts a similarly named
+        // field meaning opposite things.
+        let fine = bracket(
+            hold_at(1, 30.0, false),
+            hold_at(50, 20.0, false),
+            hold_at(1, 30.0, false),
+        );
+        assert_eq!(fine.slowdown, Some(1.5), "solo 30 over concurrent 20");
+        assert_eq!(fine.work_rate, Verdict::Held, "1.5 is inside 2");
+
+        let broken = bracket(
+            hold_at(1, 30.0, false),
+            hold_at(50, 10.0, false),
+            hold_at(1, 30.0, false),
+        );
+        assert_eq!(broken.slowdown, Some(3.0));
+        assert_eq!(broken.work_rate, Verdict::Broke, "3 is past 2");
+    }
+
+    #[test]
+    fn a_ratio_is_withheld_rather_than_labelled_when_anything_is_in_doubt() {
+        // The number would exist and be wrong. Offering it labelled invites
+        // quoting it, which is how a figure outlives its caveat.
+        let moved = bracket(
+            hold_at(1, 30.0, false),
+            hold_at(50, 20.0, false),
+            hold_at(1, 26.0, false),
+        );
+        assert!(moved.machine_moved.is_some(), "13.6% apart");
+        assert_eq!(moved.slowdown, None, "so there is no ratio to quote");
+        assert_eq!(moved.work_rate, Verdict::NotTaken);
+
+        let doubtful = bracket(
+            hold_at(1, 30.0, false),
+            hold_at(50, 20.0, true),
+            hold_at(1, 30.0, false),
+        );
+        assert_eq!(doubtful.solo_gap_percent, Some(0.0), "the solos agreed");
+        assert_eq!(
+            doubtful.slowdown, None,
+            "but the concurrent hold was inconclusive"
+        );
     }
 
     #[test]
