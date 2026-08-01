@@ -69,6 +69,21 @@
 # them. A minute here against seventy-six is worth it BECAUSE the run is long;
 # the same trade is why the calibration script has no precondition at all.
 
+# THE HOUR IS A PARAMETER BECAUSE THIS MACHINE MAY NOT HAVE ONE. A full-load
+# run stopped the box dead at forty-one minutes -- event 41, bugcheck 0, no
+# power button, no update, and no System log for the four minutes before it. On
+# AC at 79%, so not a flat battery; a thin laptop holding sixteen cores at 100%
+# will reach either the adapter's budget or its thermal limit, and both end
+# exactly like that. A hundred `ping` sessions held an hour on this same box, so
+# what it cannot sustain is the saturation the work-rate condition requires,
+# not the session count.
+#
+# Shrink the measurement before blaming the machine. RSS and work rate settle in
+# minutes; the only thing an hour buys is the sentence "held for an hour". Run
+# twenty minutes to get every number at a third of the exposure, and say plainly
+# in the record that the duration claim is unmet.
+param([int]$DurationSeconds = 1200)
+
 $ErrorActionPreference = 'Stop'
 $root = 'C:\Users\LilMG\Desktop\coggy'
 Set-Location $root
@@ -115,9 +130,9 @@ if ($gap -gt 5) {
     throw "the baseline cannot support the judgement"
 }
 
-"`nstarting — about 76 minutes, leave the machine alone"
+"`nstarting — about {0:N0} minutes, leave the machine alone" -f (($DurationSeconds + 720) / 60)
 & $bench hold `
-    --label m1 --sessions 100 --interval 5 --duration 3600 `
+    --label m1 --sessions 100 --interval 5 --duration $DurationSeconds `
     --with-solo --solo-duration 120 --solo-repeats 3 `
     -- $spin @work
 
