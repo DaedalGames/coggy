@@ -61,7 +61,24 @@ impl Pool {
 
     /// Starts a session and keeps it.
     pub fn spawn(&mut self, command: &mut Command) -> Result<u64> {
-        let session = Session::spawn(command)?;
+        self.keep(Session::spawn(command)?)
+    }
+
+    /// Starts a session from an argv whose `${session}` becomes its own id.
+    ///
+    /// What a caller starting N of them from one command line needs, since
+    /// [the workload contract wants each its own
+    /// directory](../../workloads/README.md#the-contract) and neither side is
+    /// allowed to know the other's naming.
+    pub fn spawn_template(&mut self, argv: &[String]) -> Result<u64> {
+        self.keep(Session::spawn_template(
+            argv,
+            crate::DEFAULT_SCROLLBACK_LINES,
+            crate::DEFAULT_SCROLLBACK_BYTES,
+        )?)
+    }
+
+    fn keep(&mut self, session: Session) -> Result<u64> {
         let id = session.id();
         self.sessions.insert(id, session);
         Ok(id)
@@ -275,6 +292,69 @@ mod tests {
             6,
             "a session that exited still owns the lines it produced"
         );
+    }
+
+    #[test]
+    fn one_command_line_gives_each_session_its_own_path() {
+        // The whole reason the placeholder exists: N sessions from one argv,
+        // each writing somewhere of its own. Without it a ramp reproduces the
+        // shared-directory defect, where ten sessions deleted each other's
+        // files and the run read as one session going fast.
+        let dir = std::env::temp_dir().join(format!(
+            "coggyd-template-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("a clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("scratch");
+        let pattern = dir.join("s${session}.txt");
+
+        let mut pool = Pool::new();
+        let argv: Vec<String> = vec![
+            "cmd".into(),
+            "/c".into(),
+            format!("echo hello> {}", pattern.display()),
+        ];
+        for _ in 0..3 {
+            pool.spawn_template(&argv).expect("spawn");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1200));
+
+        let written: Vec<_> = std::fs::read_dir(&dir)
+            .expect("readable")
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            written.len(),
+            3,
+            "three sessions, three files, saw {written:?}"
+        );
+        assert!(
+            !written.iter().any(|n| n.contains('$')),
+            "the placeholder was expanded, not passed through: {written:?}"
+        );
+
+        pool.clear();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_placeholder_nobody_defined_refuses_the_spawn() {
+        // The load-bearing half. Left as written, an unknown name would hand
+        // every session the same path and say nothing — the failure this
+        // exists to prevent, arriving silently.
+        let mut pool = Pool::new();
+        let argv: Vec<String> = vec!["cmd".into(), "/c".into(), "echo ${sesion}".into()];
+        let err = pool
+            .spawn_template(&argv)
+            .expect_err("a typo is not a path");
+        assert!(
+            format!("{err:#}").contains("sesion"),
+            "the error names what it could not expand: {err:#}"
+        );
+        assert!(pool.is_empty(), "and nothing was started");
     }
 
     #[test]

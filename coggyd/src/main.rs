@@ -18,7 +18,6 @@
 //! is why a console-dependent stop condition is not used.
 
 use std::io::Read;
-use std::process::Command;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
@@ -30,11 +29,13 @@ const REPORT_EVERY: Duration = Duration::from_secs(10);
 fn main() -> Result<()> {
     let (sessions, command) = parse(std::env::args().skip(1).collect())?;
 
+    // Every session through the template path, including a command with no
+    // placeholder in it. Two spawn routes taken by session count is how one of
+    // them stops being exercised.
     let mut pool = Pool::new();
     for _ in 0..sessions {
-        let mut spawn = Command::new(&command[0]);
-        spawn.args(&command[1..]);
-        pool.spawn(&mut spawn).context("starting a session")?;
+        pool.spawn_template(&command)
+            .context("starting a session")?;
     }
     println!("holding {} session(s); stdin closes to stop", pool.len());
 

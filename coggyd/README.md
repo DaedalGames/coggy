@@ -41,6 +41,10 @@ Both streams are piped and drained to end-of-file, because an undrained session 
 
 `COGGY_SESSION_ID` is injected into every session, following the `CMUX_WORKSPACE_ID` precedent [the contracts bind us to](../docs/PLAN.md#fixed-contracts).
 
+**And `${session}` in a session's arguments expands to the same number**, because reading the variable is not always available to the thing being started. A caller wanting a hundred sessions to write in a hundred directories cannot ask the program to work it out — [a workload that takes a COGGY-specific path stops being evidence](../workloads/README.md#the-contract) — and the daemon must not know what that caller calls its scratch. Expanding a placeholder leaves the caller writing an ordinary path and the program receiving one, neither having learned about the other.
+
+**A name that is not `session` fails the spawn rather than passing through.** Left as written it would hand every session the same path, silently, which is the failure the placeholder exists to prevent. Braces are required and there is no escape character, so a Windows path needs no special handling.
+
 **It is a counter, never the pid.** Windows reuses process ids, and the instrument already carries a note about what that costs. A supervisor keyed on a pid would hand a dead session's slot to whatever inherited the number and keep counting. `id()` and `pid()` differ in type as well as name, which caught a call site asking the kernel about a session using the wrong one.
 
 ## Holding many

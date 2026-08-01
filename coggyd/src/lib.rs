@@ -40,6 +40,47 @@ use anyhow::{Context, Result};
 
 use crate::scrollback::{MAX_LINE_BYTES, Scrollback};
 
+/// Expands every `${session}` in an argv to `id`.
+///
+/// **Prior art: `envsubst` (MIT OR Apache-2.0), taken rather than written.**
+/// The mechanism searched for was argument templating in a supervisor, which
+/// is what systemd's template units have done for years with `%i`, and what
+/// that experience says bites is escaping the marker and deciding what a name
+/// nobody defined means.
+///
+/// **`subst` is the better-known crate and was tried first.** It escapes with
+/// a backslash, which is the Windows path separator, so the very first test —
+/// three sessions writing under `C:\Users\...` — failed on `\U` as an invalid
+/// escape sequence. A placeholder whose whole purpose is building paths cannot
+/// ask for every separator to be doubled. `envsubst` recognises only
+/// `${braces}` and has no escape character, so a Windows path passes through
+/// untouched.
+///
+/// **The refusal is the load-bearing half**, and it is composed here rather
+/// than assumed. `substitute` does not document what it does with a name that
+/// is not in the map; removing the check below and running the test answers
+/// it — the placeholder is left as written and `Ok` is returned, so the spawn
+/// succeeds and every session gets the same value. That is the
+/// shared-directory failure this exists to prevent, arriving silently. So
+/// `is_templated` is asked afterwards and anything left over fails the spawn.
+fn expand(argv: &[String], id: u64) -> Result<Vec<String>> {
+    let vars: std::collections::HashMap<String, String> =
+        [(SESSION_PLACEHOLDER.to_string(), id.to_string())].into();
+    argv.iter()
+        .map(|arg| {
+            let filled = envsubst::substitute(arg, &vars)
+                .map_err(|e| anyhow::anyhow!("expanding {arg:?} for session {id}: {e}"))?;
+            if envsubst::is_templated(&filled) {
+                anyhow::bail!(
+                    "{arg:?} names a placeholder that is not {SESSION_PLACEHOLDER:?}, \
+                     and leaving it would give every session the same value"
+                );
+            }
+            Ok(filled)
+        })
+        .collect()
+}
+
 /// Lines a session keeps by default.
 ///
 /// **It bounds the per-line overhead, not the memory.** That reading is the
@@ -80,6 +121,12 @@ pub const DEFAULT_SCROLLBACK_LINES: usize = 2_000;
 /// of it.
 pub const DEFAULT_SCROLLBACK_BYTES: usize = 256 * 1024;
 
+/// The name a session's argv uses to mean *my own id*: `${session}`.
+///
+/// Braces are required and there is no escape character, so a Windows path
+/// needs no special handling — see [`expand`] for why that decided the crate.
+pub const SESSION_PLACEHOLDER: &str = "session";
+
 /// A session and the job that owns everything it spawns.
 ///
 /// Dropping this ends the session and its whole tree. That is the point: the
@@ -104,6 +151,30 @@ impl Session {
         Self::spawn_with_scrollback(command, DEFAULT_SCROLLBACK_LINES, DEFAULT_SCROLLBACK_BYTES)
     }
 
+    /// Spawns an argv whose [`SESSION_PLACEHOLDER`] expands to this session's
+    /// own id, so N sessions started from one command line can differ.
+    ///
+    /// **Neither side learns about the other, which is the point.** A caller
+    /// wanting a hundred sessions to hold a hundred directories cannot ask the
+    /// program to work it out — [a workload that takes a COGGY-specific path
+    /// stops being evidence](../../workloads/README.md#the-contract) — and the
+    /// daemon may not know what that caller calls its scratch. A placeholder
+    /// the daemon expands generically leaves the caller writing an ordinary
+    /// path and the program receiving one.
+    ///
+    /// Expansion happens here rather than in the caller because this is the
+    /// only place the id exists before the process does.
+    pub fn spawn_template(argv: &[String], capacity: usize, byte_capacity: usize) -> Result<Self> {
+        let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
+        let expanded = expand(argv, id)?;
+        let (program, args) = expanded
+            .split_first()
+            .context("no command to start a session from")?;
+        let mut command = Command::new(program);
+        command.args(args);
+        Self::spawn_as(id, &mut command, capacity, byte_capacity)
+    }
+
     /// Spawns `command`, puts it in a job of its own, and returns the pair.
     ///
     /// Both ceilings are taken, because either alone leaves the other
@@ -119,10 +190,24 @@ impl Session {
         capacity: usize,
         byte_capacity: usize,
     ) -> Result<Self> {
+        let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
+        Self::spawn_as(id, command, capacity, byte_capacity)
+    }
+
+    /// The spawn itself, once an identity has been settled on.
+    ///
+    /// Separate so that [`Session::spawn_template`] can expand a placeholder
+    /// against the id *before* the process exists, which is the only order
+    /// that works.
+    fn spawn_as(
+        id: u64,
+        command: &mut Command,
+        capacity: usize,
+        byte_capacity: usize,
+    ) -> Result<Self> {
         // Piped rather than inherited, because a session nobody drains fills
         // its pipe and blocks — which reads as a slow session rather than a
         // stuck one, and is the failure condition 3 exists to catch.
-        let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
         command.env(SESSION_ID_VAR, id.to_string());
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
 

@@ -11,6 +11,7 @@ publish = false
 
 [dependencies]
 anyhow.workspace = true
+envsubst.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 win32job.workspace = true
