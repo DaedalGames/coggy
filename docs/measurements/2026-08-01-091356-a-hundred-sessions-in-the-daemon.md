@@ -19,6 +19,8 @@ coggyd --sessions 100 -- ping -n 600 127.0.0.1
 
 **The daemon is 2% of what it holds.** [The gate's own note says it measures the daemon rather than capacity](../../ROADMAP.md#m1--headless-daemon), and 12.2 MiB against a hundred sessions is what that was asking about.
 
+**2026-08-01, on the hour-long hold:** that 2% is this window rather than this daemon. Scrollback was nearly empty at 25 s; [filled to its 2,000-line cap it reads 5.8%](2026-08-01-103225-an-hour-of-a-hundred-sessions.md), and against nine real generation sessions the same daemon would be 0.16%. The durable figure is absolute — **363 KiB per session held**, of which 253 is scrollback and therefore set by the workload's line length rather than by anything the daemon chooses.
+
 ## Killing the daemon reclaimed all hundred trees
 
 The probe ended with `Stop-Process -Force` rather than by closing stdin — the ungraceful path, where no destructor runs and nothing gets a chance to tidy up.
