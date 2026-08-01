@@ -51,6 +51,20 @@ use crate::ramp::RampReport;
 ///
 /// Still one machine on one afternoon: the band is this laptop's, not the
 /// metric's.
+///
+/// **And it is a band for ramps, which a bracket then borrowed.** The critique
+/// two paragraphs up — that a rung repeated inside one ladder is the quieter
+/// statistic, because a fresh solo pays process startup and a cold cache again
+/// — applies once more at the level above. A bracket's two baselines *are*
+/// fresh: two daemon launches holding one session each. [Twelve of those spanned
+/// 4.54% with no load between them](../../docs/measurements/2026-08-01-173927-the-baseline-is-the-noisy-term.md),
+/// at a CPU share spanning 1.95%, so what moves them is which core the one
+/// session landed on rather than anything a repeat would average out.
+///
+/// Left at five rather than widened here, because [`crate::daemon::bracket`] is
+/// what would need the wider number and the population it should be calibrated
+/// against has been measured once. Widening a shared constant to fit the noisier
+/// of two callers would loosen the ramp comparison this was built for.
 pub const SOLO_AGREEMENT_PERCENT: f64 = 5.0;
 
 /// Two ramps, and whether their redlines mean anything set side by side.

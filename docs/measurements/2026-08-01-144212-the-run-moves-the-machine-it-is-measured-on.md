@@ -81,3 +81,21 @@ untouched.** What it removes is a candidate, which is the cheaper half of an
 open question. The visible window line is worth more than the correction: a gap
 much wider than a teardown is a final report that never arrived, which until now
 looked like a slow hold.
+
+## 2026-08-01: the shape question, asked three times, found nothing to shape
+
+The section above leaves open whether the deficit is a ramp or a step, and says
+one trailing hold cannot tell. Three repeats of the shape with three trailing
+holds each [find no deficit to classify](2026-08-01-173927-the-baseline-is-the-noisy-term.md):
+every trailing point straddles zero across repeats.
+
+What the same run found instead is that this record's own baseline is the noisy
+term. Eight sessions averaged inside one hold reproduce to 0.07% across three
+runs while one session, twelve times, spans 4.54% — at a CPU share spanning
+1.95%, so the sessions were given the same slice and did different work with it.
+
+**That does not retract the 6.9% above**, which is larger than anything seen
+here and cannot be re-measured now. It removes the assumption that a gap that
+size needs a load to explain it, and it moves the open question: not *which
+shape is the drift*, but *why a bracket's allowance is calibrated on a
+population quieter than the one it judges*.
