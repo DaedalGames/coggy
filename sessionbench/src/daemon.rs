@@ -75,6 +75,59 @@ pub fn parse_report(line: &str) -> Option<Report> {
     })
 }
 
+/// What a rung learns by watching a daemon's report lines go by.
+///
+/// **Two numbers, and the second is why this type exists.** The first is the
+/// unit count, which every target has. The second is the fewest sessions seen
+/// alive at any report — which pipe and pty never need, because the ramp
+/// restarts what exits and the count asked for is the count held. A daemon
+/// holds them instead and restarts nothing, so a rung has to watch, or it
+/// divides a falling numerator by a denominator that never moves and reads a
+/// working target as saturated.
+#[derive(Debug, Default)]
+pub struct Watch {
+    latest: Option<Report>,
+    fewest_running: Option<u64>,
+}
+
+impl Watch {
+    /// Takes one line of the daemon's output, report or not.
+    pub fn observe(&mut self, line: &str) {
+        let Some(report) = parse_report(line) else {
+            return;
+        };
+        self.fewest_running = Some(match self.fewest_running {
+            Some(fewest) => fewest.min(report.running),
+            None => report.running,
+        });
+        self.latest = Some(report);
+    }
+
+    /// Lines the daemon has read across its sessions, or `None` if it has not
+    /// said yet.
+    ///
+    /// **Never zero for *has not reported*.** A rung taking zero units from a
+    /// daemon that simply had not spoken would read as saturation, which is
+    /// the same silent-zero this file's parser refuses one level down.
+    pub fn units(&self) -> Option<u64> {
+        self.latest.map(|r| r.read)
+    }
+
+    /// The fewest sessions seen alive, or `None` if no report arrived.
+    ///
+    /// Not narrowed to the measured window on purpose. A session that exits
+    /// during spin-up is not one the ramp will replace, so the rung was never
+    /// holding what it asked for — and a spin-up that quietly excluded that
+    /// would hide exactly the case this watches for.
+    pub fn fewest_running(&self) -> Option<u64> {
+        self.fewest_running
+    }
+
+    pub fn latest(&self) -> Option<Report> {
+        self.latest
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,6 +190,35 @@ mod tests {
     fn a_field_the_daemon_grows_later_does_not_break_the_ladder() {
         let grown = "held 9 · running 9 · read 71 · evicted 2 · truncated 0 · admitted 9";
         assert_eq!(parse_report(grown).map(|r| (r.held, r.read)), Some((9, 71)));
+    }
+
+    #[test]
+    fn a_watch_that_has_heard_nothing_says_so_rather_than_zero() {
+        // Zero units reads as saturation. A daemon that has not spoken yet has
+        // produced no measurement, and the two must not arrive as one number.
+        let mut watch = Watch::default();
+        assert_eq!(watch.units(), None);
+        assert_eq!(watch.fewest_running(), None);
+
+        watch.observe("holding 4 session(s); stdin closes to stop");
+        assert_eq!(watch.units(), None, "the startup line is not a report");
+    }
+
+    #[test]
+    fn the_watch_keeps_the_fewest_alive_it_ever_saw() {
+        // The whole reason it exists: a rung that dipped is not a rung at the
+        // count it asked for, and the latest report would say it recovered.
+        let mut watch = Watch::default();
+        watch.observe("held 4 · running 4 · read 10 · evicted 0 · truncated 0");
+        watch.observe("held 4 · running 2 · read 14 · evicted 0 · truncated 0");
+        watch.observe("held 4 · running 4 · read 30 · evicted 0 · truncated 0");
+
+        assert_eq!(watch.units(), Some(30), "units come from the latest");
+        assert_eq!(
+            watch.fewest_running(),
+            Some(2),
+            "and the dip is remembered, since nothing restarts a session here"
+        );
     }
 
     #[test]
