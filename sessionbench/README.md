@@ -81,6 +81,14 @@ cargo run -p sessionbench -- hold --sessions 100 --duration 3600 -- <command>
 
 `hold` is [gate M1's shape](../ROADMAP.md#m1--headless-daemon): a stated number of sessions under `coggyd`, held for a stated time. **Not a ladder, and not a mode of `observe`.** A ramp asks how many fit; `observe` measures one and multiplies; this puts the sessions there and reads them. Its report carries no projection for that reason — a projection field beside a direct measurement is a number with nothing behind it.
 
+```
+cargo run -p sessionbench -- hold --sessions 100 --with-solo -- <command>
+```
+
+**`--with-solo` takes the baseline on both sides**, because the baseline is the thing that moves. Two triples of solo holds ten minutes apart had means 8.5% apart where within either the spread was 2.8%, so one pass taken beforehand is a baseline from a machine that may have left. The two bracket the run, their gap is the drift control, and the reported figure is **solo over concurrent** — the same direction as the ramp's own column, so the number a reader compares against 2 is the one printed.
+
+**A gap past the allowance produces no ratio at all**, rather than one with a caveat attached. On its first real run this refused itself: eight CPU-saturating sessions for 24 seconds left the machine 6.9% slower 16 seconds later, and a ratio taken across that would have been the afternoon. Whether the allowance is the right question for a bracket is open, and unlinked because nothing here answers it yet: [it is borrowed from a check that compares two finished ramps](#comparing-two-ramps) and cannot average anything, where a bracket averages its two baselines and so already corrects drift that is linear. What its gap must be small enough for is curvature, not sameness.
+
 **Three conditions come back unanswered, and they are not unanswered for the same reason.** Dropped output and replacement are `out_of_reach`: every other target hands this process the reading end of each session's output, which is what finds a gap in the ordinals, and under the daemon that end belongs to the daemon — while nothing in it restarts a session that exited. More running would not help either. Work rate is `not_taken`, which is the opposite: it is a ratio against the same workload held alone, so it is waiting on a second run rather than on a different daemon.
 
 One word for both would read as three impossibilities, and the tractable one would stop being looked for. Neither word is a pass.
