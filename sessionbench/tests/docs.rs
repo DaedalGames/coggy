@@ -271,6 +271,15 @@ fn the_documentation_map_lists_every_component_that_has_a_readme() {
 /// still accurate when the record it points at grows past the figure later.
 /// Living documents carry no date and promise to be current, so the same
 /// staleness is a defect in them.
+///
+/// **It stops at the label, and that was measured rather than assumed.**
+/// Widening to the sentence around each link would raise the figures checked
+/// from 42 to 202 and flag 50 of the additions, essentially all of them false:
+/// `4GB across 100 sessions is 40 MiB each` is the citing document's own
+/// arithmetic, and `GPL-3.0` is a licence. A link inside a sentence does not
+/// claim every number in it. The label is the span an author wrote to say
+/// *this is over there*, so it is where a citation can be wrong — and a check
+/// that needed an exception list would be a check nobody reads.
 #[test]
 fn a_figure_quoted_in_a_link_appears_in_the_document_it_points_at() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
