@@ -36,7 +36,7 @@
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
@@ -763,10 +763,7 @@ fn hold(
         hold: config.hold,
         spinup,
         elapsed_secs,
-        // Pipe and pty restart what exits, so the count asked for is the count
-        // held and there is nothing to ask. A target that holds sessions on
-        // the ramp's behalf fills this in.
-        fewest_alive: None,
+        fewest_alive: pool.fewest_alive(),
     });
 
     let total_rss_bytes = median(measured.iter().map(|s| s.rss_bytes)).unwrap_or(0);
@@ -906,6 +903,20 @@ struct Pool {
     retired_dropped: u64,
     replacements: u32,
     worst_replacement_secs: Option<f64>,
+    /// Present when one process holds the rung's sessions instead of this one.
+    ///
+    /// **The seam, and it is deliberately one field rather than a second
+    /// `Pool`.** Everything below the three methods that consult it — the
+    /// sampler, the tree, the redline arithmetic, the report — stays shared,
+    /// because a second pool is a second bench and [the M0 baseline stops
+    /// being comparable](../../ROADMAP.md#m1--headless-daemon) the moment
+    /// that happens.
+    ///
+    /// What it changes is small and exact: units come from the daemon's own
+    /// report rather than from drains this process owns, dropped output
+    /// becomes unmeasurable rather than zero, and the live session count has
+    /// to be asked for because nothing here restarts what exits.
+    daemon: Option<Arc<Mutex<crate::daemon::Watch>>>,
 }
 
 struct Slot {
@@ -929,6 +940,9 @@ impl Pool {
         }
         Ok(Self {
             slots,
+            // Filled by the daemon target when one exists; a pool of slots
+            // holds its own sessions and has nothing to watch.
+            daemon: None,
             retired_units: 0,
             retired_dropped: 0,
             replacements: 0,
@@ -947,6 +961,14 @@ impl Pool {
         scratch: &Path,
         tree: &mut SessionTree,
     ) -> Result<()> {
+        if self.daemon.is_some() {
+            // **Not a no-op for convenience.** The one slot here is the daemon,
+            // and restarting it would restart every session it holds — that is
+            // a new rung rather than a replacement, and timing it would report
+            // the rung's own startup as a replacement latency. A rung that
+            // loses sessions is refused by the live count instead.
+            return Ok(());
+        }
         for slot in &mut self.slots {
             if slot.session.try_wait()?.is_none() {
                 continue;
@@ -968,7 +990,29 @@ impl Pool {
     }
 
     fn total_units(&self) -> u64 {
+        if let Some(watch) = &self.daemon {
+            // Zero only until the daemon has spoken, which the rung's own
+            // minimum-samples check already refuses.
+            return watch
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .units()
+                .unwrap_or(0);
+        }
         self.retired_units + self.slots.iter().map(|s| s.output.units()).sum::<u64>()
+    }
+
+    /// The fewest sessions seen alive, when the target can be asked.
+    ///
+    /// `None` for a pool of slots: it restarts what exits, so the count asked
+    /// for is the count held by construction and there is nothing to ask.
+    fn fewest_alive(&self) -> Option<u32> {
+        let watch = self.daemon.as_ref()?;
+        let seen = watch
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .fewest_running()?;
+        Some(u32::try_from(seen).unwrap_or(u32::MAX))
     }
 
     /// Units the sessions announced but never delivered.
@@ -978,6 +1022,12 @@ impl Pool {
     /// payload is its output would otherwise make the disk the ceiling of the
     /// axis that exists to measure the output path.
     fn dropped_units(&self) -> Option<u64> {
+        if self.daemon.is_some() {
+            // Not zero. Gaps are ordinals in a session's own stream, and under
+            // a daemon that stream ends in its scrollback — nobody here holds
+            // what the workload emitted, so there is nothing to subtract from.
+            return None;
+        }
         Some(
             self.retired_dropped
                 + self
@@ -1210,6 +1260,51 @@ mod tests {
             elapsed_secs: 60.0,
             fewest_alive: None,
         }
+    }
+
+    /// An empty pool, with or without a daemon watching for it.
+    fn pool_with(daemon: Option<Arc<Mutex<crate::daemon::Watch>>>) -> Pool {
+        Pool {
+            slots: Vec::new(),
+            daemon,
+            retired_units: 0,
+            retired_dropped: 0,
+            replacements: 0,
+            worst_replacement_secs: None,
+        }
+    }
+
+    #[test]
+    fn a_daemon_pool_answers_the_three_questions_differently() {
+        // The whole seam. Everything below these three -- the sampler, the
+        // tree, the redline arithmetic, the report -- stays shared, because a
+        // second pool is a second bench.
+        let slots = pool_with(None);
+        assert_eq!(
+            slots.dropped_units(),
+            Some(0),
+            "a drain counted, and found none"
+        );
+        assert_eq!(slots.fewest_alive(), None, "slots restart what exits");
+
+        let watch = Arc::new(Mutex::new(crate::daemon::Watch::default()));
+        watch
+            .lock()
+            .expect("fresh")
+            .observe("held 8 · running 6 · read 40 · bytes 900 · evicted 0 · truncated 0");
+        let daemon = pool_with(Some(Arc::clone(&watch)));
+
+        assert_eq!(daemon.total_units(), 40, "units come from the report");
+        assert_eq!(
+            daemon.dropped_units(),
+            None,
+            "not zero — the ordinals never reach this process"
+        );
+        assert_eq!(
+            daemon.fewest_alive(),
+            Some(6),
+            "and the live count has to be asked, since nothing restarts a session"
+        );
     }
 
     #[test]
