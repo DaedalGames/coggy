@@ -96,6 +96,7 @@ pub fn parse_report(line: &str) -> Option<Report> {
 #[derive(Debug, Default)]
 pub struct Watch {
     latest: Option<Report>,
+    latest_at: Option<std::time::Instant>,
     fewest_running: Option<u64>,
 }
 
@@ -110,6 +111,7 @@ impl Watch {
             None => report.running,
         });
         self.latest = Some(report);
+        self.latest_at = Some(std::time::Instant::now());
     }
 
     /// Lines the daemon has read across its sessions, or `None` if it has not
@@ -134,6 +136,40 @@ impl Watch {
 
     pub fn latest(&self) -> Option<Report> {
         self.latest
+    }
+
+    /// When the last report arrived, which is the moment its counter describes.
+    ///
+    /// **The denominator a rate wants, and the hold's own length is a slightly
+    /// different thing.** `read` is cumulative and the daemon emits it on a
+    /// ten-second clock *and once more at end-of-file*, so the final counter is
+    /// taken at the end of the hold and there is no missing tail — the alarming
+    /// version of this, where a sixteen-second hold divides ten seconds of work
+    /// by sixteen, does not happen and the comment above the stop had already
+    /// said why.
+    ///
+    /// What is left is small and one-directional: `elapsed` is read after
+    /// [`Held::stop`] returns, so it carries the teardown, and **teardown grows
+    /// with the session count while the counter does not**. A hold of eight
+    /// pays more of it than a hold of one, which is exactly the pair a bracket
+    /// divides.
+    ///
+    /// **Measured rather than asserted, and it is smaller than the guess.** Two
+    /// twenty-second holds on this machine: one session left 14 ms uncounted of
+    /// 20449, eight left 43 of 20500 — 0.068% against 0.210%, so a bracket
+    /// dividing them carried 0.14%. Worth correcting and **not worth
+    /// suspecting**: it was a candidate for the bracket's 6.9% refusal and is
+    /// two orders of magnitude short of it.
+    ///
+    /// It also makes a missed final report visible instead of silent: a gap
+    /// between this and `elapsed` much larger than a teardown means the daemon
+    /// stopped talking early. That is worth more than the correction is.
+    ///
+    /// Observation time rather than the daemon's own, since the line carries no
+    /// clock. The gap is a pipe read and a thread wakeup, and it lengthens the
+    /// denominator, so what it costs is a rate reading slightly low.
+    pub fn latest_at(&self) -> Option<std::time::Instant> {
+        self.latest_at
     }
 }
 
@@ -262,6 +298,7 @@ impl Held {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         Watch {
             latest: held.latest,
+            latest_at: held.latest_at,
             fewest_running: held.fewest_running,
         }
     }
@@ -281,6 +318,11 @@ pub struct HeldRun {
     /// than dividing by either number.
     pub fewest_running: Option<u64>,
     pub elapsed: std::time::Duration,
+    /// How much of `elapsed` the last report's counter actually covers.
+    ///
+    /// See [`Watch::latest_at`] for why this is not `elapsed`. `None` when the
+    /// daemon never reported, alongside the counter it would have divided.
+    pub counted: Option<std::time::Duration>,
     /// Whether the kernel or a parent walk decided which processes counted.
     ///
     /// Carried out of the hold because the hold is what arms the tree. A
@@ -400,6 +442,7 @@ pub fn hold(
         last: seen.latest(),
         fewest_running: seen.fewest_running(),
         elapsed: started.elapsed(),
+        counted: seen.latest_at().map(|at| at.duration_since(started)),
         membership,
         membership_fallback_reason,
         left_early: left_early.map(|(status, at)| {
@@ -464,6 +507,7 @@ impl HeldRun {
             membership_fallback_reason: self.membership_fallback_reason.clone(),
             started_unix,
             duration_ms: self.elapsed.as_millis() as u64,
+            counted_ms: self.counted.map(|c| c.as_millis() as u64),
             interval_ms: interval.as_millis() as u64,
             sample_count: self.samples.len(),
             peak_rss_bytes,
@@ -477,9 +521,15 @@ impl HeldRun {
             peak_processes: self.samples.iter().map(|s| s.processes).max().unwrap_or(0),
             fewest_running: self.fewest_running,
             units: last.map(|r| r.read),
+            // Over what the counter covers rather than over the hold, which is
+            // the same thing minus a teardown — and a teardown is the one part
+            // of a hold that scales with the session count. See
+            // [`Watch::latest_at`]. Falls back to `elapsed` only when the two
+            // cannot differ, since `last` being Some is what puts us here.
             units_per_session_per_sec: last.map(|r| {
+                let over = self.counted.unwrap_or(self.elapsed);
                 r.read as f64
-                    / self.elapsed.as_secs_f64().max(f64::EPSILON)
+                    / over.as_secs_f64().max(f64::EPSILON)
                     / f64::from(self.sessions.max(1))
             }),
             output_bytes: last.map(|r| r.read_bytes),
@@ -663,6 +713,13 @@ pub struct HoldReport {
     pub membership_fallback_reason: Option<String>,
     pub started_unix: u64,
     pub duration_ms: u64,
+    /// How much of `duration_ms` the unit count actually covers.
+    ///
+    /// Recorded rather than asserted. The gap is the teardown, it is the one
+    /// part of a hold that grows with the session count, and a claim about its
+    /// size belongs in an artifact — so the artifact carries both numbers and
+    /// whoever compares two holds can see what separated them.
+    pub counted_ms: Option<u64>,
     pub interval_ms: u64,
     pub sample_count: usize,
     /// Why the run says nothing about the machine, when it does not.
@@ -677,11 +734,15 @@ pub struct HoldReport {
     pub units: Option<u64>,
     /// Units a session did per second, which is what the condition compares.
     ///
-    /// **Computed here rather than left to whoever divides.** The count runs
-    /// to end-of-file and `duration_ms` is measured after the stop, so the two
-    /// span the same window including teardown — and teardown time varies. A
-    /// reader dividing the count by the *hold* would put that variance into
-    /// the ratio; dividing these two cancels it.
+    /// **Computed here rather than left to whoever divides**, and over
+    /// `counted_ms` rather than `duration_ms`. An earlier note here had the two
+    /// spanning the same window, so that dividing one by the other cancelled a
+    /// varying teardown. They do not: the daemon emits its final report and
+    /// *then* clears the pool, so the count stops at the start of teardown
+    /// while the clock runs through it. What that leaves in the denominator is
+    /// the one part of a hold that grows with the session count — depressing a
+    /// concurrent hold's rate more than a solo one's, which in a bracket makes
+    /// the slowdown read high.
     ///
     /// `None` when the daemon never reported, which is not a rate of zero.
     pub units_per_session_per_sec: Option<f64>,
@@ -864,6 +925,11 @@ mod tests {
             last: parse_report(REAL),
             fewest_running: fewest,
             elapsed: std::time::Duration::from_secs(60),
+            // A shade under `elapsed`, which is the real shape: the final
+            // report lands at end-of-file and the teardown after it does not
+            // count. Equal to it would let a rate divided by the wrong one
+            // still pass.
+            counted: Some(std::time::Duration::from_millis(59_800)),
             membership: crate::tree::Membership::JobObject,
             membership_fallback_reason: None,
             left_early: None,

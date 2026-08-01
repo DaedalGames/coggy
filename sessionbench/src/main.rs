@@ -395,9 +395,17 @@ fn main() -> anyhow::Result<()> {
                 println!("\nINCONCLUSIVE: {why}");
             }
             println!(
-                "\n  sessions   {} (fewest alive {:?})\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?}\n  replaced   {:?}",
+                "\n  sessions   {} (fewest alive {:?})\n  window     {} ms counted of {} ms held\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?}\n  replaced   {:?}",
                 report.sessions,
                 report.fewest_running,
+                // The rate's real denominator beside the one people assume it
+                // is. Their gap is the teardown, which grows with the session
+                // count, so two holds of different widths are not divisible
+                // without seeing it.
+                report
+                    .counted_ms
+                    .map_or_else(|| "—".to_string(), |c| c.to_string()),
+                report.duration_ms,
                 human_bytes(report.peak_rss_bytes),
                 human_bytes(report.rss_budget_bytes),
                 report.units,

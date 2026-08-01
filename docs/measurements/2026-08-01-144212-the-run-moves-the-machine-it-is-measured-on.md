@@ -56,3 +56,28 @@ One trailing solo hold cannot tell a recovering point from a settled one. **Thre
 | Daemon | `coggyd` 0.0.0, release build |
 | Workload | `cpu-spin --units 100000 --duty 1.0 --resident 20` |
 | Shape | solo 16 s · 8 sessions 24 s · solo 16 s, sampled every 4 s, back to back |
+
+## 2026-08-01: one candidate ruled out, and it was in the instrument
+
+Reading this run's own arithmetic turned up a real defect in `hold`, and it is
+not big enough to be the answer.
+
+The rate divided the daemon's cumulative counter by the hold's whole length.
+Those are different windows: the daemon emits its final report and *then* clears
+the pool, so the count stops where teardown begins while the clock runs through
+it. A comment in `daemon.rs` had asserted the two spanned the same window and so
+cancelled — they do not, and the leftover is the one part of a hold that grows
+with the session count. A bracket divides a one-session hold by an
+eight-session one, so it does not cancel there either.
+
+Measured on this machine at twenty seconds a hold: **one session left 14 ms
+uncounted of 20449, eight left 43 of 20500** — 0.068% against 0.210%, so the
+slowdown carried 0.14% of bias, reading high. Fixed by dividing over what the
+counter covers, and both numbers are now printed and in `hold.json` as
+`counted_ms` beside `duration_ms`.
+
+**Two orders of magnitude short of the 6.9%, so the shape question above stands
+untouched.** What it removes is a candidate, which is the cheaper half of an
+open question. The visible window line is worth more than the correction: a gap
+much wider than a teardown is a final report that never arrived, which until now
+looked like a slow hold.
