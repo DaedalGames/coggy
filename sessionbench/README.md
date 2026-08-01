@@ -101,6 +101,15 @@ cargo run -p sessionbench -- ramp --daemon target/release/coggyd.exe -- <command
 
 **Two runs live in [`scripts/`](scripts/) rather than in a note**, because a measurement that waits on a window may wait across sessions and a window that opens is not a window to type in. `m1-hour.ps1` is the gate's sixty-four minutes; `bracket-calibration.ps1` is the five short holds that decide whether the bracket's allowance is asking the right question. Both read their own precondition and exit non-zero rather than producing a run that cannot mean anything — **the spread of consecutive `doctor` readings, not one reading against a threshold**, since a ratio hands both halves the same handicap and a steady 40% is workable where a swinging 34% is not.
 
+**Three checks of the coupling live in [`examples/`](examples/)**, and they are the only automated evidence for what the daemon path does under a machine rather than in isolation: `hold_daemon` holds sessions and asserts on the effects — alive while the pipe is held, RSS attributed through the armed job, nothing left behind; `daemon_dies` kills the daemon mid-hold and requires the run to refuse itself, which before that guard was fifty-nine minutes of empty samples and no complaint; `arm_thrice` arms the tree three times in one process, as `--with-solo` does, because a silent fallback to a parent walk would attribute a ratio's two halves by different methods. Each needs `coggyd`'s binary, which is why none is a test — **`cargo test` does not build a sibling crate's executable, and a test that skips when it is missing is a test nobody knows is not running.** The cost of that choice is that `cargo test` compiles them and runs none, so they belong to the checklist before a daemon measurement rather than to the gate:
+
+```
+cargo build -p coggyd
+cargo run -p sessionbench --example hold_daemon
+cargo run -p sessionbench --example daemon_dies
+cargo run -p sessionbench --example arm_thrice
+```
+
 **And `ping` is a clock, not a workload.** It is the obvious thing to hold a hundred of while checking the plumbing, and it emits one line a second whatever the machine is doing — so its unit count is elapsed time wearing a work rate's name. Three solo holds of it returned 23 units each, which reads as a machine that reproduces perfectly and is really a machine that was never asked. [The same three with `cpu-spin`](../workloads/cpu-spin/) gave 585, 590 and 606. Use it to check that sessions start and stop; use something that competes for a core to measure anything.
 
 `${session}` in the workload's arguments expands to each session's own id, so a hundred sessions can be handed a hundred paths from one command line — [the contract wants each its own directory](../workloads/README.md#the-contract), and neither the workload nor the daemon may learn the other's naming to arrange it.
