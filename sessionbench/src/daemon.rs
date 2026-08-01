@@ -258,6 +258,103 @@ impl Held {
     }
 }
 
+/// What a sampled hold came back with.
+#[derive(Debug, Clone)]
+pub struct HeldRun {
+    pub sessions: u32,
+    pub samples: Vec<crate::sampler::Sample>,
+    /// The last thing the daemon said, or `None` if it never reported.
+    pub last: Option<Report>,
+    /// Fewest sessions alive at any report.
+    ///
+    /// Below `sessions` means the hold stopped being a hold at that count,
+    /// and nothing here restarts one — so the caller refuses the run rather
+    /// than dividing by either number.
+    pub fewest_running: Option<u64>,
+    pub elapsed: std::time::Duration,
+}
+
+impl HeldRun {
+    /// Peak total RSS across the samples, which is the figure a memory budget
+    /// has to fit.
+    pub fn peak_rss_bytes(&self) -> u64 {
+        self.samples.iter().map(|s| s.rss_bytes).max().unwrap_or(0)
+    }
+
+    /// Why this run says nothing about the machine, when it does not.
+    pub fn unusable(&self) -> Option<String> {
+        if self.samples.is_empty() {
+            return Some("no samples — the hold ended before the first tick".into());
+        }
+        let Some(fewest) = self.fewest_running else {
+            return Some("the daemon never reported, so nothing says it held anything".into());
+        };
+        (fewest < u64::from(self.sessions)).then(|| {
+            format!(
+                "{} session(s) asked for and only {fewest} alive at some report — nothing here restarts one, so this was not a hold at {}",
+                self.sessions, self.sessions,
+            )
+        })
+    }
+}
+
+/// Holds `sessions` copies of `workload` under `daemon` and samples them.
+///
+/// **The order is the correctness.** Job membership is inherited at creation,
+/// so the tree is armed before the daemon exists; a daemon started first sits
+/// outside the measurement along with everything it spawns, and the run would
+/// report a machine holding nothing.
+pub fn hold(
+    daemon: &std::path::Path,
+    sessions: u32,
+    workload: &[String],
+    log: std::path::PathBuf,
+    interval: std::time::Duration,
+    duration: std::time::Duration,
+) -> anyhow::Result<HeldRun> {
+    use anyhow::Context;
+
+    let armed = crate::tree::ArmedTree::arm(sysinfo::Pid::from_u32(std::process::id()));
+    let started = std::time::Instant::now();
+    let held = Held::start(daemon, sessions, workload, log).context("starting the daemon")?;
+    let mut tree = armed.attach(sysinfo::Pid::from_u32(held.child.id()));
+
+    let mut sampler = crate::sampler::Sampler::new();
+    let mut samples = Vec::new();
+    while started.elapsed() < duration {
+        std::thread::sleep(interval);
+        let seen = held.seen();
+        // The sampler wants one counter. Units and bytes both come from the
+        // daemon's own report rather than from a drain this process owns,
+        // which is the whole difference between this target and every other.
+        let output = crate::session::Output::from_counts(
+            seen.latest().map_or(0, |r| r.read_bytes),
+            seen.units().unwrap_or(0),
+        );
+        samples.push(sampler.take(&mut tree, &output, started.elapsed()));
+    }
+
+    // **Read after the stop, not before.** The daemon reports on a ten-second
+    // clock and again at end-of-file, and that last one is the only complete
+    // total — everything the sessions did since the previous tick is in it and
+    // nowhere else. Taking the numbers while the hold was still running lost
+    // 24% of the units on a half-minute example. The watch outlives the hold
+    // for exactly this.
+    let watch = std::sync::Arc::clone(&held.watch);
+    held.stop().context("stopping the daemon")?;
+    let seen = watch
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    Ok(HeldRun {
+        sessions,
+        samples,
+        last: seen.latest(),
+        fewest_running: seen.fewest_running(),
+        elapsed: started.elapsed(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
