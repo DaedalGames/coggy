@@ -128,6 +128,38 @@ impl Watch {
     }
 }
 
+/// Feeds a daemon's output into a [`Watch`], and keeps a copy on disk.
+///
+/// **Not [`session::drain`](crate::session), and the reason is in that
+/// function's own comments.** It carries at most 32 bytes of a line across
+/// chunk boundaries, because for a workload only the ordinal at a line's
+/// opening matters and the stream can arrive at gigabytes a second. A report
+/// line is short, arrives once every ten seconds, and keeps the fields this
+/// needs at its *end*. Opposite constraints, so a reader tuned for one is
+/// wrong for the other rather than merely slower.
+///
+/// The copy on disk is kept for the same reason every other stream's is: a
+/// rung's artifacts should let someone else reach the same numbers.
+pub fn watch_output(
+    source: impl std::io::Read + Send + 'static,
+    log: std::path::PathBuf,
+    watch: std::sync::Arc<std::sync::Mutex<Watch>>,
+) -> std::thread::JoinHandle<std::io::Result<()>> {
+    std::thread::spawn(move || {
+        use std::io::{BufRead, Write};
+        let mut sink = std::io::BufWriter::new(std::fs::File::create(&log)?);
+        for line in std::io::BufReader::new(source).lines() {
+            let line = line?;
+            writeln!(sink, "{line}")?;
+            watch
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .observe(&line);
+        }
+        sink.flush()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,6 +251,42 @@ mod tests {
             Some(2),
             "and the dip is remembered, since nothing restarts a session here"
         );
+    }
+
+    #[test]
+    fn the_drain_feeds_the_watch_and_leaves_the_lines_on_disk() {
+        // Both halves asserted, because the artifact is what lets someone else
+        // reach the same number and a drain that only counted would lose it.
+        let stream = "holding 4 session(s); stdin closes to stop\n\
+             held 4 · running 4 · read 10 · evicted 0 · truncated 0\n\
+             held 4 · running 3 · read 25 · evicted 0 · truncated 0\n\
+             cleared\n";
+        let log = std::env::temp_dir().join(format!(
+            "sessionbench-daemon-drain-{}.log",
+            std::process::id()
+        ));
+        let watch = std::sync::Arc::new(std::sync::Mutex::new(Watch::default()));
+
+        watch_output(
+            std::io::Cursor::new(stream.as_bytes().to_vec()),
+            log.clone(),
+            std::sync::Arc::clone(&watch),
+        )
+        .join()
+        .expect("the drain thread")
+        .expect("the drain wrote its log");
+
+        let seen = watch.lock().expect("not poisoned");
+        assert_eq!(seen.units(), Some(25), "the latest report's read count");
+        assert_eq!(seen.fewest_running(), Some(3), "and the dip it saw");
+
+        let on_disk = std::fs::read_to_string(&log).expect("the log");
+        assert_eq!(
+            on_disk.lines().count(),
+            4,
+            "every line, reports and not: {on_disk}"
+        );
+        let _ = std::fs::remove_file(&log);
     }
 
     #[test]
