@@ -66,6 +66,8 @@ cleared
 
 It holds its pool until stdin reaches end-of-file, then clears it. End-of-file rather than a signal because that needs no extra crate and no console — [a console-dependent wait was measured returning instantly without one](../docs/measurements/2026-07-31-035111-between-builds.md).
 
+**The stop condition and the report clock are separate, and were not.** One loop read stdin and checked the interval after each read, which ties how often the daemon speaks to how much its caller types: [an hour-long hold whose holder wrote nothing produced no periodic line at all](../docs/measurements/2026-08-01-103225-an-hour-of-a-hundred-sessions.md). That looked like a choice the measurement made until something needed the line — a benchmark scraping `read` for a unit count would have seen a hundred sessions as silent.
+
 **This exists so the benchmark has something to start**, not as an API. [The comparison set holds a row for `coggyd`](../sessionbench/README.md#what-we-measure-against) and could not fill it against a library. The verbs stay unwritten because [M2 derives them backward from the calls a harness makes](../ROADMAP.md#m2--harness-contract).
 
 Printing held and running separately earned itself on the first run: a smoke test showed `held 3 · running 2`, because all three sessions had been given the same `waitfor` signal name. One number would have read as fine.

@@ -79,6 +79,8 @@ It has the same shape as the scrollback cap: the gate names one quantity and the
 - **One hour, once.** The cross-run error bar comes from two runs and is **8%** on the daemon's baseline once each reading is corrected for how full its scrollback was — not the 1.8% the totals agree to, which is agreement between two large numbers whose sessions dominate them.
 - **The 100 in twelve of the thirteen samples is a machine-wide `ping` count**, not job membership. Choosing a silent stdin holder for clean attribution disabled the daemon's own periodic report, since it only checks its interval after a successful read. The authoritative reading exists once, at the end, which is the point the hour claim needs — but the continuity between samples is the weaker evidence of the two.
 
+  **2026-08-01, later:** that was written up as a choice this run made and it was a defect in the daemon. Tying how often a supervisor speaks to how much its caller types is wrong for any caller, and it only looked like a trade-off because nothing yet needed the line. The stop condition and the report clock are separate now, so a silent holder gets the same reporting as a chatty one — and a rerun of this hold would carry the job-based count at every sample rather than once at the end.
+
 ## What was misread on the way
 
 Each of these was stated confidently and overturned by the next sample, and all but the last are the same habit: computing a derived quantity from consecutive samples while more were still arriving.

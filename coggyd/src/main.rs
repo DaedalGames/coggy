@@ -18,6 +18,8 @@
 //! is why a console-dependent stop condition is not used.
 
 use std::io::Read;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
@@ -25,6 +27,12 @@ use coggyd::pool::Pool;
 
 /// How often the daemon says what it is holding.
 const REPORT_EVERY: Duration = Duration::from_secs(10);
+
+/// How long the main loop sleeps between checks that it should stop.
+///
+/// Short enough that a closed pipe is noticed promptly, long enough that
+/// holding a hundred idle sessions costs nothing measurable.
+const TICK: Duration = Duration::from_millis(100);
 
 fn main() -> Result<()> {
     let (sessions, command) = parse(std::env::args().skip(1).collect())?;
@@ -39,18 +47,32 @@ fn main() -> Result<()> {
     }
     println!("holding {} session(s); stdin closes to stop", pool.len());
 
-    // Reading stdin on this thread is the whole stop condition: a pipe that
-    // closes ends the run, and a terminal that stays open holds it.
-    let mut stdin = std::io::stdin();
-    let mut sink = [0u8; 64];
-    let mut last = Instant::now();
-    loop {
-        // A short read keeps the loop responsive to the report interval
-        // without a second thread; end-of-file falls through to the clear.
-        match stdin.read(&mut sink) {
-            Ok(0) | Err(_) => break,
-            Ok(_) => {}
+    // **The stop condition and the report clock are separate on purpose.**
+    // They were one loop, reading stdin and checking the interval after each
+    // read — which ties how often the daemon speaks to how much its caller
+    // types. An hour-long hold whose stdin holder wrote nothing produced no
+    // periodic line at all, and a benchmark scraping that line for a unit
+    // count would have read a run of a hundred sessions as silent.
+    //
+    // So stdin gets a thread whose only job is to reach end-of-file, and the
+    // clock runs here.
+    let stopped = Arc::new(AtomicBool::new(false));
+    let watcher = Arc::clone(&stopped);
+    std::thread::spawn(move || {
+        let mut sink = [0u8; 64];
+        let mut stdin = std::io::stdin();
+        loop {
+            match stdin.read(&mut sink) {
+                Ok(0) | Err(_) => break,
+                Ok(_) => {}
+            }
         }
+        watcher.store(true, Ordering::Release);
+    });
+
+    let mut last = Instant::now();
+    while !stopped.load(Ordering::Acquire) {
+        std::thread::sleep(TICK);
         if last.elapsed() >= REPORT_EVERY {
             report(&mut pool);
             last = Instant::now();
