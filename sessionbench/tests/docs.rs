@@ -340,6 +340,45 @@ fn a_figure_quoted_in_a_link_appears_in_the_document_it_points_at() {
     );
 }
 
+/// Every measurement record is reachable from the index that promises to list
+/// them.
+///
+/// **Weaker than what a sweep can do by hand, and deliberately.** Reading
+/// which records nothing *outside* the index cites is the useful question —
+/// it found PLAN citing where the duty relation was derived while claiming it
+/// had been checked, so the stronger evidence sat unquoted. But a record
+/// written an hour ago is legitimately cited by nothing yet, and a test that
+/// failed on that would be a test people learn to ignore.
+///
+/// So this asks only the mechanical half: a record the index does not list is
+/// invisible, and nothing else here can find it either.
+#[test]
+fn the_measurement_index_lists_every_record() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crate sits one level below the repository root");
+    let dir = root.join("docs/measurements");
+    let index = fs::read_to_string(dir.join("README.md")).expect("a measurement index");
+
+    let mut unlisted = Vec::new();
+    for entry in fs::read_dir(&dir).expect("readable measurements").flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if !name.starts_with(|c: char| c.is_ascii_digit()) || !name.ends_with(".md") {
+            continue;
+        }
+        if !index.contains(name) {
+            unlisted.push(name.to_string());
+        }
+    }
+    unlisted.sort();
+
+    assert!(
+        unlisted.is_empty(),
+        "these records exist and the index does not list them: {unlisted:?}"
+    );
+}
+
 #[test]
 fn every_cross_reference_resolves() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
