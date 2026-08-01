@@ -355,6 +355,152 @@ pub fn hold(
     })
 }
 
+/// What the run was, as opposed to what it found.
+///
+/// Separate from [`HeldRun`] because none of it is a measurement: it is the
+/// provenance a reader needs to take the run again, and threading eight of
+/// them through a call reads as eight results.
+pub struct Ran {
+    pub label: String,
+    pub daemon: String,
+    pub workload: Vec<String>,
+    /// The gate's budget rather than the redline's share of the machine: M1
+    /// states four gigabytes outright.
+    pub rss_budget_bytes: u64,
+    pub interval: std::time::Duration,
+    pub membership: crate::tree::Membership,
+    pub membership_fallback_reason: Option<String>,
+    pub started_unix: u64,
+}
+
+impl HeldRun {
+    /// Turns a run into the artifact, deciding each condition once.
+    pub fn into_report(self, about: Ran) -> HoldReport {
+        let Ran {
+            label,
+            daemon,
+            workload,
+            rss_budget_bytes,
+            interval,
+            membership,
+            membership_fallback_reason,
+            started_unix,
+        } = about;
+        let inconclusive = self.unusable();
+        let peak_rss_bytes = self.peak_rss_bytes();
+        let last = self.last;
+
+        // Every verdict is NotExercised while the run itself is in doubt. A
+        // rung that could not be measured has not passed anything, and this is
+        // the one place that could quietly say otherwise.
+        let rss = match (&inconclusive, peak_rss_bytes <= rss_budget_bytes) {
+            (Some(_), _) => Verdict::NotExercised,
+            (None, true) => Verdict::Held,
+            (None, false) => Verdict::Broke,
+        };
+
+        HoldReport {
+            label,
+            daemon,
+            workload,
+            sessions: self.sessions,
+            machine: crate::machine::Machine::detect(),
+            provenance: crate::provenance::Provenance::current(),
+            host: crate::host::HostFacts::query(),
+            membership,
+            membership_fallback_reason,
+            started_unix,
+            duration_ms: self.elapsed.as_millis() as u64,
+            interval_ms: interval.as_millis() as u64,
+            sample_count: self.samples.len(),
+            peak_rss_bytes,
+            rss_budget_bytes,
+            min_available_memory_bytes: self
+                .samples
+                .iter()
+                .map(|s| s.available_memory_bytes)
+                .min()
+                .unwrap_or(0),
+            peak_processes: self.samples.iter().map(|s| s.processes).max().unwrap_or(0),
+            fewest_running: self.fewest_running,
+            units: last.map(|r| r.read),
+            output_bytes: last.map(|r| r.read_bytes),
+            evicted: last.map(|r| r.evicted),
+            truncated: last.map(|r| r.truncated),
+            rss,
+            // **Not measured here, and not because it is hard.** The condition
+            // is a ratio against the same workload run alone, and a solo
+            // figure is a second run. Until this command takes one, saying
+            // anything else would be inventing a baseline.
+            work_rate: Verdict::NotExercised,
+            // Neither of these is reachable through a daemon at all.
+            dropped_output: Verdict::NotExercised,
+            replacement: Verdict::NotExercised,
+            inconclusive,
+        }
+    }
+}
+
+/// Whether a gate condition passed, failed, or was never in reach.
+///
+/// **Three states because two would lie.** [Two of the four
+/// conditions](../../sessionbench/README.md#what-we-measure-against) cannot be
+/// asked of a daemon at all: dropped output is found by watching ordinals in a
+/// session's own stream, which ends in the daemon's scrollback, and nothing in
+/// the daemon restarts a session that exited. A boolean would render both as
+/// `true`, which is a pass earned by never having been asked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Verdict {
+    Held,
+    Broke,
+    NotExercised,
+}
+
+/// The committed artifact for one held run.
+///
+/// **Deliberately carries no projection**, which is what separates this from
+/// [`observe`](crate::observe). That command measures one session and
+/// multiplies to say what N would cost; this holds N and measures them. A
+/// projection field here would be a number with nothing behind it, and a field
+/// that reads as a measurement without being one is the failure this
+/// repository keeps finding.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HoldReport {
+    pub label: String,
+    pub daemon: String,
+    pub workload: Vec<String>,
+    pub sessions: u32,
+    pub machine: crate::machine::Machine,
+    pub provenance: crate::provenance::Provenance,
+    pub host: crate::host::HostFacts,
+    pub membership: crate::tree::Membership,
+    pub membership_fallback_reason: Option<String>,
+    pub started_unix: u64,
+    pub duration_ms: u64,
+    pub interval_ms: u64,
+    pub sample_count: usize,
+    /// Why the run says nothing about the machine, when it does not.
+    pub inconclusive: Option<String>,
+    pub peak_rss_bytes: u64,
+    pub rss_budget_bytes: u64,
+    /// Least the machine had free at any sample.
+    pub min_available_memory_bytes: u64,
+    pub peak_processes: usize,
+    /// Fewest sessions the daemon reported alive.
+    pub fewest_running: Option<u64>,
+    pub units: Option<u64>,
+    pub output_bytes: Option<u64>,
+    /// Lines the scrollback aged out or cut, which are policy rather than the
+    /// gate's dropped output.
+    pub evicted: Option<u64>,
+    pub truncated: Option<u64>,
+    pub rss: Verdict,
+    pub work_rate: Verdict,
+    pub dropped_output: Verdict,
+    pub replacement: Verdict,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -487,6 +633,77 @@ mod tests {
             "every line, reports and not: {on_disk}"
         );
         let _ = std::fs::remove_file(&log);
+    }
+
+    fn about() -> Ran {
+        Ran {
+            label: "t".into(),
+            daemon: "coggyd".into(),
+            workload: vec!["ping".into()],
+            rss_budget_bytes: u64::MAX,
+            interval: std::time::Duration::from_secs(2),
+            membership: crate::tree::Membership::JobObject,
+            membership_fallback_reason: None,
+            started_unix: 0,
+        }
+    }
+
+    fn run_of(sessions: u32, fewest: Option<u64>, samples: usize) -> HeldRun {
+        HeldRun {
+            sessions,
+            // Built by hand rather than by deriving Default on Sample, which
+            // would add a convenience to the real type that only a test wants.
+            samples: (0..samples)
+                .map(|i| crate::sampler::Sample {
+                    t_ms: i as u64 * 2_000,
+                    rss_bytes: 1_000_000,
+                    processes: 4,
+                    pseudoconsoles: 0,
+                    cpu_percent: 0.0,
+                    defender_cpu_percent: None,
+                    defender_rss_bytes: None,
+                    available_memory_bytes: 8_000_000_000,
+                    output_bytes: 0,
+                    work_units: 0,
+                    members: Vec::new(),
+                })
+                .collect(),
+            last: parse_report(REAL),
+            fewest_running: fewest,
+            elapsed: std::time::Duration::from_secs(60),
+        }
+    }
+
+    #[test]
+    fn a_run_in_doubt_passes_nothing() {
+        // The one thing this function could quietly get wrong. A hold that
+        // lost sessions still has a peak RSS under any budget -- fewer
+        // sessions hold less -- so a verdict read off the number alone would
+        // report the memory condition as satisfied by the failure.
+        let short = run_of(4, Some(2), 30).into_report(about());
+        assert!(short.inconclusive.is_some(), "the run is in doubt");
+        assert_eq!(short.rss, Verdict::NotExercised, "so nothing is held");
+
+        let whole = run_of(4, Some(4), 30).into_report(about());
+        assert_eq!(whole.inconclusive, None);
+        assert_eq!(whole.rss, Verdict::Held, "and a whole run is judged");
+    }
+
+    #[test]
+    fn the_conditions_a_daemon_cannot_answer_are_never_held() {
+        let run = run_of(4, Some(4), 30).into_report(about());
+        // A boolean would have rendered all three as a pass.
+        assert_eq!(run.work_rate, Verdict::NotExercised, "needs a solo run");
+        assert_eq!(
+            run.dropped_output,
+            Verdict::NotExercised,
+            "ordinals do not reach here"
+        );
+        assert_eq!(
+            run.replacement,
+            Verdict::NotExercised,
+            "nothing restarts a session"
+        );
     }
 
     #[test]
