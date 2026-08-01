@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Daedal Games
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::fs::File;
+use std::io::{BufWriter, Write as _};
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -70,6 +72,52 @@ enum Command {
         pty: bool,
 
         /// The command to run, after `--`.
+        #[arg(last = true, required = true, value_name = "COMMAND")]
+        command: Vec<String>,
+    },
+
+    /// Hold N sessions under `coggyd` and measure them.
+    ///
+    /// **Gate M1's shape, and deliberately not a ladder.** A ramp asks how
+    /// many sessions fit; this asks what a stated number costs, which is what
+    /// the gate is written as. It is also not a mode of `observe`, which
+    /// measures one session and multiplies — here the sessions are really
+    /// there.
+    ///
+    /// Two of the four conditions cannot be asked of a daemon and the report
+    /// says so rather than passing them.
+    Hold {
+        #[arg(long, default_value = "hold")]
+        label: String,
+
+        #[arg(long, default_value = "bench-out")]
+        out: PathBuf,
+
+        /// How many sessions the daemon is asked to hold.
+        #[arg(long, default_value_t = 100)]
+        sessions: u32,
+
+        /// Seconds between samples.
+        #[arg(long, default_value_t = 5.0, value_name = "SECONDS")]
+        interval: f64,
+
+        /// How long to hold them. The gate asks for an hour.
+        #[arg(long, default_value_t = 3600.0, value_name = "SECONDS")]
+        duration: f64,
+
+        /// The daemon binary. Built by `cargo build --release -p coggyd`.
+        #[arg(long, default_value = "target/release/coggyd.exe")]
+        daemon: PathBuf,
+
+        /// Total RSS the gate allows across the daemon and everything it holds.
+        #[arg(long, default_value_t = 4.0, value_name = "GB")]
+        rss_budget_gb: f64,
+
+        /// The workload each session runs, after `--`.
+        ///
+        /// `${session}` in any argument expands to that session's own id, so a
+        /// hundred sessions can be given a hundred paths from one command
+        /// line without the workload learning anything about COGGY.
         #[arg(last = true, required = true, value_name = "COMMAND")]
         command: Vec<String>,
     },
@@ -202,6 +250,89 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Doctor { strict } => doctor(strict),
         Command::Compare { left, right } => compare(&left, &right),
+        Command::Hold {
+            label,
+            out,
+            sessions,
+            interval,
+            duration,
+            daemon,
+            rss_budget_gb,
+            command,
+        } => {
+            if !daemon.is_file() {
+                anyhow::bail!(
+                    "no daemon at {} — build it with `cargo build --release -p coggyd`",
+                    daemon.display()
+                );
+            }
+            let stamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or_default();
+            let out_dir = out.join(format!("{stamp}-{label}-daemon"));
+            std::fs::create_dir_all(&out_dir)?;
+
+            let interval = Duration::from_secs_f64(interval);
+            println!(
+                "holding {sessions} session(s) under {} for {duration}s · sampling every {}s",
+                daemon.display(),
+                interval.as_secs_f64(),
+            );
+            println!("  {}", command.join(" "));
+
+            let run = sessionbench::daemon::hold(
+                &daemon,
+                sessions,
+                &command,
+                out_dir.join("daemon.log"),
+                interval,
+                Duration::from_secs_f64(duration),
+            )?;
+            let samples = run.samples.clone();
+            let report = run.into_report(sessionbench::daemon::Ran {
+                label,
+                daemon: daemon.display().to_string(),
+                workload: command,
+                rss_budget_bytes: (rss_budget_gb * 1e9) as u64,
+                interval,
+                // The tree is armed inside `hold`, so this records what the
+                // run actually used rather than what it hoped for.
+                membership: sessionbench::tree::Membership::JobObject,
+                membership_fallback_reason: None,
+                started_unix: stamp,
+            });
+
+            let mut file = BufWriter::new(File::create(out_dir.join("samples.jsonl"))?);
+            for sample in &samples {
+                writeln!(file, "{}", serde_json::to_string(sample)?)?;
+            }
+            file.flush()?;
+            std::fs::write(
+                out_dir.join("hold.json"),
+                serde_json::to_string_pretty(&report)?,
+            )?;
+
+            if let Some(why) = &report.inconclusive {
+                println!("\nINCONCLUSIVE: {why}");
+            }
+            println!(
+                "\n  sessions   {} (fewest alive {:?})\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?}\n  replaced   {:?}",
+                report.sessions,
+                report.fewest_running,
+                human_bytes(report.peak_rss_bytes),
+                human_bytes(report.rss_budget_bytes),
+                report.units,
+                report.output_bytes.unwrap_or(0),
+                report.rss,
+                report.work_rate,
+                report.dropped_output,
+                report.replacement,
+            );
+            println!("\nwritten to {}", out_dir.display());
+            Ok(())
+        }
+
         Command::Observe {
             label,
             out,
