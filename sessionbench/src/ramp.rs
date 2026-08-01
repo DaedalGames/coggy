@@ -110,6 +110,16 @@ pub struct RampConfig {
     /// number.
     pub skip_drift_check: bool,
     pub mode: SessionMode,
+    /// Hold each rung's sessions under this daemon instead of spawning them
+    /// here.
+    ///
+    /// **Not a [`SessionMode`] variant, and the type's own doc is why.** That
+    /// enum says how a session's *output* is wired, and a daemon-held session
+    /// is still on pipes — a report reading `mode: daemon` would tell a reader
+    /// only that it was not a pseudoconsole. The two are axes that multiply:
+    /// nothing stops a daemon rung holding pty sessions later, and folding
+    /// them into one enum makes that unsayable.
+    pub daemon: Option<PathBuf>,
     pub command: Vec<String>,
 }
 

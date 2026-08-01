@@ -222,6 +222,19 @@ enum Command {
         #[arg(long)]
         pty: bool,
 
+        /// Hold each rung's sessions under this daemon instead of spawning
+        /// them here.
+        ///
+        /// Composes with `--pty` rather than replacing it: the daemon decides
+        /// who owns the sessions, the mode decides how their output is wired.
+        ///
+        /// **A daemon rung measures two of the four conditions.** Dropped
+        /// output needs the reading end of each session's stream, which the
+        /// daemon holds, and nothing in it restarts a session that exited. The
+        /// report labels both rather than passing them.
+        #[arg(long, value_name = "PATH")]
+        daemon: Option<PathBuf>,
+
         /// Skip both end-of-run controls, which cost one hold each.
         ///
         /// The ramp repeats its lowest saturated rung, which says whether the
@@ -456,10 +469,26 @@ fn main() -> anyhow::Result<()> {
             max_sessions,
             resolution,
             pty,
+            daemon,
             skip_drift_check,
             exclude_scratch,
             command,
         } => {
+            if let Some(path) = &daemon {
+                if !path.is_file() {
+                    anyhow::bail!(
+                        "no daemon at {} — build it with `cargo build --release -p coggyd`",
+                        path.display()
+                    );
+                }
+                // The flag is accepted and Pool::new does not read it yet.
+                // Accepting it silently would run an ordinary ramp while the
+                // caller believed they were measuring the daemon, which is
+                // the failure this repository keeps finding in other shapes.
+                anyhow::bail!(
+                    "--daemon is not wired to the rung yet: RampConfig carries it and Pool::new still spawns sessions here. Use `hold` for a fixed count under the daemon."
+                );
+            }
             let mode = if pty {
                 SessionMode::Pty
             } else {
@@ -475,6 +504,7 @@ fn main() -> anyhow::Result<()> {
                 exclude_scratch,
                 skip_drift_check,
                 mode,
+                daemon,
                 command,
             };
 
