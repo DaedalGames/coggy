@@ -9,6 +9,7 @@
 
 pub mod axes;
 pub mod compare;
+pub mod daemon;
 pub mod format;
 pub mod host;
 pub mod machine;
