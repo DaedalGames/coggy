@@ -119,6 +119,14 @@ pub const DEFAULT_SCROLLBACK_LINES: usize = 2_000;
 /// `DEFAULT_SCROLLBACK_LINES` lines of overhead apiece — about 43 MB together,
 /// or 1% of the gate, where the line count alone allowed three times the whole
 /// of it.
+///
+/// **Seen binding, on the second attempt.** A session emitting four thousand
+/// 104-byte lines evicted two thousand of them and never came near this — the
+/// line count bound first and the retained content sat at 209 KB, four fifths
+/// of the budget. It takes a thousand 404-byte lines to make bytes bind: 352
+/// are evicted with the line count nowhere near, and the 648 kept multiply to
+/// 261,727 against a ceiling of 262,144. The first run looked like a
+/// demonstration and was one of the other ceiling.
 pub const DEFAULT_SCROLLBACK_BYTES: usize = 256 * 1024;
 
 /// The name a session's argv uses to mean *my own id*: `${session}`.
