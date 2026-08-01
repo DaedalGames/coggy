@@ -39,6 +39,29 @@ Both streams are piped and drained to end-of-file, because an undrained session 
 
 **It is a counter, never the pid.** Windows reuses process ids, and the instrument already carries a note about what that costs. A supervisor keyed on a pid would hand a dead session's slot to whatever inherited the number and keep counting. `id()` and `pid()` differ in type as well as name, which caught a call site asking the kernel about a session using the wrong one.
 
+## Holding many
+
+`Pool` keeps sessions by identity and answers two numbers that are easy to conflate. **Held is not running.** A finished session still occupies a slot and its memory until it is reaped, and a supervisor that reported one figure would admit against a seat it had not freed — on a machine [whose ceiling is nine](../docs/measurements/2026-07-31-150258-g0-frozen.md).
+
+`reap()` frees only what has actually gone, and **leaves `Unknown` alone**: a job that could not be read says nothing about whether its session is running, and freeing a seat on that reading is how a supervisor sells one twice.
+
+Admission against a ceiling is [M3](../ROADMAP.md#m3--resource-governor). This counts; it does not judge.
+
+## The process
+
+```
+coggyd --sessions 3 -- ping -n 40 127.0.0.1
+holding 3 session(s); stdin closes to stop
+held 3 · running 3
+cleared
+```
+
+It holds its pool until stdin reaches end-of-file, then clears it. End-of-file rather than a signal because that needs no extra crate and no console — [a console-dependent wait was measured returning instantly without one](../docs/measurements/2026-07-31-035111-between-builds.md).
+
+**This exists so the benchmark has something to start**, not as an API. [The comparison set holds a row for `coggyd`](../sessionbench/README.md#what-we-measure-against) and could not fill it against a library. The verbs stay unwritten because [M2 derives them backward from the calls a harness makes](../ROADMAP.md#m2--harness-contract).
+
+Printing held and running separately earned itself on the first run: a smoke test showed `held 3 · running 2`, because all three sessions had been given the same `waitfor` signal name. One number would have read as fine.
+
 ## Where the boundary is
 
 **The daemon knows only whether a session is alive.** Retry, repair and verification verdicts belong to the harness and never enter here — [a fixed contract](../docs/PLAN.md#fixed-contracts), so `Status` has no room to grow one. It carries `Running`, `Exited`, and `Unknown`; the last is separate because reporting a session gone on the strength of a failed query is how a supervisor loses one.
@@ -47,6 +70,6 @@ Nothing in the daemon knows an engine exists. [Engine adapters are M5](../ROADMA
 
 ## What is not built
 
-The CLI, the socket API, the resource governor and the audit surface are [target state](../ROADMAP.md#m1--headless-daemon). What exists is the part [G0 said mattered first](../docs/measurements/2026-07-31-150258-g0-frozen.md): a session's lifetime, its output, and its identity.
+The cmux-compatible CLI, the socket API, the resource governor and the audit surface are [target state](../ROADMAP.md#m1--headless-daemon). The binary above is a process that owns sessions, not that CLI. What exists is the part [G0 said mattered first](../docs/measurements/2026-07-31-150258-g0-frozen.md): a session's lifetime, its output, and its identity.
 
 **Known and open:** a session is assigned to its job after spawning rather than before, which leaves a window where it runs unowned. Closing it needs `CREATE_SUSPENDED` and a resume, which needs unsafe, and [the workspace forbids that](../CLAUDE.md). The window is microseconds wide and the session cannot have built a tree inside it.
