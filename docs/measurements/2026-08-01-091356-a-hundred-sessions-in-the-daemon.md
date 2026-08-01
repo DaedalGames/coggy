@@ -29,6 +29,8 @@ The probe ended with `Stop-Process -Force` rather than by closing stdin — the 
 
 That is the [job-per-session design](../../coggyd/README.md#owning-one) working where it matters most. `KILL_ON_JOB_CLOSE` is a property of the job, and the last handle to a job closes when the process holding it dies, however it dies. A supervisor that reclaimed sessions in its own shutdown path would have left a hundred behind here.
 
+**2026-08-01, the other path at this count.** This probe only exercised the ungraceful one, which runs none of the daemon's own teardown code. [The hour-long hold showed the graceful path reclaiming too](2026-08-01-103225-an-hour-of-a-hundred-sessions.md), at four sessions. A hundred stopped by closing stdin — so `Drop for Session` ran a hundred times, releasing each job before waiting on its child and joining its drains — also leave **zero survivors**, with the whole teardown inside half a second. The count is the part that was untested: an ordering that holds once can deadlock when a hundred of them interleave.
+
 ## The two figures disagree, and the reason is the interesting part
 
 | | |
