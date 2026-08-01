@@ -324,6 +324,16 @@ fn main() -> anyhow::Result<()> {
                     // claiming it recorded what the run used.
                     started_unix: stamp,
                 });
+                // Each hold's samples, under its own name. Discarding the solo
+                // passes' would throw away the only per-sample CPU figures the
+                // baselines produce — which is what separates a machine that
+                // did less with the same share from one that was given less.
+                let mut file =
+                    BufWriter::new(File::create(out_dir.join(format!("{name}-samples.jsonl")))?);
+                for sample in &samples {
+                    writeln!(file, "{}", serde_json::to_string(sample)?)?;
+                }
+                file.flush()?;
                 Ok((report, samples))
             };
 
