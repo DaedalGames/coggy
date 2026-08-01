@@ -27,13 +27,17 @@ use coggyd::pool::Pool;
 
 /// How often the daemon says what it is holding.
 ///
-/// **It is also the shortest hold that can carry a session count**, which is
-/// not obvious from here and is the thing that bites. A watcher learns
-/// `running` only from these lines, so a run shorter than one interval gets
-/// `None` — honestly, since nothing was said rather than nothing was held, but
-/// a `--duration 20` still leaves a single sample deciding the figure.
-/// Measured by the pair of examples that surround it: a 30-second hold prints
-/// three of these, and one killed at 8 seconds prints none and reports `fewest
+/// **Not a floor on how short a hold can be**, which is worth saying because
+/// it looks like one and was written up as one here. The report below the loop
+/// fires at end-of-file whatever this is, so a five-second hold still comes
+/// back with a full count — checked rather than reasoned: two sessions for
+/// five seconds reported `fewest alive Some(2)` and 484 units. What this
+/// interval bounds is how finely a *transient* is caught, since the fewest
+/// running is a minimum over these lines and a dip between two of them is
+/// invisible.
+///
+/// A watcher gets nothing only when the daemon is killed, which skips that
+/// final report — the `daemon_dies` example, at eight seconds, reports `fewest
 /// running None` beside four RSS samples it took anyway.
 const REPORT_EVERY: Duration = Duration::from_secs(10);
 

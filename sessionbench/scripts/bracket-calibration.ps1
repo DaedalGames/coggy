@@ -35,11 +35,26 @@ $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
 $spin = "$root\target\release\cpu-spin.exe"
 if (-not (Test-Path $spin)) { throw "build it: cargo build --release -p cpu-spin" }
 if (-not (Test-Path "$root\target\release\coggyd.exe")) { throw "build it: cargo build --release -p coggyd" }
+# And the harness itself, which `cargo run --release` would otherwise build
+# BETWEEN two holds -- a compile is exactly the thing the machine must not be
+# doing while a rate is being read.
+if (-not (Test-Path "$root\target\release\sessionbench.exe")) { throw "build it: cargo build --release -p sessionbench" }
+$bench = "$root\target\release\sessionbench.exe"
+
+# Pulls one capture out, or an empty string. `.Matches.Groups[1]` throws when
+# nothing matched, and a throw fifty minutes in loses every hold before it --
+# `rate` prints an em dash when the daemon never reported, which is exactly the
+# case worth surviving to see.
+function Get-Capture($text, $pattern) {
+    $m = $text | Select-String -Pattern $pattern | Select-Object -First 1
+    if ($null -eq $m) { return '' }
+    $m.Matches[0].Groups[1].Value
+}
 
 function Get-Busy {
-    $line = cargo run -q -p sessionbench -- doctor 2>&1 |
-        Select-String -Pattern 'busy before we start ([\d.]+)'
-    [double]$line.Matches.Groups[1].Value
+    $busy = Get-Capture (& $bench doctor 2>&1) 'busy before we start ([\d.]+)'
+    if ($busy -eq '') { throw "doctor printed no background figure" }
+    [double]$busy
 }
 
 # --- the one precondition left, and it is about the LOAD rather than steadiness.
@@ -55,6 +70,13 @@ if ($before -gt 8) {
 
 # --- five holds a repeat. --units 10000 because cpu-spin's default is 60 and
 # it EXITS after them, which would trip the fewest-alive guard two seconds in.
+#
+# Twenty seconds a solo, which is short enough that starting the daemon and its
+# sessions is 2.2% of the counted window -- measured, and it CANCELS here
+# because all four solos hold one session and pay it alike. The deficit is
+# between them, not against the eight-session load, whose rate is never used.
+# Short holds are also the only way to resolve a transient, which is the whole
+# quantity being looked for.
 $workload = @('--units', '10000', '--duty', '1.0', '--resident', '20')
 $plan = @(
     @{ key = 's0';   sessions = 1; duration = 20 },
@@ -71,13 +93,18 @@ foreach ($repeat in 1..3) {
     "`n--- repeat $repeat"
     foreach ($step in $plan) {
         $label = "cal-r$repeat-$($step.key)"
-        $out = cargo run -q --release -p sessionbench -- hold `
+        $out = & $bench hold `
             --label $label --sessions $step.sessions --interval 4 --duration $step.duration `
             -- $spin @workload 2>&1
-        $rate = ($out | Select-String -Pattern 'rate       ([\d.]+)').Matches.Groups[1].Value
-        $alive = ($out | Select-String -Pattern 'fewest alive (\S+)').Matches.Groups[1].Value
+        $rate = Get-Capture $out 'rate       ([\d.]+)'
+        $alive = Get-Capture $out 'fewest alive (\w+\(?\d*\)?)'
+        $window = Get-Capture $out 'window     (\d+ ms counted of \d+ ms held)'
+        if ($rate -eq '') {
+            $out | Select-Object -Last 20
+            throw "$label produced no rate -- output above"
+        }
         $rates[$step.key] += [double]$rate
-        "{0,-12} {1,3} session(s)  {2,8} units/s/session  fewest alive {3}" -f $label, $step.sessions, $rate, $alive
+        "{0,-12} {1,3} session(s)  {2,8} units/s/session  alive {3}  {4}" -f $label, $step.sessions, $rate, $alive, $window
     }
 }
 
