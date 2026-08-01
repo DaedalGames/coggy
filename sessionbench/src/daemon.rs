@@ -446,6 +446,36 @@ impl HeldRun {
     }
 }
 
+/// Whether two solo holds bracketing a run saw the same machine.
+///
+/// **The allowance is [`compare`'s](crate::compare), not a new one.** That
+/// number was measured rather than chosen — the solo rung reproduces to 0.37%
+/// over two and a half minutes, what grows with the interval is the machine,
+/// and across ramps the gaps form a band topping out at 4.2%. Five sits just
+/// above the widest gap this machine makes while being itself.
+///
+/// A solo hold is the same fingerprint by the same argument: one session, no
+/// contention, the same work. What is different is the supporting evidence
+/// here — a triple of twenty-second holds spread 2.4% to 3.5%, against the
+/// ramp's 0.37% over a much longer window, so a hold's own noise is not yet
+/// pinned as tightly. What is pinned is the failure this refuses: two triples
+/// ten minutes apart had means 8.5% apart, which is well past the allowance
+/// and exactly the pair that would carry a phantom slowdown into a ratio.
+pub fn solo_agrees(before: f64, after: f64) -> Result<f64, String> {
+    let mean = (before + after) / 2.0;
+    if mean <= 0.0 {
+        return Err("neither solo hold produced a rate".into());
+    }
+    let gap = (before - after).abs() / mean * 100.0;
+    if gap > crate::compare::SOLO_AGREEMENT_PERCENT {
+        return Err(format!(
+            "solo holds {before:.3} and {after:.3} units/s/session sit {gap:.1}% apart against a {:.0}% allowance — the machine moved under the run, so a ratio taken across it would report the afternoon",
+            crate::compare::SOLO_AGREEMENT_PERCENT,
+        ));
+    }
+    Ok(gap)
+}
+
 /// Whether a gate condition passed, failed, or was never in reach.
 ///
 /// **Three states because two would lie.** [Two of the four
@@ -716,6 +746,25 @@ mod tests {
         let whole = run_of(4, Some(4), 30).into_report(about());
         assert_eq!(whole.inconclusive, None);
         assert_eq!(whole.rss, Verdict::Held, "and a whole run is judged");
+    }
+
+    #[test]
+    fn bracketing_solo_holds_refuse_the_gap_this_machine_actually_made() {
+        // Not invented numbers. The triple taken back to back spread 2.44%
+        // and passes; two triples ten minutes apart had means 593.7 and
+        // 644.0, which is the pair a ratio must not be taken across.
+        assert!(
+            solo_agrees(31.362, 31.072).is_ok(),
+            "one sitting, 0.9% apart"
+        );
+        let drifted = solo_agrees(29.685, 32.200).expect_err("ten minutes apart");
+        assert!(
+            drifted.contains("8.1%") || drifted.contains("8.2%"),
+            "{drifted}"
+        );
+
+        // A run that produced no rate at all is refused rather than divided.
+        assert!(solo_agrees(0.0, 0.0).is_err());
     }
 
     #[test]
