@@ -85,6 +85,8 @@ cargo run -p sessionbench -- hold --sessions 100 --duration 3600 -- <command>
 
 One word for both would read as three impossibilities, and the tractable one would stop being looked for. Neither word is a pass.
 
+**And `ping` is a clock, not a workload.** It is the obvious thing to hold a hundred of while checking the plumbing, and it emits one line a second whatever the machine is doing — so its unit count is elapsed time wearing a work rate's name. Three solo holds of it returned 23 units each, which reads as a machine that reproduces perfectly and is really a machine that was never asked. [The same three with `cpu-spin`](../workloads/cpu-spin/) gave 585, 590 and 606. Use it to check that sessions start and stop; use something that competes for a core to measure anything.
+
 `${session}` in the workload's arguments expands to each session's own id, so a hundred sessions can be handed a hundred paths from one command line — [the contract wants each its own directory](../workloads/README.md#the-contract), and neither the workload nor the daemon may learn the other's naming to arrange it.
 
 Add `--pty` to give the session a pseudoconsole instead of pipes. Running one workload both ways is the direct measurement behind [Decision 1](../docs/PLAN.md#four-core-decisions), since the difference between the two is one conhost per session, resident for as long as the session lives.
