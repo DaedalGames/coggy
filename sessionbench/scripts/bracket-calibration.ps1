@@ -8,6 +8,11 @@
 # Run it as one script rather than five typed commands: the gaps between
 # typing are the very drift being measured.
 #
+# READ THE OUTPUT, NOT THE EXIT CODE. Piping this script makes $LASTEXITCODE
+# the last native command's, and neither `exit` nor `throw` survives that --
+# a refusal came back as 0 twice while testing. A run that went ahead prints
+# a line per hold; one that refused prints REFUSING and nothing else.
+#
 # Committed rather than left in bench-out because that directory is ignored,
 # and work that exists only there is gone the moment the thing holding it
 # stops. A measurement waiting on a window may wait across sessions.

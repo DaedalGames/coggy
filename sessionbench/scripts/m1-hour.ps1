@@ -8,6 +8,11 @@
 # the report says so rather than passing them. This run answers RSS against
 # the 4 GB budget and work rate as a ratio against its own bracketing solos.
 #
+# READ THE OUTPUT, NOT THE EXIT CODE. Piping this script makes $LASTEXITCODE
+# the last native command's, and neither `exit` nor `throw` survives that. A
+# run that went ahead prints "starting 64 minutes"; one that refused prints
+# REFUSING and stops there.
+#
 # THE AS-IS COLUMN IS NOT THE 2026-08-01 HOUR-LONG HOLD. That run held `ping`
 # at about 5.8 MiB a session; this one holds cpu-spin at --resident 20, so the
 # totals differ by roughly 2 GiB of workload memory before anything about
