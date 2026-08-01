@@ -96,7 +96,24 @@ impl Pool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
     use super::*;
+
+    /// How many `waitfor` processes the machine is holding.
+    ///
+    /// Asked of the operating system rather than of the pool, because the
+    /// whole question is whether the pool's count and the machine's agree.
+    fn waitfors() -> usize {
+        let out = Command::new("tasklist")
+            .args(["/FI", "IMAGENAME eq WAITFOR.EXE", "/NH"])
+            .output()
+            .expect("tasklist");
+        String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .filter(|l| l.to_ascii_lowercase().contains("waitfor.exe"))
+            .count()
+    }
 
     fn quick() -> Command {
         let mut c = Command::new("cmd");
@@ -111,12 +128,22 @@ mod tests {
     /// cannot see. Sharing the program would make both suites depend on
     /// running order, and a test that passes when it happens to go first
     /// is not a test.
+    /// Every waiter gets its own signal name.
+    ///
+    /// `waitfor` takes a name, and two waiters on the same one collide:
+    /// the second exits at once and reads here as a session that never
+    /// ran. Isolating the program from the other module was not enough,
+    /// because the shared thing moved from the process table to that
+    /// program's own namespace.
+    static NEXT_SIGNAL: AtomicUsize = AtomicUsize::new(0);
+
     fn slow() -> Command {
+        let n = NEXT_SIGNAL.fetch_add(1, Ordering::Relaxed);
         let mut c = Command::new("waitfor");
         // Alphanumeric: `waitfor` rejects a hyphen in a signal name and
         // exits at once with status 0, which reads here as a session that
         // never ran rather than as a bad argument.
-        c.args(["/t", "30", "coggydpooltest"]);
+        c.args(["/t".to_string(), "30".to_string(), format!("coggydpool{n}")]);
         c
     }
 
@@ -144,6 +171,39 @@ mod tests {
         assert_eq!(pool.running(), 1);
         assert_eq!(pool.reap(), 0, "a reap may not take a live session");
         assert_eq!(pool.len(), 1);
+    }
+
+    #[test]
+    fn many_sessions_are_counted_and_reclaimed_without_leaking_a_tree() {
+        // The gate's shape at a size that fits a test: hold a batch, watch
+        // the count, and check that clearing takes every tree rather than
+        // every root. Twenty rather than a hundred because this is a
+        // correctness check, not the ramp — the ramp is sessionbench's.
+        const BATCH: usize = 20;
+        let mut pool = Pool::new();
+        for _ in 0..BATCH {
+            pool.spawn(&mut slow()).expect("spawn");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+
+        assert_eq!(pool.len(), BATCH, "every session kept its slot");
+        assert_eq!(pool.running(), BATCH, "and every one is alive");
+        assert_eq!(pool.reap(), 0, "a reap may not take a live batch");
+
+        let waiting_before = waitfors();
+        assert!(
+            waiting_before >= BATCH,
+            "the batch should be visible to the operating system, saw {waiting_before}"
+        );
+
+        pool.clear();
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        assert!(pool.is_empty());
+        assert_eq!(
+            waitfors(),
+            waiting_before - BATCH,
+            "clearing has to take the processes, not just the bookkeeping"
+        );
     }
 
     #[test]
