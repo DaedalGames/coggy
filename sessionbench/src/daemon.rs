@@ -228,6 +228,15 @@ impl Held {
         })
     }
 
+    /// Whether the daemon has already stopped, without waiting for it.
+    ///
+    /// The hold has to ask, because nothing else notices. Its own reports stop
+    /// arriving and the watch keeps the last one, so every figure goes on
+    /// reading as it did at the moment things went wrong.
+    pub fn exited(&mut self) -> std::io::Result<Option<std::process::ExitStatus>> {
+        self.child.try_wait()
+    }
+
     /// Closes stdin and waits for the daemon to clear its pool.
     ///
     /// The graceful path, which runs `Drop for Session` inside the daemon.
@@ -272,6 +281,12 @@ pub struct HeldRun {
     /// than dividing by either number.
     pub fewest_running: Option<u64>,
     pub elapsed: std::time::Duration,
+    /// Set when the daemon stopped before the hold was over.
+    ///
+    /// A separate fact from a low session count: a daemon that has gone stops
+    /// reporting, so the watch keeps its last figure and every count still
+    /// reads as it did at the moment things went wrong.
+    pub left_early: Option<String>,
 }
 
 impl HeldRun {
@@ -283,6 +298,9 @@ impl HeldRun {
 
     /// Why this run says nothing about the machine, when it does not.
     pub fn unusable(&self) -> Option<String> {
+        if let Some(why) = &self.left_early {
+            return Some(why.clone());
+        }
         if self.samples.is_empty() {
             return Some("no samples — the hold ended before the first tick".into());
         }
@@ -316,13 +334,26 @@ pub fn hold(
 
     let armed = crate::tree::ArmedTree::arm(sysinfo::Pid::from_u32(std::process::id()));
     let started = std::time::Instant::now();
-    let held = Held::start(daemon, sessions, workload, log).context("starting the daemon")?;
+    let mut held = Held::start(daemon, sessions, workload, log).context("starting the daemon")?;
     let mut tree = armed.attach(sysinfo::Pid::from_u32(held.child.id()));
 
     let mut sampler = crate::sampler::Sampler::new();
     let mut samples = Vec::new();
+    let mut left_early = None;
     while started.elapsed() < duration {
         std::thread::sleep(interval);
+
+        // **Ask whether it is still there.** A daemon that exits at five
+        // seconds of an hour stops reporting, and a watch holding its last
+        // report goes on saying a hundred sessions were running — the absence
+        // reading as the last known good value, which is the shape this file
+        // refuses everywhere else. Without this the run comes back with
+        // fifty-nine minutes of empty samples and no complaint.
+        if let Some(status) = held.exited()? {
+            left_early = Some((status, started.elapsed()));
+            break;
+        }
+
         let seen = held.seen();
         // The sampler wants one counter. Units and bytes both come from the
         // daemon's own report rather than from a drain this process owns,
@@ -352,6 +383,13 @@ pub fn hold(
         last: seen.latest(),
         fewest_running: seen.fewest_running(),
         elapsed: started.elapsed(),
+        left_early: left_early.map(|(status, at)| {
+            format!(
+                "the daemon exited {status} after {:.1}s of a {:.1}s hold",
+                at.as_secs_f64(),
+                duration.as_secs_f64(),
+            )
+        }),
     })
 }
 
@@ -806,7 +844,28 @@ mod tests {
             last: parse_report(REAL),
             fewest_running: fewest,
             elapsed: std::time::Duration::from_secs(60),
+            left_early: None,
         }
+    }
+
+    #[test]
+    fn a_daemon_that_left_early_is_not_a_hold_that_went_well() {
+        // The failure nothing else catches. A daemon gone at five seconds of
+        // an hour stops reporting, so the watch keeps its last figure and
+        // fewest-running still reads as the full count -- the absence arriving
+        // as the last known good value, which is the shape this file refuses
+        // everywhere else.
+        let full = run_of(100, Some(100), 700);
+        assert_eq!(full.unusable(), None, "a hold that ran is usable");
+
+        let died = HeldRun {
+            left_early: Some("the daemon exited exit code: 1 after 5.0s of a 3600.0s hold".into()),
+            ..run_of(100, Some(100), 700)
+        };
+        let why = died
+            .unusable()
+            .expect("a daemon that left is a failed hold");
+        assert!(why.contains("5.0s"), "and it says when: {why}");
     }
 
     #[test]
