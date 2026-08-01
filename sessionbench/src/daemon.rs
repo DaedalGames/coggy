@@ -394,7 +394,7 @@ impl HeldRun {
         // rung that could not be measured has not passed anything, and this is
         // the one place that could quietly say otherwise.
         let rss = match (&inconclusive, peak_rss_bytes <= rss_budget_bytes) {
-            (Some(_), _) => Verdict::NotExercised,
+            (Some(_), _) => Verdict::NotTaken,
             (None, true) => Verdict::Held,
             (None, false) => Verdict::Broke,
         };
@@ -432,10 +432,10 @@ impl HeldRun {
             // is a ratio against the same workload run alone, and a solo
             // figure is a second run. Until this command takes one, saying
             // anything else would be inventing a baseline.
-            work_rate: Verdict::NotExercised,
+            work_rate: Verdict::NotTaken,
             // Neither of these is reachable through a daemon at all.
-            dropped_output: Verdict::NotExercised,
-            replacement: Verdict::NotExercised,
+            dropped_output: Verdict::OutOfReach,
+            replacement: Verdict::OutOfReach,
             inconclusive,
         }
     }
@@ -454,7 +454,21 @@ impl HeldRun {
 pub enum Verdict {
     Held,
     Broke,
-    NotExercised,
+    /// Nothing this target can say, however the run is arranged.
+    ///
+    /// Dropped output and replacement are both this: the ordinals live in a
+    /// stream the daemon owns, and nothing in it restarts a session. More
+    /// running would not help.
+    OutOfReach,
+    /// Answerable, and this run did not answer it.
+    ///
+    /// **Kept apart from [`Verdict::OutOfReach`] because the two read the same
+    /// and mean opposite things.** Work rate is a ratio against the same
+    /// workload held alone, so it needs a second run rather than a different
+    /// daemon — a reader who saw one `not_exercised` beside two others would
+    /// file all three under *cannot*, and stop looking for the one that is
+    /// only *not yet*.
+    NotTaken,
 }
 
 /// The committed artifact for one held run.
@@ -682,7 +696,7 @@ mod tests {
         // report the memory condition as satisfied by the failure.
         let short = run_of(4, Some(2), 30).into_report(about());
         assert!(short.inconclusive.is_some(), "the run is in doubt");
-        assert_eq!(short.rss, Verdict::NotExercised, "so nothing is held");
+        assert_eq!(short.rss, Verdict::NotTaken, "so nothing is held");
 
         let whole = run_of(4, Some(4), 30).into_report(about());
         assert_eq!(whole.inconclusive, None);
@@ -690,18 +704,35 @@ mod tests {
     }
 
     #[test]
+    fn what_a_daemon_cannot_say_reads_differently_from_what_nobody_measured() {
+        // Three conditions come back unanswered and one of them is only
+        // waiting on a second run. Collapsed into one word they read as three
+        // impossibilities, and the tractable one stops being looked for.
+        let run = run_of(4, Some(4), 30).into_report(about());
+        assert_ne!(
+            run.work_rate, run.dropped_output,
+            "a solo run would settle work rate; nothing settles dropped output here"
+        );
+        assert_eq!(run.dropped_output, run.replacement, "both are structural");
+    }
+
+    #[test]
     fn the_conditions_a_daemon_cannot_answer_are_never_held() {
         let run = run_of(4, Some(4), 30).into_report(about());
         // A boolean would have rendered all three as a pass.
-        assert_eq!(run.work_rate, Verdict::NotExercised, "needs a solo run");
+        assert_eq!(
+            run.work_rate,
+            Verdict::NotTaken,
+            "needs a solo run, not a different daemon"
+        );
         assert_eq!(
             run.dropped_output,
-            Verdict::NotExercised,
+            Verdict::OutOfReach,
             "ordinals do not reach here"
         );
         assert_eq!(
             run.replacement,
-            Verdict::NotExercised,
+            Verdict::OutOfReach,
             "nothing restarts a session"
         );
     }

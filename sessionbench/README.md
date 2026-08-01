@@ -81,7 +81,9 @@ cargo run -p sessionbench -- hold --sessions 100 --duration 3600 -- <command>
 
 `hold` is [gate M1's shape](../ROADMAP.md#m1--headless-daemon): a stated number of sessions under `coggyd`, held for a stated time. **Not a ladder, and not a mode of `observe`.** A ramp asks how many fit; `observe` measures one and multiplies; this puts the sessions there and reads them. Its report carries no projection for that reason — a projection field beside a direct measurement is a number with nothing behind it.
 
-**It reports two of the four conditions as never asked, rather than passed.** Every other target hands this process the reading end of each session's output, which is what finds a gap in the ordinals; under the daemon that end belongs to the daemon. Work rate needs a solo run this command does not yet take, and nothing in the daemon restarts a session that exited. A verdict of `not_exercised` is what keeps those three from arriving as a pass earned by never having been asked.
+**Three conditions come back unanswered, and they are not unanswered for the same reason.** Dropped output and replacement are `out_of_reach`: every other target hands this process the reading end of each session's output, which is what finds a gap in the ordinals, and under the daemon that end belongs to the daemon — while nothing in it restarts a session that exited. More running would not help either. Work rate is `not_taken`, which is the opposite: it is a ratio against the same workload held alone, so it is waiting on a second run rather than on a different daemon.
+
+One word for both would read as three impossibilities, and the tractable one would stop being looked for. Neither word is a pass.
 
 `${session}` in the workload's arguments expands to each session's own id, so a hundred sessions can be handed a hundred paths from one command line — [the contract wants each its own directory](../workloads/README.md#the-contract), and neither the workload nor the daemon may learn the other's naming to arrange it.
 
