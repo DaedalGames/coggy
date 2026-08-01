@@ -37,6 +37,8 @@ Two routes agree on the scrollback term. Dividing 253 KiB by 2,000 lines gives 1
 
 **And that term is set by the workload, not by the daemon.** Line length is chosen by the session; the cap counts lines. At `MAX_LINE_BYTES` the same two constants give **131 MB a session**, so a hundred sessions reach 13.1 GB against a gate written for 4. This hold passes at 625 MiB because `ping` writes 47-byte lines.
 
+**2026-08-01, later the same morning:** the scrollback now carries a byte budget beside the line count, which holds a hundred sessions to about 43 MB whatever they write. Searching for the mechanism rather than the goal is what found it — every grid terminal caps by lines and is right to, because a cell grid makes a line as wide as the terminal, and `coggyd` took the convention onto pipes where nothing bounds a line but `MAX_LINE_BYTES`. The shape is Ghostty's; the evidence it is needed is [tmux's request for `history-bytes`](https://github.com/tmux/tmux/issues/4859), opened after redraw traffic put about 48 GB into pane scrollbacks. The figures above stand as measured — this run held the old buffer.
+
 ## The cap holds, on a criterion registered before the samples arrived
 
 Two conditions were written down while filling was still in progress, because three earlier readings of this run had already been overturned by the next sample:
