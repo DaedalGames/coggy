@@ -81,6 +81,8 @@ cargo run -p sessionbench -- hold --sessions 100 --duration 3600 -- <command>
 
 `hold` is [gate M1's shape](../ROADMAP.md#m1--headless-daemon): a stated number of sessions under `coggyd`, held for a stated time. **Not a ladder, and not a mode of `observe`.** A ramp asks how many fit; `observe` measures one and multiplies; this puts the sessions there and reads them. Its report carries no projection for that reason — a projection field beside a direct measurement is a number with nothing behind it.
 
+**Give `--duration` at least a minute, and not because a minute is meaningful.** The session count comes from the daemon's own report lines and it emits one every ten seconds, so a thirty-second hold decides that figure on three readings and a shorter one can come back with no reading at all. RSS is sampled from the tree here and keeps arriving throughout, which is what makes the short run look like it worked. The gate's own run is [an hour](../docs/measurements/2026-08-01-103225-an-hour-of-a-hundred-sessions.md) and never meets this; it is the smoke tests around it that do.
+
 ```
 cargo run -p sessionbench -- hold --sessions 100 --with-solo -- <command>
 ```
