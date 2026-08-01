@@ -96,6 +96,12 @@ Build the `coggyd` daemon and the `coggy` CLI: pipe-first spawning, ring-buffer 
 
 **Measurement rule:** take these three numbers with **the same harness** used at M0. Build a second bench and the M0 baseline becomes incomparable.
 
+That rule already bit once. [A hundred sessions were held for an hour on 2026-08-01](docs/measurements/2026-08-01-103225-an-hour-of-a-hundred-sessions.md) with `Get-Process` and a PowerShell sampler, which is the second bench — the figures were sound and could not clear the gate. `sessionbench hold` now takes the same reading through the same job, sampler and artifact shape.
+
+**Two of the three conditions cannot be asked of a daemon, and that is a property of the arrangement rather than of the run.** Dropped output is found by watching ordinals in a session's own stream; under `coggyd` that stream ends in the daemon's scrollback, so nothing here holds what the workload emitted and there is nothing to subtract from. Replacement has no counterpart at all — nothing in the daemon restarts a session that exited. Both are reported `out_of_reach`, distinct from the work-rate condition's `not_taken`, [which is waiting on a second run rather than a different daemon](sessionbench/README.md#running-it).
+
+So M1's gate as written is answerable in one condition and a half. **Closing it needs a decision this milestone has not made**: either the daemon grows a surface that carries what a drop would look like from inside — forwarding a session's newest line verbatim, so the benchmark reads the ordinal and the daemon parses nothing — or the gate says which conditions a daemon-hosted session count can be held to. [M2 derives surfaces backward from the calls a harness makes](#m2--harness-contract), and a harness asking about dropped output is such a call, so the first option is that milestone's shape rather than this one's.
+
 ## M2 · Harness Contract
 
 2 weeks, running **in parallel** with the new harness build. This is the one exception to sequential ordering, because both sides have to design the contract together.
