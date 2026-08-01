@@ -52,6 +52,7 @@ A PR that breaks one is closed even when the numbers look good.
 - Reference other documents by heading anchor, never by section number. `cargo test` resolves every link and anchor, so a rename fails the build instead of quietly misdirecting a reader.
 - `unsafe` is forbidden at the crate level. If you need it, that is a discussion before it is a PR.
 - Lowercase kebab-case for crate and directory names. [PLAN's naming rules](docs/PLAN.md#name-coggy-settled) explain why, and why the benchmark carries no product prefix.
+- **A test that names a machine-wide thing cannot run beside another that does.** `cargo test` is parallel, and this bit three times in one day from a different direction each time: two suites counting every `ping.exe`, then the same count after one suite moved to `waitfor`, then two `waitfor` sessions colliding on a signal name once the program itself had been separated. Isolating the program moves the shared axis rather than removing it. Give each test its own name, or serialise them on a lock they can both see.
 - Comments explain why, not what.
 
 ## Commit messages
