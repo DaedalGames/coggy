@@ -39,6 +39,14 @@ pub struct Report {
     /// quantity the drains count for every other target, arrived at by a
     /// different route.
     pub read: u64,
+    /// Bytes behind those lines.
+    ///
+    /// **Axis 4, which had no number under a daemon until the daemon reported
+    /// it.** A benchmark holding a session's pipe counts these itself; through
+    /// a daemon the only figures available were its own few hundred bytes of
+    /// reporting, or a zero, and both describe a hundred sessions as having
+    /// produced almost nothing.
+    pub read_bytes: u64,
     /// Lines the daemon's scrollback aged out, and lines it cut short.
     ///
     /// Neither is dropped output in the gate's sense — both were read. They
@@ -70,6 +78,7 @@ pub fn parse_report(line: &str) -> Option<Report> {
         held: field("held")?,
         running: field("running")?,
         read: field("read")?,
+        read_bytes: field("bytes")?,
         evicted: field("evicted")?,
         truncated: field("truncated")?,
     })
@@ -259,7 +268,10 @@ mod tests {
     /// test is a format nothing produces, so
     /// [`the_field_names_are_the_ones_the_daemon_documents`] reads them back
     /// out of the daemon's own README.
-    const REAL: &str = "held 2 · running 0 · read 4 · evicted 0 · truncated 0";
+    /// Two sessions echoing `alpha` and `beta`: four lines, and 5+4 bytes
+    /// twice. The arithmetic agreeing from the other side is why this is a
+    /// captured line rather than a composed one.
+    const REAL: &str = "held 2 · running 0 · read 4 · bytes 18 · evicted 0 · truncated 0";
 
     /// Every field this parser requires appears in `coggyd`'s worked example.
     ///
@@ -294,6 +306,7 @@ mod tests {
                 held: 2,
                 running: 0,
                 read: 4,
+                read_bytes: 18,
                 evicted: 0,
                 truncated: 0,
             })
@@ -309,7 +322,8 @@ mod tests {
 
     #[test]
     fn a_field_the_daemon_grows_later_does_not_break_the_ladder() {
-        let grown = "held 9 · running 9 · read 71 · evicted 2 · truncated 0 · admitted 9";
+        let grown =
+            "held 9 · running 9 · read 71 · bytes 900 · evicted 2 · truncated 0 · admitted 9";
         assert_eq!(parse_report(grown).map(|r| (r.held, r.read)), Some((9, 71)));
     }
 
@@ -330,9 +344,9 @@ mod tests {
         // The whole reason it exists: a rung that dipped is not a rung at the
         // count it asked for, and the latest report would say it recovered.
         let mut watch = Watch::default();
-        watch.observe("held 4 · running 4 · read 10 · evicted 0 · truncated 0");
-        watch.observe("held 4 · running 2 · read 14 · evicted 0 · truncated 0");
-        watch.observe("held 4 · running 4 · read 30 · evicted 0 · truncated 0");
+        watch.observe("held 4 · running 4 · read 10 · bytes 90 · evicted 0 · truncated 0");
+        watch.observe("held 4 · running 2 · read 14 · bytes 126 · evicted 0 · truncated 0");
+        watch.observe("held 4 · running 4 · read 30 · bytes 270 · evicted 0 · truncated 0");
 
         assert_eq!(watch.units(), Some(30), "units come from the latest");
         assert_eq!(
@@ -347,8 +361,8 @@ mod tests {
         // Both halves asserted, because the artifact is what lets someone else
         // reach the same number and a drain that only counted would lose it.
         let stream = "holding 4 session(s); stdin closes to stop\n\
-             held 4 · running 4 · read 10 · evicted 0 · truncated 0\n\
-             held 4 · running 3 · read 25 · evicted 0 · truncated 0\n\
+             held 4 · running 4 · read 10 · bytes 90 · evicted 0 · truncated 0\n\
+             held 4 · running 3 · read 25 · bytes 225 · evicted 0 · truncated 0\n\
              cleared\n";
         let log = std::env::temp_dir().join(format!(
             "sessionbench-daemon-drain-{}.log",
@@ -383,7 +397,7 @@ mod tests {
         // The one that matters. A rung taking zero units from a line that
         // simply did not carry them would read as saturation, and the ladder
         // would return a redline from a daemon that was working fine.
-        let without = "held 9 · running 9 · evicted 0 · truncated 0";
+        let without = "held 9 · running 9 · bytes 90 · evicted 0 · truncated 0";
         assert!(parse_report(without).is_none());
     }
 }

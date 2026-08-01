@@ -42,6 +42,7 @@ pub struct Scrollback {
     byte_capacity: usize,
     bytes: usize,
     read: u64,
+    read_bytes: u64,
     evicted: u64,
     truncated: u64,
 }
@@ -68,6 +69,7 @@ impl Scrollback {
             byte_capacity,
             bytes: 0,
             read: 0,
+            read_bytes: 0,
             evicted: 0,
             truncated: 0,
         }
@@ -76,6 +78,10 @@ impl Scrollback {
     /// Records one line the session emitted, cut to [`MAX_LINE_BYTES`].
     pub fn push(&mut self, mut line: String) {
         self.read += 1;
+        // Counted as it arrives, before the ceiling below cuts anything. This
+        // is the output path's volume — what a session actually sent and this
+        // daemon actually took — rather than what a policy chose to keep.
+        self.read_bytes += line.len() as u64;
         if line.len() > MAX_LINE_BYTES {
             // Cut on a character boundary, since a String may not be
             // split mid-codepoint and the byte at the ceiling usually is not
@@ -108,6 +114,22 @@ impl Scrollback {
     /// Bytes of session output currently held.
     pub fn bytes(&self) -> usize {
         self.bytes
+    }
+
+    /// Bytes the session sent and this daemon took, whether or not kept.
+    ///
+    /// **The output-path axis, which had no number under a daemon.** A
+    /// benchmark holding the reading end of a session's pipe counts these
+    /// itself; one measuring through a daemon cannot, and the only figures
+    /// available to it were the daemon's own few hundred bytes of reporting
+    /// or a zero. Both would describe a hundred sessions as having produced
+    /// almost nothing.
+    ///
+    /// A line cut at [`MAX_LINE_BYTES`] contributes what survived rather than
+    /// what was sent, since the excess is consumed by the reader and never
+    /// reaches here. `truncated` says how often that happened.
+    pub fn read_bytes(&self) -> u64 {
+        self.read_bytes
     }
 
     /// Lines the session emitted, whether or not they were kept.

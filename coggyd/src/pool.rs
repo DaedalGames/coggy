@@ -44,6 +44,8 @@ use crate::{Session, Status};
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Output {
     pub read: u64,
+    /// Bytes behind those lines, which is the output path's own axis.
+    pub read_bytes: u64,
     pub evicted: u64,
     pub truncated: u64,
 }
@@ -119,6 +121,7 @@ impl Pool {
             .fold(Output::default(), |mut total, session| {
                 let back = session.scrollback();
                 total.read += back.read();
+                total.read_bytes += back.read_bytes();
                 total.evicted += back.evicted();
                 total.truncated += back.truncated();
                 total

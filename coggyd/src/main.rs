@@ -101,9 +101,10 @@ fn report(pool: &mut Pool) {
     let running = pool.running();
     let out = pool.output();
     println!(
-        "held {} · running {running} · read {} · evicted {} · truncated {}",
+        "held {} · running {running} · read {} · bytes {} · evicted {} · truncated {}",
         pool.len(),
         out.read,
+        out.read_bytes,
         out.evicted,
         out.truncated
     );
