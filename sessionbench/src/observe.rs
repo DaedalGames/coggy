@@ -44,6 +44,11 @@ use crate::tree::{ArmedTree, Membership};
 /// Defender costs to get going but whether it keeps charging afterwards. The
 /// split is what makes those two separable, and every steady figure for CPU is
 /// read off the window past it.
+/// **Thirty was a guess and has since been measured to carry five times the
+/// margin it needs.** A session's first six seconds run 46% fast on
+/// single-core boost, [found by chasing down a drift control's false alarm at
+/// −18.8%](../../docs/measurements/2026-07-31-162959-the-first-six-seconds.md).
+/// Six is what has to be excluded; thirty is what is.
 pub const STARTUP_WINDOW: Duration = Duration::from_secs(30);
 
 /// Session count the report projects to.
