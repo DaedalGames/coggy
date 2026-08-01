@@ -72,6 +72,10 @@ The third is the surprise. `Scrollback` counts `read`, `evicted` and `truncated`
 
 It has the same shape as the scrollback cap: the gate names one quantity and the daemon exposes another — bytes against a line count there, dropped output against held-and-running here.
 
+**2026-08-01, later: one of the two was only waiting.** Work rate needed a second run rather than a different daemon — a solo hold to divide by — and `hold --with-solo` now takes one on either side of the concurrent hold. Dropped output is still out of reach for the reason above, so the count here is one of three rather than two.
+
+Worth separating from the redline's four, which this table does not use and which are easy to confuse with it. **Replacement is not among the gate's three**; it is the redline's fourth, and a daemon has no counterpart for it either. So a ramp under the daemon loses two of four where a hold loses one of three, and the small numbers matching is what makes the lists blur.
+
 ## What this does not claim
 
 - **`ping` is not a session.** It holds 5.8 MiB and does nothing, against [2.39 GiB for a generation session](2026-07-31-150258-g0-frozen.md). This is the daemon's own cost at a hundred sessions.
