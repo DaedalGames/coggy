@@ -557,6 +557,13 @@ pub fn bracket(before: HoldReport, concurrent: HoldReport, after: HoldReport) ->
         None => Verdict::NotTaken,
     };
 
+    // **The verdict goes back into the hold it judged.** Both artifacts
+    // describe one run, and leaving it only out here had hold.json saying
+    // `not_taken` while bracket.json said `held` — two files of the same run
+    // disagreeing about a condition, which is worse than either being wrong.
+    let mut concurrent = concurrent;
+    concurrent.work_rate = work_rate;
+
     BracketedReport {
         before,
         concurrent,
@@ -920,6 +927,32 @@ mod tests {
         );
         assert_eq!(broken.slowdown, Some(3.0));
         assert_eq!(broken.work_rate, Verdict::Broke, "3 is past 2");
+    }
+
+    #[test]
+    fn the_bracket_puts_its_verdict_back_into_the_hold_it_judged() {
+        // Two artifacts of one run said opposite things about the same
+        // condition: bracket.json held, hold.json not_taken. Either being
+        // wrong is a defect; disagreeing is a reader's problem forever.
+        let judged = bracket(
+            hold_at(1, 30.0, false),
+            hold_at(50, 20.0, false),
+            hold_at(1, 30.0, false),
+        );
+        assert_eq!(judged.work_rate, Verdict::Held);
+        assert_eq!(
+            judged.concurrent.work_rate, judged.work_rate,
+            "the hold carries what the bracket decided about it"
+        );
+
+        // And a refused bracket puts the refusal back too, rather than leaving
+        // the hold claiming a condition nobody judged.
+        let refused = bracket(
+            hold_at(1, 30.0, false),
+            hold_at(50, 20.0, false),
+            hold_at(1, 26.0, false),
+        );
+        assert_eq!(refused.concurrent.work_rate, Verdict::NotTaken);
     }
 
     #[test]
