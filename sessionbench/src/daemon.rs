@@ -559,10 +559,20 @@ impl HeldRun {
 /// it, and their gap is the control.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BracketedReport {
-    pub before: HoldReport,
+    pub before: Vec<HoldReport>,
     pub concurrent: HoldReport,
-    pub after: HoldReport,
-    /// How far the two solo holds sat apart, as a percentage.
+    pub after: Vec<HoldReport>,
+    /// How far each side's own solo holds spread, when there were several.
+    ///
+    /// **The noise floor, measured on the machine that produced the run rather
+    /// than quoted from a record.** A solo hold's rate is largely which core
+    /// its one session landed on, and that is fixed for the hold's whole
+    /// length, so the only way to see the floor is to launch again. `None` for
+    /// a side of one, which is honest: a single hold cannot say how much a
+    /// single hold moves.
+    pub before_spread_percent: Option<f64>,
+    pub after_spread_percent: Option<f64>,
+    /// How far the two sides' means sat apart, as a percentage.
     pub solo_gap_percent: Option<f64>,
     /// Why the pair may not be set against each other, when it may not.
     pub machine_moved: Option<String>,
@@ -582,12 +592,42 @@ pub struct BracketedReport {
     pub work_rate: Verdict,
 }
 
+/// A side's mean rate and how far its own holds spread, as a percentage.
+///
+/// `None` mean when any hold on that side produced no rate — a side is a
+/// baseline and a baseline missing a reading is not a smaller baseline.
+fn side(holds: &[HoldReport]) -> (Option<f64>, Option<f64>) {
+    let rates: Option<Vec<f64>> = holds
+        .iter()
+        .map(|h| h.units_per_session_per_sec)
+        .collect::<Option<Vec<_>>>()
+        .filter(|r| !r.is_empty());
+    let Some(rates) = rates else {
+        return (None, None);
+    };
+    let mean = rates.iter().sum::<f64>() / rates.len() as f64;
+    let spread = if rates.len() < 2 || mean <= 0.0 {
+        None
+    } else {
+        let low = rates.iter().copied().fold(f64::INFINITY, f64::min);
+        let high = rates.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        Some((high - low) / mean * 100.0)
+    };
+    (Some(mean), spread)
+}
+
 /// Judges a bracketed run, deciding the ratio and the drift together.
-pub fn bracket(before: HoldReport, concurrent: HoldReport, after: HoldReport) -> BracketedReport {
+pub fn bracket(
+    before: Vec<HoldReport>,
+    concurrent: HoldReport,
+    after: Vec<HoldReport>,
+) -> BracketedReport {
+    let (before_rate, before_spread) = side(&before);
+    let (after_rate, after_spread) = side(&after);
     let rates = (
-        before.units_per_session_per_sec,
+        before_rate,
         concurrent.units_per_session_per_sec,
-        after.units_per_session_per_sec,
+        after_rate,
     );
     let (gap, moved) = match (rates.0, rates.2) {
         (Some(b), Some(a)) => match solo_agrees(b, a) {
@@ -597,12 +637,34 @@ pub fn bracket(before: HoldReport, concurrent: HoldReport, after: HoldReport) ->
         _ => (None, Some("a solo hold produced no rate".to_string())),
     };
 
+    // **A side cannot lend a judgement finer than itself**, which is
+    // [`compare`'s rule for a ramp's own baseline](crate::compare::Comparison)
+    // arriving one level down. There it refuses a ramp whose solo rung moved
+    // more on a repeat than the allowance being applied; here the repeat is
+    // the side. Measured on this machine, twelve fresh one-session holds span
+    // 4.54% with nothing between them, so a side that spreads past the
+    // allowance is reporting that its own placement noise swamps the gap it
+    // was going to judge.
+    let too_noisy = [(before_spread, "before"), (after_spread, "after")]
+        .into_iter()
+        .find_map(|(spread, which)| {
+            spread
+                .filter(|s| *s > crate::compare::SOLO_AGREEMENT_PERCENT)
+                .map(|s| {
+                    format!(
+                        "the {which} baseline's own holds spread {s:.1}%, past the {:.0}% it would judge with",
+                        crate::compare::SOLO_AGREEMENT_PERCENT,
+                    )
+                })
+        });
+    let moved = moved.or(too_noisy);
+
     // Every reason to distrust either half is checked before a ratio exists,
     // rather than after it has been printed.
     let blocked = moved.is_some()
-        || before.inconclusive.is_some()
+        || before.iter().any(|h| h.inconclusive.is_some())
         || concurrent.inconclusive.is_some()
-        || after.inconclusive.is_some();
+        || after.iter().any(|h| h.inconclusive.is_some());
     let slowdown = match (blocked, rates.0, rates.1, rates.2) {
         (false, Some(b), Some(c), Some(a)) if c > 0.0 => Some((b + a) / 2.0 / c),
         _ => None,
@@ -625,6 +687,8 @@ pub fn bracket(before: HoldReport, concurrent: HoldReport, after: HoldReport) ->
         before,
         concurrent,
         after,
+        before_spread_percent: before_spread,
+        after_spread_percent: after_spread,
         solo_gap_percent: gap,
         machine_moved: moved,
         slowdown,
@@ -986,17 +1050,17 @@ mod tests {
         // reads as naturally and would give two artifacts a similarly named
         // field meaning opposite things.
         let fine = bracket(
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
             hold_at(50, 20.0, false),
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
         );
         assert_eq!(fine.slowdown, Some(1.5), "solo 30 over concurrent 20");
         assert_eq!(fine.work_rate, Verdict::Held, "1.5 is inside 2");
 
         let broken = bracket(
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
             hold_at(50, 10.0, false),
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
         );
         assert_eq!(broken.slowdown, Some(3.0));
         assert_eq!(broken.work_rate, Verdict::Broke, "3 is past 2");
@@ -1008,9 +1072,9 @@ mod tests {
         // condition: bracket.json held, hold.json not_taken. Either being
         // wrong is a defect; disagreeing is a reader's problem forever.
         let judged = bracket(
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
             hold_at(50, 20.0, false),
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
         );
         assert_eq!(judged.work_rate, Verdict::Held);
         assert_eq!(
@@ -1021,11 +1085,60 @@ mod tests {
         // And a refused bracket puts the refusal back too, rather than leaving
         // the hold claiming a condition nobody judged.
         let refused = bracket(
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
             hold_at(50, 20.0, false),
-            hold_at(1, 26.0, false),
+            vec![hold_at(1, 26.0, false)],
         );
         assert_eq!(refused.concurrent.work_rate, Verdict::NotTaken);
+    }
+
+    #[test]
+    fn a_side_cannot_lend_a_judgement_finer_than_its_own_spread() {
+        // Twelve fresh one-session holds spanned 4.54% on this machine with
+        // nothing between them, which is what a side of one hides: it reports
+        // a baseline and no way to know how much a baseline moves.
+        let steady = bracket(
+            vec![hold_at(1, 30.0, false), hold_at(1, 30.3, false)],
+            hold_at(50, 20.0, false),
+            vec![hold_at(1, 30.2, false), hold_at(1, 29.9, false)],
+        );
+        assert_eq!(steady.machine_moved, None, "1% either side is fine");
+        assert!(
+            steady.slowdown.is_some_and(|x| (x - 1.505).abs() < 1e-6),
+            "means 30.15 and 30.05 over 20, got {:?}",
+            steady.slowdown
+        );
+        assert!(
+            steady.before_spread_percent.is_some_and(|s| s < 1.5),
+            "a side of two reports its own spread"
+        );
+
+        // The same gap between the two means, and now one side is too noisy
+        // to have measured it. 28 and 32 average to 30 as well.
+        let noisy = bracket(
+            vec![hold_at(1, 28.0, false), hold_at(1, 32.0, false)],
+            hold_at(50, 20.0, false),
+            vec![hold_at(1, 30.2, false), hold_at(1, 29.9, false)],
+        );
+        assert_eq!(noisy.slowdown, None, "a 13% side judges nothing");
+        assert!(
+            noisy
+                .machine_moved
+                .as_deref()
+                .is_some_and(|why| why.contains("before baseline")),
+            "and says which side, got {:?}",
+            noisy.machine_moved
+        );
+
+        // A side of one still passes, because it has claimed nothing. Refusing
+        // it would make `--solo-repeats 1` unusable rather than merely blind.
+        let single = bracket(
+            vec![hold_at(1, 30.0, false)],
+            hold_at(50, 20.0, false),
+            vec![hold_at(1, 30.0, false)],
+        );
+        assert_eq!(single.before_spread_percent, None);
+        assert_eq!(single.slowdown, Some(1.5));
     }
 
     #[test]
@@ -1033,18 +1146,18 @@ mod tests {
         // The number would exist and be wrong. Offering it labelled invites
         // quoting it, which is how a figure outlives its caveat.
         let moved = bracket(
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
             hold_at(50, 20.0, false),
-            hold_at(1, 26.0, false),
+            vec![hold_at(1, 26.0, false)],
         );
         assert!(moved.machine_moved.is_some(), "13.6% apart");
         assert_eq!(moved.slowdown, None, "so there is no ratio to quote");
         assert_eq!(moved.work_rate, Verdict::NotTaken);
 
         let doubtful = bracket(
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
             hold_at(50, 20.0, true),
-            hold_at(1, 30.0, false),
+            vec![hold_at(1, 30.0, false)],
         );
         assert_eq!(doubtful.solo_gap_percent, Some(0.0), "the solos agreed");
         assert_eq!(

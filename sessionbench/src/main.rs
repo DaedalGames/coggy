@@ -121,13 +121,29 @@ enum Command {
         /// concurrent run's whole effect, so one taken beforehand is a
         /// baseline from a machine that may have left.
         ///
-        /// Costs two extra holds of `--solo-duration` each.
+        /// Costs `2 × --solo-repeats` extra holds of `--solo-duration` each.
         #[arg(long)]
         with_solo: bool,
 
         /// How long each solo hold runs, when `--with-solo` is given.
         #[arg(long, default_value_t = 120.0, value_name = "SECONDS")]
         solo_duration: f64,
+
+        /// Solo holds per side, averaged into that side's baseline.
+        ///
+        /// **Three rather than one, because a single solo baseline is the
+        /// noisiest term in the whole comparison.** Twelve fresh one-session
+        /// holds spanned 4.54% with nothing between them, against an allowance
+        /// of 5% — so a bracket refuses itself on an unlucky pair often enough
+        /// to lose an hour-long run to it.
+        ///
+        /// **And a longer hold does not help**, which is the part worth knowing
+        /// before reaching for `--solo-duration` instead. What moves a solo
+        /// hold is fixed for that hold's whole length — same share of CPU,
+        /// different work done with it — so stretching one averages nothing.
+        /// Separate launches are what sample it.
+        #[arg(long, default_value_t = 3, value_name = "N")]
+        solo_repeats: usize,
 
         /// The workload each session runs, after `--`.
         ///
@@ -289,6 +305,7 @@ fn main() -> anyhow::Result<()> {
             rss_budget_gb,
             with_solo,
             solo_duration,
+            solo_repeats,
             command,
         } => {
             if !daemon.is_file() {
@@ -351,9 +368,16 @@ fn main() -> anyhow::Result<()> {
             };
 
             let (report, samples) = if with_solo {
-                let (before, _) = take("solo-before", 1, solo_duration)?;
+                // Named by index so a side of three leaves three artifacts
+                // rather than three writes to one path.
+                let solos = |side: &str| -> anyhow::Result<Vec<_>> {
+                    (1..=solo_repeats.max(1))
+                        .map(|i| Ok(take(&format!("solo-{side}-{i}"), 1, solo_duration)?.0))
+                        .collect()
+                };
+                let before = solos("before")?;
                 let (middle, samples) = take("concurrent", sessions, duration)?;
-                let (after, _) = take("solo-after", 1, solo_duration)?;
+                let after = solos("after")?;
                 let bracketed = sessionbench::daemon::bracket(before, middle, after);
 
                 if let Some(why) = &bracketed.machine_moved {
@@ -363,11 +387,17 @@ fn main() -> anyhow::Result<()> {
                 // once, in the summary below, because the bracket writes it
                 // back into the hold — and the two lines printing it
                 // separately is how they came to disagree in the first place.
+                // The two side spreads print beside the gap because the gap
+                // means nothing without them: a solo hold's rate is mostly
+                // which core its one session got, so a side that scatters as
+                // far as the gap has not measured the gap.
+                let percent =
+                    |v: Option<f64>| v.map_or_else(|| "—".to_string(), |x| format!("{x:.1}%"));
                 println!(
-                    "\n  solo gap   {}\n  slowdown   {}",
-                    bracketed
-                        .solo_gap_percent
-                        .map_or_else(|| "—".to_string(), |g| format!("{g:.1}%")),
+                    "\n  solo spread {} before · {} after\n  solo gap   {}\n  slowdown   {}",
+                    percent(bracketed.before_spread_percent),
+                    percent(bracketed.after_spread_percent),
+                    percent(bracketed.solo_gap_percent),
                     bracketed
                         .slowdown
                         .map_or_else(|| "—".to_string(), |s| format!("{s:.2}×")),
