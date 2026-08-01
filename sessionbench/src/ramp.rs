@@ -62,8 +62,11 @@ use crate::tree::{ArmedTree, Membership, SessionTree};
 /// Floored at [`STARTUP_WINDOW`], which is the same cut `observe` makes for
 /// the same reason: at the default ninety-second hold a third *is* thirty
 /// seconds and the two agree, but a short hold left the spin-up at five and
-/// let page faults into the measurement. A single session at quarter duty read
-/// 0.4 cores that way against a true 0.24.
+/// let page faults into the measurement. [A single session at quarter duty read
+/// 0.4 cores that way against a true
+/// 0.24](../../docs/measurements/2026-07-30-120002-first-redlines.md), and
+/// 0.240 once the window cleared thirty seconds — which is the measurement this
+/// constant exists because of, and the floor below is what it bought.
 const SPINUP_FRACTION: f64 = 1.0 / 3.0;
 
 /// Fewest measured samples a rung needs before its verdict means anything.
@@ -73,6 +76,12 @@ const SPINUP_FRACTION: f64 = 1.0 / 3.0;
 /// that reads as a catastrophic collapse — zero work, zero cores — and the
 /// first ramp run reported exactly that as a broken condition. A rung that
 /// could not be measured is not a rung that failed.
+///
+/// **This comment is the only surviving record of that run**, which is worth
+/// noticing rather than fixing: no measurement record holds it, the artifacts
+/// are long pruned, and the observation exists here because someone wrote it
+/// beside the constant instead of into `docs/measurements/`. A figure that
+/// decided something and was never written up is not recoverable later.
 const MIN_SAMPLES_PER_RUNG: usize = 5;
 
 /// How long a rung waits for its sessions to leave before terminating them.
