@@ -87,8 +87,12 @@ fn anchors(body: &str) -> HashSet<String> {
     found
 }
 
-/// Link targets — the `target` of every `[text](target)` outside code blocks.
-fn link_targets(body: &str) -> Vec<String> {
+/// Every `[label](target)` outside code blocks, as a pair.
+///
+/// The label is carried because it makes claims of its own — a link reading
+/// *"[four readings give 1.865 GiB](record.md)"* asserts a figure, and the
+/// assertion is checkable against the file it points at.
+fn links(body: &str) -> Vec<(String, String)> {
     let mut fenced = false;
     let mut found = Vec::new();
     for line in body.lines() {
@@ -105,11 +109,57 @@ fn link_targets(body: &str) -> Vec<String> {
             let opens_link = chars[i] == ']' && chars[i + 1] == '(';
             let close = chars[i + 2..].iter().position(|c| *c == ')');
             if let (true, Some(end)) = (opens_link, close) {
-                found.push(chars[i + 2..i + 2 + end].iter().collect());
+                let target: String = chars[i + 2..i + 2 + end].iter().collect();
+                // The label is whatever sits inside the nearest `[` before
+                // this `]`; nested brackets are rare enough in these
+                // documents that the nearest one is the right one.
+                let label = chars[..i]
+                    .iter()
+                    .rposition(|c| *c == '[')
+                    .map(|open| chars[open + 1..i].iter().collect())
+                    .unwrap_or_default();
+                found.push((label, target));
                 i += end + 2;
             }
             i += 1;
         }
+    }
+    found
+}
+
+/// Link targets — the `target` of every `[text](target)` outside code blocks.
+fn link_targets(body: &str) -> Vec<String> {
+    links(body).into_iter().map(|(_, target)| target).collect()
+}
+
+/// Decimal figures in a piece of prose: `1.87`, `3.27`, `12.5`.
+///
+/// Decimals only. A bare integer is too often a count, a year or a milestone
+/// number to be worth chasing, and the figures that go stale here carry a
+/// point.
+fn figures(text: &str) -> Vec<String> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut found = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if !chars[i].is_ascii_digit() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < chars.len() && chars[i].is_ascii_digit() {
+            i += 1;
+        }
+        let decimal_follows =
+            chars.get(i) == Some(&'.') && chars.get(i + 1).is_some_and(char::is_ascii_digit);
+        if !decimal_follows {
+            continue;
+        }
+        i += 1;
+        while i < chars.len() && chars[i].is_ascii_digit() {
+            i += 1;
+        }
+        found.push(chars[start..i].iter().collect());
     }
     found
 }
@@ -150,6 +200,84 @@ fn the_documentation_map_lists_every_component_that_has_a_readme() {
     assert!(
         missing.is_empty(),
         "these own a README and the documentation map does not list them: {missing:?}"
+    );
+}
+
+/// A figure quoted inside a link is a figure the target has to contain.
+///
+/// [The measurement index promises exactly this](../../docs/measurements/README.md)
+/// — *nothing here is stated that is not measured there* — and it was broken in
+/// the file that promises it. Two shapes, both found by the same sweep:
+///
+/// - **A record grew and its citers did not.** A fifth reading moved the engine
+///   figure to `1.87 GiB ± 6.4%`; ROADMAP and the index went on quoting the
+///   `1.865` and `6%` that four readings had given.
+/// - **A compound link attributes both halves to one target.** *"[takes 3.27 GiB
+///   and only one session can build at a time](serialise.md)"* sends a reader
+///   after `3.27` to a record that never measured it.
+///
+/// **Measurement records are exempt, and that is not a convenience.** A record
+/// is dated and says what was true when it was taken, so a citation it made is
+/// still accurate when the record it points at grows past the figure later.
+/// Living documents carry no date and promise to be current, so the same
+/// staleness is a defect in them.
+#[test]
+fn a_figure_quoted_in_a_link_appears_in_the_document_it_points_at() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crate sits one level below the repository root");
+
+    let mut docs = Vec::new();
+    markdown_files(root, &mut docs);
+
+    /// Records live in `docs/measurements/` under a timestamped name.
+    fn is_record(path: &Path) -> bool {
+        let in_measurements = path
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|d| d == "measurements");
+        let timestamped = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n.starts_with(|c: char| c.is_ascii_digit()));
+        in_measurements && timestamped
+    }
+
+    let mut stale = Vec::new();
+    for doc in docs.iter().filter(|d| !is_record(d)) {
+        let body = fs::read_to_string(doc).expect("readable markdown");
+        let here = doc.parent().expect("file has a parent directory");
+
+        for (label, target) in links(&body) {
+            let path_part = target.split('#').next().unwrap_or_default();
+            if !path_part.ends_with(".md") {
+                continue;
+            }
+            let Ok(dest) = here.join(path_part).canonicalize() else {
+                continue; // an unresolvable link is the other test's finding
+            };
+            if dest == doc.canonicalize().expect("readable path") {
+                continue; // a link into the same file quotes itself
+            }
+            let Ok(cited) = fs::read_to_string(&dest) else {
+                continue;
+            };
+            for figure in figures(&label) {
+                if !cited.contains(&figure) {
+                    stale.push(format!(
+                        "{}  claims {figure}  ->  {target}  (which does not contain it)",
+                        doc.display()
+                    ));
+                }
+            }
+        }
+    }
+
+    assert!(
+        stale.is_empty(),
+        "{} link(s) quoting a figure their target does not hold:\n{}",
+        stale.len(),
+        stale.join("\n")
     );
 }
 
@@ -222,6 +350,19 @@ fn every_cross_reference_resolves() {
         broken.len(),
         broken.join("\n")
     );
+}
+
+#[test]
+fn figures_reads_decimals_and_leaves_counts_alone() {
+    assert_eq!(figures("four readings give 1.865 GiB and 6%"), ["1.865"]);
+    assert_eq!(figures("3.27 GiB and 1.24 cores"), ["3.27", "1.24"]);
+    // Counts, years and milestone numbers carry no point and are not chased.
+    assert_eq!(
+        figures("nine sessions on 16 cores in 2026, M0"),
+        [] as [&str; 0]
+    );
+    // A run already consumed is not re-entered from inside itself.
+    assert_eq!(figures("12.5%"), ["12.5"]);
 }
 
 #[test]
