@@ -676,7 +676,21 @@ fn hold(
     let mut last: Option<Sample> = None;
     let mut worst_tick = TickCost::default();
 
+    let mut daemon_left_early = None;
     while started.elapsed() < config.hold {
+        // **A daemon rung has to ask whether its daemon is still there.** Its
+        // reports stop and the watch keeps the last one, so every figure goes
+        // on reading as it did at the moment things went wrong. `hold` learned
+        // this first and the fix lived only there; the two loops are separate
+        // code and the second had the same hole.
+        //
+        // `peak_processes == 0` catches a daemon that never started, not one
+        // that left after a few samples.
+        if let Some(why) = pool.daemon_left(started.elapsed()) {
+            daemon_left_early = Some(why);
+            break;
+        }
+
         // Paced from the top of each tick rather than sleeping a full interval
         // after the work: under load the work is the interval, and adding one
         // on top turns a fifteen second hold into forty.
@@ -774,6 +788,7 @@ fn hold(
         spinup,
         elapsed_secs,
         fewest_alive: pool.fewest_alive(),
+        left_early: daemon_left_early,
     });
 
     let total_rss_bytes = median(measured.iter().map(|s| s.rss_bytes)).unwrap_or(0);
@@ -839,6 +854,8 @@ struct Reading {
     /// the ramp's behalf and does not restart anything, so it has to be
     /// asked.
     fewest_alive: Option<u32>,
+    /// Set when whatever held the rung's sessions stopped before the rung did.
+    left_early: Option<String>,
 }
 
 /// Why a rung describes the observer rather than the machine, when it does.
@@ -847,6 +864,13 @@ struct Reading {
 /// All three cases below were found by a run going wrong rather than by a
 /// test, which is the argument for making the decision reachable from one.
 fn why_unmeasurable(reading: &Reading) -> Option<String> {
+    // First, because it explains every other symptom the rung will show. A
+    // sampler with nothing left to sample reads as a collapse, and the
+    // collapse is not what happened.
+    if let Some(why) = &reading.left_early {
+        return Some(why.clone());
+    }
+
     // Two ways to come back with too little, named apart. A hold that never
     // outlasts its own spin-up has nothing to measure by construction; a hold
     // that did outlast it and still came back with almost nothing was starved.
@@ -1044,6 +1068,19 @@ impl Pool {
                 .unwrap_or(0);
         }
         self.retired_units + self.slots.iter().map(|s| s.output.units()).sum::<u64>()
+    }
+
+    /// Why the rung ended early, when its daemon stopped before it did.
+    ///
+    /// `None` for a pool of slots: a session that exits there is replaced, and
+    /// a rung with nothing left is caught by the peak process count.
+    fn daemon_left(&mut self, at: Duration) -> Option<String> {
+        let held = self.daemon_process.as_mut()?;
+        let status = held.exited().ok().flatten()?;
+        Some(format!(
+            "the daemon exited {status} after {:.1}s of the hold, so every count after that is the last one it managed to report",
+            at.as_secs_f64(),
+        ))
     }
 
     /// The fewest sessions seen alive, when the target can be asked.
@@ -1311,6 +1348,7 @@ mod tests {
             spinup: Duration::from_secs(20),
             elapsed_secs: 60.0,
             fewest_alive: None,
+            left_early: None,
         }
     }
 
@@ -1358,6 +1396,26 @@ mod tests {
             Some(6),
             "and the live count has to be asked, since nothing restarts a session"
         );
+    }
+
+    #[test]
+    fn a_daemon_that_left_is_reported_ahead_of_the_symptoms_it_caused() {
+        // A rung whose daemon went stops sampling, so it also has too few
+        // samples and no processes resident. Those are true and neither is
+        // what happened -- reporting either sends the next reader to fix the
+        // sampler.
+        let died = Reading {
+            samples: 1,
+            peak_processes: 0,
+            left_early: Some("the daemon exited exit code: 1 after 5.0s of the hold".into()),
+            ..reading()
+        };
+        let why = why_unmeasurable(&died).expect("a rung whose daemon left is inconclusive");
+        assert!(
+            why.contains("daemon exited"),
+            "the cause, not a symptom: {why}"
+        );
+        assert!(!why.contains("sample(s) over"), "{why}");
     }
 
     #[test]
