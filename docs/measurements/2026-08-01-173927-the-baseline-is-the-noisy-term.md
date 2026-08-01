@@ -109,6 +109,44 @@ more of its duty budget per unit*. Too few points to lean on.
 Free confirmation in the same table: the workload was asked for duty 0.27 and
 its process sat at 25.5–27.2% of a core.
 
+## 2026-08-01: the noise is the wait mechanism's, not the duty's
+
+The section above leaves open why a duty-0.27 baseline scatters as far as a
+duty-1.0 one. It is not the duty. Same reconstruction, same machine, same
+afternoon, same 120-second holds — only the flag differs:
+
+| workload | spread across three | |
+|---|---|---|
+| `--duty 1.0` | 4.54% | across twelve twenty-second holds |
+| `--duty 0.27` | 3.95% | |
+| `--wait-ms 67` | **0.47%** | and 0.32% on a second bracket |
+
+**A proportional wait scales with the work it follows, so a slower core stretches
+both and the ratio survives into the rate.** A fixed wait does not: it is a
+wall-clock constant that no core touches, so a core-speed difference reaches the
+rate diluted by the duty fraction. Predicted `4.54% × 0.271 = 1.07%`; measured
+about half that on three points.
+
+The same table shows the mechanism directly. Across the three fixed-wait holds
+the CPU share spans 13% while the rate spans 0.47%: core speed lands in what a
+session *consumes* and not in what it *finishes*. (Point samples, so read the
+direction rather than the size.)
+
+**It cuts both ways, and the other edge is sharper.** [A gate run](2026-08-01-202112-gate-m1-at-twenty-minutes.md)
+calibrated its fixed wait against a unit measured at 24.9 ms on a thermally
+loaded machine; after a cold boot the same unit took 13.9 ms, and the same wait
+produced a duty of 0.172 rather than 0.271. A 79% change in compute speed
+appeared as 13.6% of rate — which is the dilution working exactly as above, and
+which hid a change in the term the gate is stated in. **So a fixed wait buys a
+quiet baseline and owes a recalibration whenever the machine's state changes.**
+
+Two notes on comparability, since these numbers came by two routes. The
+120-second rates are reconstructed from each hold's last sample, where the 4.54%
+came from the run's own reported rate; the three last samples landed within 0.1 s
+of each other, so the lag they share is a constant and constants do not inflate a
+spread. And the duty-0.27 triple was salvaged from a run its launcher killed,
+which cost it nothing but its own report.
+
 ## Provenance
 
 | | |
