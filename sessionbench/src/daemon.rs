@@ -281,6 +281,14 @@ pub struct HeldRun {
     /// than dividing by either number.
     pub fewest_running: Option<u64>,
     pub elapsed: std::time::Duration,
+    /// Whether the kernel or a parent walk decided which processes counted.
+    ///
+    /// Carried out of the hold because the hold is what arms the tree. A
+    /// caller filling this in from its own expectation would be recording a
+    /// hope: arming can fall back silently, and a report saying `JobObject`
+    /// when a parent walk was used is worse than one that admits it.
+    pub membership: crate::tree::Membership,
+    pub membership_fallback_reason: Option<String>,
     /// Set when the daemon stopped before the hold was over.
     ///
     /// A separate fact from a low session count: a daemon that has gone stops
@@ -333,6 +341,8 @@ pub fn hold(
     use anyhow::Context;
 
     let armed = crate::tree::ArmedTree::arm(sysinfo::Pid::from_u32(std::process::id()));
+    let membership = armed.membership();
+    let membership_fallback_reason = armed.fallback_reason.clone();
     let started = std::time::Instant::now();
     let mut held = Held::start(daemon, sessions, workload, log).context("starting the daemon")?;
     let mut tree = armed.attach(sysinfo::Pid::from_u32(held.child.id()));
@@ -383,6 +393,8 @@ pub fn hold(
         last: seen.latest(),
         fewest_running: seen.fewest_running(),
         elapsed: started.elapsed(),
+        membership,
+        membership_fallback_reason,
         left_early: left_early.map(|(status, at)| {
             format!(
                 "the daemon exited {status} after {:.1}s of a {:.1}s hold",
@@ -406,8 +418,6 @@ pub struct Ran {
     /// states four gigabytes outright.
     pub rss_budget_bytes: u64,
     pub interval: std::time::Duration,
-    pub membership: crate::tree::Membership,
-    pub membership_fallback_reason: Option<String>,
     pub started_unix: u64,
 }
 
@@ -420,8 +430,6 @@ impl HeldRun {
             workload,
             rss_budget_bytes,
             interval,
-            membership,
-            membership_fallback_reason,
             started_unix,
         } = about;
         let inconclusive = self.unusable();
@@ -445,8 +453,8 @@ impl HeldRun {
             machine: crate::machine::Machine::detect(),
             provenance: crate::provenance::Provenance::current(),
             host: crate::host::HostFacts::query(),
-            membership,
-            membership_fallback_reason,
+            membership: self.membership,
+            membership_fallback_reason: self.membership_fallback_reason.clone(),
             started_unix,
             duration_ms: self.elapsed.as_millis() as u64,
             interval_ms: interval.as_millis() as u64,
@@ -815,8 +823,6 @@ mod tests {
             workload: vec!["ping".into()],
             rss_budget_bytes: u64::MAX,
             interval: std::time::Duration::from_secs(2),
-            membership: crate::tree::Membership::JobObject,
-            membership_fallback_reason: None,
             started_unix: 0,
         }
     }
@@ -844,6 +850,8 @@ mod tests {
             last: parse_report(REAL),
             fewest_running: fewest,
             elapsed: std::time::Duration::from_secs(60),
+            membership: crate::tree::Membership::JobObject,
+            membership_fallback_reason: None,
             left_early: None,
         }
     }

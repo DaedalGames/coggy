@@ -318,10 +318,10 @@ fn main() -> anyhow::Result<()> {
                     workload: command.clone(),
                     rss_budget_bytes: (rss_budget_gb * 1e9) as u64,
                     interval,
-                    // The tree is armed inside `hold`, so this records what
-                    // the run actually used rather than what it hoped for.
-                    membership: sessionbench::tree::Membership::JobObject,
-                    membership_fallback_reason: None,
+                    // Membership is not here on purpose. The tree is armed
+                    // inside `hold`, so only the run knows which source it
+                    // got — this used to hardcode JobObject under a comment
+                    // claiming it recorded what the run used.
                     started_unix: stamp,
                 });
                 Ok((report, samples))
