@@ -113,6 +113,22 @@ enum Command {
         #[arg(long, default_value_t = 4.0, value_name = "GB")]
         rss_budget_gb: f64,
 
+        /// Take a solo hold before and after, and report the ratio between.
+        ///
+        /// The work-rate condition is per-session rate against the same
+        /// workload held alone, so it needs a baseline. Two of them, on
+        /// either side: solo holds ten minutes apart differ by more than a
+        /// concurrent run's whole effect, so one taken beforehand is a
+        /// baseline from a machine that may have left.
+        ///
+        /// Costs two extra holds of `--solo-duration` each.
+        #[arg(long)]
+        with_solo: bool,
+
+        /// How long each solo hold runs, when `--with-solo` is given.
+        #[arg(long, default_value_t = 120.0, value_name = "SECONDS")]
+        solo_duration: f64,
+
         /// The workload each session runs, after `--`.
         ///
         /// `${session}` in any argument expands to that session's own id, so a
@@ -258,6 +274,8 @@ fn main() -> anyhow::Result<()> {
             duration,
             daemon,
             rss_budget_gb,
+            with_solo,
+            solo_duration,
             command,
         } => {
             if !daemon.is_file() {
@@ -281,27 +299,61 @@ fn main() -> anyhow::Result<()> {
             );
             println!("  {}", command.join(" "));
 
-            let run = sessionbench::daemon::hold(
-                &daemon,
-                sessions,
-                &command,
-                out_dir.join("daemon.log"),
-                interval,
-                Duration::from_secs_f64(duration),
-            )?;
-            let samples = run.samples.clone();
-            let report = run.into_report(sessionbench::daemon::Ran {
-                label,
-                daemon: daemon.display().to_string(),
-                workload: command,
-                rss_budget_bytes: (rss_budget_gb * 1e9) as u64,
-                interval,
-                // The tree is armed inside `hold`, so this records what the
-                // run actually used rather than what it hoped for.
-                membership: sessionbench::tree::Membership::JobObject,
-                membership_fallback_reason: None,
-                started_unix: stamp,
-            });
+            // One path for all three holds, so a solo pass and the concurrent
+            // one cannot drift apart in how they were taken.
+            let take = |name: &str, count: u32, secs: f64| -> anyhow::Result<_> {
+                println!("  {name}: {count} session(s) for {secs}s");
+                let run = sessionbench::daemon::hold(
+                    &daemon,
+                    count,
+                    &command,
+                    out_dir.join(format!("{name}.log")),
+                    interval,
+                    Duration::from_secs_f64(secs),
+                )?;
+                let samples = run.samples.clone();
+                let report = run.into_report(sessionbench::daemon::Ran {
+                    label: format!("{label}-{name}"),
+                    daemon: daemon.display().to_string(),
+                    workload: command.clone(),
+                    rss_budget_bytes: (rss_budget_gb * 1e9) as u64,
+                    interval,
+                    // The tree is armed inside `hold`, so this records what
+                    // the run actually used rather than what it hoped for.
+                    membership: sessionbench::tree::Membership::JobObject,
+                    membership_fallback_reason: None,
+                    started_unix: stamp,
+                });
+                Ok((report, samples))
+            };
+
+            let (report, samples) = if with_solo {
+                let (before, _) = take("solo-before", 1, solo_duration)?;
+                let (middle, samples) = take("concurrent", sessions, duration)?;
+                let (after, _) = take("solo-after", 1, solo_duration)?;
+                let bracketed = sessionbench::daemon::bracket(before, middle, after);
+
+                if let Some(why) = &bracketed.machine_moved {
+                    println!("\nMACHINE MOVED: {why}");
+                }
+                println!(
+                    "\n  solo gap   {}\n  slowdown   {}\n  work rate  {:?}",
+                    bracketed
+                        .solo_gap_percent
+                        .map_or_else(|| "—".to_string(), |g| format!("{g:.1}%")),
+                    bracketed
+                        .slowdown
+                        .map_or_else(|| "—".to_string(), |s| format!("{s:.2}×")),
+                    bracketed.work_rate,
+                );
+                std::fs::write(
+                    out_dir.join("bracket.json"),
+                    serde_json::to_string_pretty(&bracketed)?,
+                )?;
+                (bracketed.concurrent, samples)
+            } else {
+                take("concurrent", sessions, duration)?
+            };
 
             let mut file = BufWriter::new(File::create(out_dir.join("samples.jsonl"))?);
             for sample in &samples {
