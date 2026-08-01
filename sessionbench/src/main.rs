@@ -346,15 +346,18 @@ fn main() -> anyhow::Result<()> {
                 if let Some(why) = &bracketed.machine_moved {
                     println!("\nMACHINE MOVED: {why}");
                 }
+                // The verdict is deliberately not printed here. It appears
+                // once, in the summary below, because the bracket writes it
+                // back into the hold — and the two lines printing it
+                // separately is how they came to disagree in the first place.
                 println!(
-                    "\n  solo gap   {}\n  slowdown   {}\n  work rate  {:?}",
+                    "\n  solo gap   {}\n  slowdown   {}",
                     bracketed
                         .solo_gap_percent
                         .map_or_else(|| "—".to_string(), |g| format!("{g:.1}%")),
                     bracketed
                         .slowdown
                         .map_or_else(|| "—".to_string(), |s| format!("{s:.2}×")),
-                    bracketed.work_rate,
                 );
                 std::fs::write(
                     out_dir.join("bracket.json"),
