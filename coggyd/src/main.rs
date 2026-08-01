@@ -62,13 +62,28 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// Says what is held and what is still running.
+/// Says what is held, what is still running, and what came out of it.
 ///
-/// Both numbers, always: a finished session keeps its slot until it is reaped,
-/// and a supervisor that printed one figure would be hiding which.
+/// Held and running, always: a finished session keeps its slot until it is
+/// reaped, and a supervisor that printed one figure would be hiding which.
+///
+/// **The three output counters are here because a gate condition needs them.**
+/// [M1 asks for no dropped output](../../ROADMAP.md#m1--headless-daemon), and
+/// an hour-long hold could not be asked: the counters existed in the library
+/// and stopped there, so no length of run produced the number. `read` is the
+/// term the benchmark subtracts from what its workload emitted; `evicted` and
+/// `truncated` are policy, and are printed beside it so a shortfall cannot be
+/// blamed on the gate's failure when it was ours.
 fn report(pool: &mut Pool) {
     let running = pool.running();
-    println!("held {} · running {running}", pool.len());
+    let out = pool.output();
+    println!(
+        "held {} · running {running} · read {} · evicted {} · truncated {}",
+        pool.len(),
+        out.read,
+        out.evicted,
+        out.truncated
+    );
 }
 
 /// `coggyd --sessions N -- <command>...`

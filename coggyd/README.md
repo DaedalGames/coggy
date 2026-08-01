@@ -29,6 +29,8 @@ Both streams are piped and drained to end-of-file, because an undrained session 
 
 **Two different things get called dropped output and the gate means one of them.** A line the daemon never read is a gate failure and shows up as a gap in [the workload contract's ordinals](../workloads/README.md#the-contract). A line the scrollback aged out is policy. `Scrollback` counts `read`, `evicted` and `truncated` separately so neither can hide behind the other.
 
+**All three leave the process, and for a while none of them did.** The separation sat in the library and the binary printed only held and running, so [an hour-long hold could not be asked about a third of the gate](../docs/measurements/2026-08-01-103225-an-hour-of-a-hundred-sessions.md) — no length of run produces a number nothing reports. `read` is the term a benchmark subtracts from what its workload emitted, since the daemon knows what it read and can never know what it missed.
+
 **The per-line cap is at the reader, not at the buffer.** `read_until` grows until it meets a newline, so a session emitting a gigabyte without one takes the daemon down before anything downstream can trim it. Capping what is kept is not a memory ceiling; refusing to hold it is. Bytes past the cap are consumed rather than left in the pipe, since leaving them would stall the session.
 
 **Its drain is not shared with `sessionbench`, which drains pipes too.** The instrument and its subject keeping separate implementations is what stops the benchmark measuring its own reader.
@@ -52,7 +54,7 @@ Admission against a ceiling is [M3](../ROADMAP.md#m3--resource-governor). This c
 ```
 coggyd --sessions 3 -- ping -n 40 127.0.0.1
 holding 3 session(s); stdin closes to stop
-held 3 · running 3
+held 3 · running 3 · read 12 · evicted 0 · truncated 0
 cleared
 ```
 

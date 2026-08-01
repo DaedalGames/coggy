@@ -27,6 +27,27 @@ use anyhow::Result;
 
 use crate::{Session, Status};
 
+/// What the pool's sessions have done with their output, summed.
+///
+/// **Three numbers because the gate means one of them.** A line the daemon
+/// never read is a gate failure; a line the scrollback aged out is policy.
+/// Reporting one total would let the second hide inside the first, which is
+/// why [`Scrollback`](crate::scrollback::Scrollback) keeps them apart — and
+/// that separation was invisible outside this process until the pool summed
+/// it.
+///
+/// The daemon cannot compute *dropped* on its own. It knows what it read,
+/// never what a session emitted and it missed; the difference is the
+/// [workload contract's ordinals](../../workloads/README.md#the-contract),
+/// which the benchmark holds. So this reports `read` and leaves the
+/// subtraction to whoever knows the other term.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Output {
+    pub read: u64,
+    pub evicted: u64,
+    pub truncated: u64,
+}
+
 /// The sessions this daemon is holding.
 #[derive(Default)]
 pub struct Pool {
@@ -68,6 +89,23 @@ impl Pool {
 
     pub fn get_mut(&mut self, id: u64) -> Option<&mut Session> {
         self.sessions.get_mut(&id)
+    }
+
+    /// Sums every held session's output counters.
+    ///
+    /// Held rather than running, deliberately: a session that has exited still
+    /// owns the lines it produced, and dropping them at exit would make the
+    /// total fall while the run was still going.
+    pub fn output(&self) -> Output {
+        self.sessions
+            .values()
+            .fold(Output::default(), |mut total, session| {
+                let back = session.scrollback();
+                total.read += back.read();
+                total.evicted += back.evicted();
+                total.truncated += back.truncated();
+                total
+            })
     }
 
     /// Drops every session whose job has emptied, and reports how many went.
@@ -203,6 +241,39 @@ mod tests {
             waitfors(),
             waiting_before - BATCH,
             "clearing has to take the processes, not just the bookkeeping"
+        );
+    }
+
+    #[test]
+    fn the_pool_sums_what_its_sessions_read_and_keeps_it_after_they_exit() {
+        // The number a benchmark subtracts from what its workload emitted, so
+        // a pool that summed only the running half would report the remainder
+        // as dropped output — the gate's failure — when it was bookkeeping.
+        let mut pool = Pool::new();
+        for _ in 0..2 {
+            let mut c = Command::new("cmd");
+            c.args(["/c", "echo 1&echo 2&echo 3"]);
+            pool.spawn(&mut c).expect("spawn");
+        }
+
+        let mut seen = Output::default();
+        for _ in 0..40 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            seen = pool.output();
+            if seen.read >= 6 && pool.running() == 0 {
+                break;
+            }
+        }
+
+        assert_eq!(seen.read, 6, "two sessions of three lines each");
+        assert_eq!(seen.evicted, 0, "well inside the default capacity");
+        assert_eq!(seen.truncated, 0, "no line came near the cap");
+
+        assert_eq!(pool.running(), 0, "both finished");
+        assert_eq!(
+            pool.output().read,
+            6,
+            "a session that exited still owns the lines it produced"
         );
     }
 
