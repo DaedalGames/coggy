@@ -33,6 +33,8 @@ Both streams are piped and drained to end-of-file, because an undrained session 
 
 **The per-line cap is at the reader, not at the buffer.** `read_until` grows until it meets a newline, so a session emitting a gigabyte without one takes the daemon down before anything downstream can trim it. Capping what is kept is not a memory ceiling; refusing to hold it is. Bytes past the cap are consumed rather than left in the pipe, since leaving them would stall the session.
 
+**And the scrollback holds a byte budget as well as a line count, because the count alone bounds nothing here.** Every grid terminal caps by lines — tmux, WezTerm, Alacritty — and is right to: their lines are as wide as the terminal, so counting lines counts bytes. Pipes have no width, and this inherited the convention without the property. Multiplied out, the line count and the per-line cap reached [13.1 GB across a hundred sessions against a gate written for four](../docs/measurements/2026-08-01-103225-an-hour-of-a-hundred-sessions.md). The byte budget is [Ghostty's shape](https://ghostty.org/docs/config/reference#scrollback-limit), and the evidence it is needed is [tmux's, at about 48 GB](https://github.com/tmux/tmux/issues/4859). The line count stays, with a smaller job: bounding the fixed per-line cost that a budget of bytes would let a flood of empty lines run up.
+
 **Its drain is not shared with `sessionbench`, which drains pipes too.** The instrument and its subject keeping separate implementations is what stops the benchmark measuring its own reader.
 
 ## Identity

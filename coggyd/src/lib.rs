@@ -42,13 +42,43 @@ use crate::scrollback::{MAX_LINE_BYTES, Scrollback};
 
 /// Lines a session keeps by default.
 ///
-/// A ceiling rather than a guess: a hundred sessions holding this many lines
-/// of a few hundred bytes is tens of megabytes, against [a budget the engine
-/// and agent have already
-/// spent](../../docs/measurements/2026-07-31-150258-g0-frozen.md). What it may
-/// not do is grow with the session's lifetime, which is how a supervisor of
-/// long-lived sessions runs out of memory without anything looking wrong.
+/// **It bounds the per-line overhead, not the memory.** That reading is the
+/// correction: this doc used to say a hundred sessions holding this many lines
+/// *of a few hundred bytes* came to tens of megabytes, and nothing made lines
+/// a few hundred bytes. Paired with [`scrollback::MAX_LINE_BYTES`] it reaches
+/// 13.1 GB across a hundred sessions, against [a gate written for
+/// four](../../ROADMAP.md#m1--headless-daemon). [`DEFAULT_SCROLLBACK_BYTES`]
+/// is what bounds the content; this bounds the fixed cost of holding it, which
+/// [an hour-long hold put at roughly 90 bytes a
+/// line](../../docs/measurements/2026-08-01-103225-an-hour-of-a-hundred-sessions.md)
+/// on top of whatever the line itself carries.
+///
+/// What neither may do is grow with the session's lifetime, which is how a
+/// supervisor of long-lived sessions runs out of memory without anything
+/// looking wrong.
 pub const DEFAULT_SCROLLBACK_LINES: usize = 2_000;
+
+/// Bytes of session output a scrollback keeps by default.
+///
+/// **Taken from Ghostty, which is the one prior art that bounds the quantity
+/// the gate is written in.** tmux, WezTerm, Alacritty and GNOME Terminal all
+/// cap by line count, and that is sound for them: they store a grid, so a
+/// line's width is bounded by the terminal's columns and the line count bounds
+/// bytes for free. `coggyd` is on pipes and has no columns, so it inherited
+/// the convention without the property that made it safe. The failure is not
+/// hypothetical — tmux carries [a request for a `history-bytes`
+/// option](https://github.com/tmux/tmux/issues/4859) opened after redraw
+/// traffic put about 48 GB into scrollback buffers across a few panes.
+///
+/// What we did not take is Ghostty's user-facing complaint, that a byte limit
+/// makes the retained line count vary with terminal size. Nothing here scrolls
+/// a buffer by eye; a benchmark reads it.
+///
+/// A hundred sessions at this budget hold 25 MiB of content, plus at most
+/// `DEFAULT_SCROLLBACK_LINES` lines of overhead apiece — about 43 MB together,
+/// or 1% of the gate, where the line count alone allowed three times the whole
+/// of it.
+pub const DEFAULT_SCROLLBACK_BYTES: usize = 256 * 1024;
 
 /// A session and the job that owns everything it spawns.
 ///
@@ -69,19 +99,26 @@ pub struct Session {
 }
 
 impl Session {
+    /// Spawns `command` in a job of its own, with the default ceilings.
+    pub fn spawn(command: &mut Command) -> Result<Self> {
+        Self::spawn_with_scrollback(command, DEFAULT_SCROLLBACK_LINES, DEFAULT_SCROLLBACK_BYTES)
+    }
+
     /// Spawns `command`, puts it in a job of its own, and returns the pair.
+    ///
+    /// Both ceilings are taken, because either alone leaves the other
+    /// unbounded.
     ///
     /// The child is assigned after spawning rather than before, which leaves a
     /// window where it is running and unowned. Closing that window needs
     /// `CREATE_SUSPENDED` and a resume, which needs unsafe — so it stays open
     /// and is named here rather than hidden. It is microseconds wide and the
     /// session cannot have spawned a tree inside it.
-    /// Spawns with the default scrollback ceiling.
-    pub fn spawn(command: &mut Command) -> Result<Self> {
-        Self::spawn_with_scrollback(command, DEFAULT_SCROLLBACK_LINES)
-    }
-
-    pub fn spawn_with_scrollback(command: &mut Command, capacity: usize) -> Result<Self> {
+    pub fn spawn_with_scrollback(
+        command: &mut Command,
+        capacity: usize,
+        byte_capacity: usize,
+    ) -> Result<Self> {
         // Piped rather than inherited, because a session nobody drains fills
         // its pipe and blocks — which reads as a slow session rather than a
         // stuck one, and is the failure condition 3 exists to catch.
@@ -114,7 +151,7 @@ impl Session {
             );
         }
 
-        let scrollback = Arc::new(Mutex::new(Scrollback::new(capacity)));
+        let scrollback = Arc::new(Mutex::new(Scrollback::new(capacity, byte_capacity)));
         let mut drains = Vec::new();
         if let Some(out) = child.stdout.take() {
             drains.push(drain(Reader::Out(out), Arc::clone(&scrollback)));
@@ -427,7 +464,8 @@ mod tests {
         let mut command = Command::new("cmd");
         command.args(["/c", "echo one& echo two& echo three& echo four"]);
 
-        let session = Session::spawn_with_scrollback(&mut command, 2).expect("spawn");
+        let session = Session::spawn_with_scrollback(&mut command, 2, DEFAULT_SCROLLBACK_BYTES)
+            .expect("spawn");
         std::thread::sleep(std::time::Duration::from_millis(900));
 
         let back = session.scrollback();

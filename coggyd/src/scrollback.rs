@@ -39,23 +39,34 @@ pub const MAX_LINE_BYTES: usize = 64 * 1024;
 pub struct Scrollback {
     lines: VecDeque<String>,
     capacity: usize,
+    byte_capacity: usize,
+    bytes: usize,
     read: u64,
     evicted: u64,
     truncated: u64,
 }
 
 impl Scrollback {
-    /// A scrollback holding at most `capacity` lines.
+    /// A scrollback holding at most `capacity` lines and `byte_capacity` bytes
+    /// of them.
     ///
-    /// Lines rather than bytes, because the unit a reader asks for is a line
-    /// and because [a unit of work is a
-    /// line](../../workloads/README.md#the-contract). A zero capacity is
-    /// allowed and means keep nothing while still counting everything, which
-    /// is what a session nobody will read wants.
-    pub fn new(capacity: usize) -> Self {
+    /// **Both, because either alone leaves the other unbounded.** A line count
+    /// is what every grid terminal uses and it is right for them: their lines
+    /// are as wide as the terminal, so counting lines counts bytes. On pipes
+    /// there is no width, and the count stops bounding anything — the shape
+    /// [tmux hit at about 48 GB](https://github.com/tmux/tmux/issues/4859).
+    /// So bytes bound the content, and the line count keeps its job of
+    /// bounding the fixed per-line cost, which is real and which a byte
+    /// budget alone would let a flood of empty lines run up.
+    ///
+    /// A zero line capacity is allowed and means keep nothing while still
+    /// counting everything, which is what a session nobody will read wants.
+    pub fn new(capacity: usize, byte_capacity: usize) -> Self {
         Self {
             lines: VecDeque::new(),
             capacity,
+            byte_capacity,
+            bytes: 0,
             read: 0,
             evicted: 0,
             truncated: 0,
@@ -76,15 +87,27 @@ impl Scrollback {
             line.truncate(cut);
             self.truncated += 1;
         }
-        if self.capacity == 0 {
+        // A line that cannot fit an empty buffer is dropped rather than
+        // allowed to push the budget over, which draining the whole buffer
+        // for it would still do.
+        if self.capacity == 0 || line.len() > self.byte_capacity {
             self.evicted += 1;
             return;
         }
-        if self.lines.len() == self.capacity {
-            self.lines.pop_front();
+        while self.lines.len() >= self.capacity || self.bytes + line.len() > self.byte_capacity {
+            let Some(gone) = self.lines.pop_front() else {
+                break;
+            };
+            self.bytes -= gone.len();
             self.evicted += 1;
         }
+        self.bytes += line.len();
         self.lines.push_back(line);
+    }
+
+    /// Bytes of session output currently held.
+    pub fn bytes(&self) -> usize {
+        self.bytes
     }
 
     /// Lines the session emitted, whether or not they were kept.
@@ -132,9 +155,12 @@ impl Scrollback {
 mod tests {
     use super::*;
 
+    /// Wide enough that the line count is what bites, for the tests about it.
+    const ROOMY: usize = 64 * 1024;
+
     #[test]
     fn under_the_ceiling_nothing_is_evicted() {
-        let mut s = Scrollback::new(4);
+        let mut s = Scrollback::new(4, ROOMY);
         for i in 0..3 {
             s.push(format!("{i}"));
         }
@@ -142,8 +168,35 @@ mod tests {
     }
 
     #[test]
+    fn the_byte_budget_bites_before_the_line_count_does() {
+        // The whole point: a line count set for short lines does not bound
+        // long ones. Ten lines allowed, but only twenty bytes of them.
+        let mut s = Scrollback::new(10, 20);
+        for _ in 0..4 {
+            s.push("0123456789".into());
+        }
+        assert_eq!(s.read(), 4);
+        assert_eq!(s.retained(), 2, "twenty bytes holds two ten-byte lines");
+        assert_eq!(s.bytes(), 20);
+        assert_eq!(s.evicted(), 2, "and the line count never came near ten");
+    }
+
+    #[test]
+    fn a_line_too_big_for_the_whole_budget_is_dropped_rather_than_emptying_it() {
+        // Draining the buffer would not make room, so the alternative to
+        // dropping is exceeding the budget the buffer exists to hold.
+        let mut s = Scrollback::new(10, 8);
+        s.push("keep".into());
+        s.push("far too long for this".into());
+        assert_eq!(s.read(), 2);
+        assert_eq!(s.evicted(), 1);
+        assert_eq!(s.tail(9), vec!["keep"], "the survivor was not sacrificed");
+        assert!(s.bytes() <= 8);
+    }
+
+    #[test]
     fn past_the_ceiling_the_oldest_goes_and_the_count_still_climbs() {
-        let mut s = Scrollback::new(2);
+        let mut s = Scrollback::new(2, ROOMY);
         for i in 0..5 {
             s.push(format!("{i}"));
         }
@@ -158,7 +211,7 @@ mod tests {
     fn a_zero_ceiling_keeps_nothing_and_still_counts_everything() {
         // A session nobody will read still has to be drained, or its pipe
         // fills and the session blocks — which is a real condition-3 failure.
-        let mut s = Scrollback::new(0);
+        let mut s = Scrollback::new(0, ROOMY);
         for i in 0..7 {
             s.push(format!("{i}"));
         }
@@ -169,7 +222,7 @@ mod tests {
 
     #[test]
     fn a_tail_longer_than_the_buffer_is_the_whole_buffer() {
-        let mut s = Scrollback::new(3);
+        let mut s = Scrollback::new(3, ROOMY);
         s.push("only".into());
         assert_eq!(s.tail(100), vec!["only"]);
     }
