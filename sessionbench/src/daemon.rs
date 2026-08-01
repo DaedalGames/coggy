@@ -424,6 +424,11 @@ impl HeldRun {
             peak_processes: self.samples.iter().map(|s| s.processes).max().unwrap_or(0),
             fewest_running: self.fewest_running,
             units: last.map(|r| r.read),
+            units_per_session_per_sec: last.map(|r| {
+                r.read as f64
+                    / self.elapsed.as_secs_f64().max(f64::EPSILON)
+                    / f64::from(self.sessions.max(1))
+            }),
             output_bytes: last.map(|r| r.read_bytes),
             evicted: last.map(|r| r.evicted),
             truncated: last.map(|r| r.truncated),
@@ -504,6 +509,16 @@ pub struct HoldReport {
     /// Fewest sessions the daemon reported alive.
     pub fewest_running: Option<u64>,
     pub units: Option<u64>,
+    /// Units a session did per second, which is what the condition compares.
+    ///
+    /// **Computed here rather than left to whoever divides.** The count runs
+    /// to end-of-file and `duration_ms` is measured after the stop, so the two
+    /// span the same window including teardown — and teardown time varies. A
+    /// reader dividing the count by the *hold* would put that variance into
+    /// the ratio; dividing these two cancels it.
+    ///
+    /// `None` when the daemon never reported, which is not a rate of zero.
+    pub units_per_session_per_sec: Option<f64>,
     pub output_bytes: Option<u64>,
     /// Lines the scrollback aged out or cut, which are policy rather than the
     /// gate's dropped output.

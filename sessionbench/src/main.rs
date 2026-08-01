@@ -317,13 +317,16 @@ fn main() -> anyhow::Result<()> {
                 println!("\nINCONCLUSIVE: {why}");
             }
             println!(
-                "\n  sessions   {} (fewest alive {:?})\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?}\n  replaced   {:?}",
+                "\n  sessions   {} (fewest alive {:?})\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?}\n  replaced   {:?}",
                 report.sessions,
                 report.fewest_running,
                 human_bytes(report.peak_rss_bytes),
                 human_bytes(report.rss_budget_bytes),
                 report.units,
                 report.output_bytes.unwrap_or(0),
+                report
+                    .units_per_session_per_sec
+                    .map_or_else(|| "—".to_string(), |r| format!("{r:.3}")),
                 report.rss,
                 report.work_rate,
                 report.dropped_output,
