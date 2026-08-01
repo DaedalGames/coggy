@@ -43,7 +43,7 @@
 # workload that cannot saturate cannot produce a work-rate ceiling.
 #
 # `--wait-ms` holds the pause fixed, which is the shape a session waiting on a
-# model has -- its duty climbs as its compute slows. 61 ms against a 22.5 ms
+# model has -- its duty climbs as its compute slows. 67 ms against a 24.9 ms
 # unit gives the same 0.27 solo duty and lets the count decide the rest.
 #
 # The workload's own source says all of this three lines above the flag. The
@@ -100,7 +100,7 @@ $busy = Get-Capture (& $bench doctor 2>&1) 'busy before we start ([\d.]+)'
 
 # --- the precondition: can two baselines agree today? --units 100000000
 # because cpu-spin's default is 60 and it EXITS after them.
-$work = @('--units', '100000000', '--wait-ms', '61', '--resident', '20')
+$work = @('--units', '100000000', '--wait-ms', '67', '--resident', '20')
 $probe = foreach ($i in 1..2) {
     $out = & $bench hold --label "m1-probe-$i" --sessions 1 --interval 5 --duration 30 -- $spin @work 2>&1
     $r = Get-Capture $out 'rate       ([\d.]+)'
