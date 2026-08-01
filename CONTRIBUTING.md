@@ -65,6 +65,8 @@ The body is free-form: one bullet per durable change, each on a single line, omi
 
 **No co-author trailers, agents included.** Use whatever tooling you like; the author line names whoever ran the change and answers for it.
 
+**A malformed message that is already pushed stays malformed.** Rewriting shared history to fix formatting is the worse trade, so the subject line is the one thing worth reading twice before committing — a body that lost its blank line makes a commit unlintable and cannot be repaired without a force-push. One in this history is like that and is staying.
+
 ## Pull requests
 
 Branch from `dev`. Before opening:
