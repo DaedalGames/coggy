@@ -218,7 +218,15 @@ pub struct Step {
     /// The slowest replacement, which is what the condition is set against.
     pub worst_replacement_secs: Option<f64>,
     /// Units a session reported starting but never wrote a line for.
-    pub dropped_units: u64,
+    ///
+    /// **`None` means the rung could not look, and that is not zero.** Gaps
+    /// are found by watching ordinals in a session's own output, which needs
+    /// this process to hold the reading end. A target where something else
+    /// holds it — a daemon draining into its own scrollback — leaves nothing
+    /// to count, and reporting `0` there would put a condition's tolerance of
+    /// zero against a number nobody measured. The condition is then skipped
+    /// and [the report says so](../report.rs) rather than passing it.
+    pub dropped_units: Option<u64>,
     /// Wall-clock the rung actually took, which exceeds the hold when the
     /// machine could not keep the sampler running.
     pub elapsed_secs: f64,
@@ -757,7 +765,9 @@ fn hold(
         if total_rss_bytes > budget {
             broken.push(LimitingCondition::Rss);
         }
-        if dropped_units > 0 {
+        // Some(0) is a measurement and None is an absence, and only the first
+        // may satisfy a condition whose tolerance is zero.
+        if dropped_units.is_some_and(|n| n > 0) {
             broken.push(LimitingCondition::OutputDrop);
         }
         if worst_replacement_secs.is_some_and(|s| s > REPLACEMENT_BUDGET_SECS as f64) {
@@ -929,13 +939,15 @@ impl Pool {
     /// afterwards, which is what lets the logs be capped: a workload whose
     /// payload is its output would otherwise make the disk the ceiling of the
     /// axis that exists to measure the output path.
-    fn dropped_units(&self) -> u64 {
-        self.retired_dropped
-            + self
-                .slots
-                .iter()
-                .map(|s| s.output.dropped_units())
-                .sum::<u64>()
+    fn dropped_units(&self) -> Option<u64> {
+        Some(
+            self.retired_dropped
+                + self
+                    .slots
+                    .iter()
+                    .map(|s| s.output.dropped_units())
+                    .sum::<u64>(),
+        )
     }
 
     /// A view of the pool's output for the sampler, which wants one counter.
@@ -1064,6 +1076,33 @@ mod tests {
             units_per_session_per_sec,
             ..Step::default()
         }
+    }
+
+    /// A rung that could not watch for drops does not thereby pass the
+    /// condition that forbids them.
+    ///
+    /// The tolerance is zero, so the check is `> 0` and an unmeasured rung
+    /// reporting `0` would clear it forever — a condition satisfied by never
+    /// having been asked. `Option` is what keeps *measured none* and *not
+    /// measured* apart, and this is the assertion that keeps it that way.
+    #[test]
+    fn an_unmeasured_drop_count_is_not_a_measured_zero() {
+        let measured_none: Option<u64> = Some(0);
+        let measured_some: Option<u64> = Some(3);
+        let unmeasured: Option<u64> = None;
+
+        assert!(!measured_none.is_some_and(|n| n > 0), "none is not a break");
+        assert!(measured_some.is_some_and(|n| n > 0), "some is a break");
+        assert!(
+            !unmeasured.is_some_and(|n| n > 0),
+            "and an absence is not a break either — but it is also not a pass, \
+             which is what the report renders as a dash rather than a zero"
+        );
+
+        // The rendering is the half a reader sees, so it is asserted here too.
+        let shown = |d: Option<u64>| d.map_or_else(|| "—".to_string(), |n| n.to_string());
+        assert_eq!(shown(measured_none), "0");
+        assert_eq!(shown(unmeasured), "—");
     }
 
     /// A report carrying only what the drift comparison reads.

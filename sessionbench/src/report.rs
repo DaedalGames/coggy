@@ -130,7 +130,10 @@ pub fn ramp_markdown(report: &RampReport) -> String {
             step.processes,
             step.pseudoconsoles,
             step.replacements,
-            step.dropped_units,
+            // An em dash rather than a zero, because a rung that could not
+            // look did not find none.
+            step.dropped_units
+                .map_or_else(|| "—".to_string(), |n| n.to_string()),
             step.worst_tick.total_ms(),
         );
     }

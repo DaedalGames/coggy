@@ -922,7 +922,9 @@ fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
             step.units_per_session_per_sec,
             step.session_cores + step.defender_cores,
             step.replacements,
-            step.dropped_units,
+            // A rung that could not look reads "— dropped", never "0 dropped".
+            step.dropped_units
+                .map_or_else(|| "—".to_string(), |n| n.to_string()),
         );
     }
 
