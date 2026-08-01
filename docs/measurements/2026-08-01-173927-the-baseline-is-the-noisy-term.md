@@ -79,6 +79,36 @@ So the allowance is not mis-shaped for averaging. **It is calibrated on a quiete
 - **The mechanism is inferred from an axis, not isolated.** Core placement is the reading that fits every figure here and one measured elsewhere; nothing pinned a session to a core to check it.
 - **[The teardown correction landed in the same afternoon](2026-08-01-144212-the-run-moves-the-machine-it-is-measured-on.md) and is 0.14%.** It is in these numbers and cannot be what moved them.
 
+## 2026-08-01: the same spread at six times the length
+
+The claim above — that what moves a solo hold is fixed for that hold's whole
+length, so a longer hold averages none of it out — went into a code comment and
+a README the same afternoon, which is earlier than it was checked. A gate run
+killed by its launcher left three finished 120-second solos behind, and their
+samples carry a cumulative unit count, so the rates come back without rerunning
+anything:
+
+| | rate | CPU |
+|---|---|---|
+| solo 1 | 10.255 | 27.2% |
+| solo 2 | 10.669 | 25.7% |
+| solo 3 | 10.529 | 25.5% |
+
+**3.95% across three holds of two minutes, against 4.54% across twelve holds of
+twenty seconds.** Random per-sample noise would fall as the root of the window
+and predict 1.85%; six times the length bought 13%. So the variance is a
+property of the launch rather than of the sampling, which is what the claim
+said and what makes repeats the only lever.
+
+Three points rather than twelve, and at a different duty — 0.27 here against 1.0
+there — so this is a check on the shape rather than a second measurement of the
+size. The CPU column moves opposite to the rate across all three, which is the
+wrong direction for *given less* and the right one for *a slower core burning
+more of its duty budget per unit*. Too few points to lean on.
+
+Free confirmation in the same table: the workload was asked for duty 0.27 and
+its process sat at 25.5–27.2% of a core.
+
 ## Provenance
 
 | | |

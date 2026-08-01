@@ -8,6 +8,20 @@
 # the report says so rather than passing them. This run answers RSS against
 # the 4 GB budget and work rate as a ratio against its own bracketing solos.
 #
+# LAUNCH IT DETACHED. Whatever starts this must outlive it, and the first
+# attempt did not: an agent's background task carries a ten-minute ceiling, so
+# the probes and three two-minute baselines used the whole budget and the run
+# was killed the second the hour began. Nothing was left behind -- a hundred
+# sessions went down with it and no process survived, which is the job objects
+# working -- but seventy-six minutes of machine time bought six minutes of
+# baseline. Start it so its lifetime is nobody else's:
+#
+#   Start-Process pwsh -ArgumentList '-NoProfile','-File','<this>' `
+#       -RedirectStandardOutput m1.log -RedirectStandardError m1.err
+#
+# then read m1.log. The run prints a line per phase, which is what tells a
+# working run from a hung one.
+#
 # READ THE OUTPUT, NOT THE EXIT CODE. Piping this script makes $LASTEXITCODE
 # the last native command's, and neither `exit` nor `throw` survives that. A
 # run that went ahead prints "starting" with a minute count; one that refused
