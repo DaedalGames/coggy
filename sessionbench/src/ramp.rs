@@ -14,6 +14,12 @@
 //! and the machine gets easier as that happens — so the number would drift
 //! upward exactly when the machine was struggling most.
 //!
+//! **That paragraph was a description and is now enforced.** It holds for pipe
+//! and pty because this file restarts what exits, and a target that holds the
+//! sessions on the ramp's behalf cannot be assumed to. So a rung may report the
+//! fewest it saw alive, and one that fell short of what it asked for is
+//! inconclusive rather than slow.
+//!
 //! Climb to bracket, then refine inside the bracket. The climb is what makes
 //! the break an observation rather than an assumption; the refinement is what
 //! turns "somewhere above ten and at or below twenty-five" into a number.
@@ -757,6 +763,10 @@ fn hold(
         hold: config.hold,
         spinup,
         elapsed_secs,
+        // Pipe and pty restart what exits, so the count asked for is the count
+        // held and there is nothing to ask. A target that holds sessions on
+        // the ramp's behalf fills this in.
+        fewest_alive: None,
     });
 
     let total_rss_bytes = median(measured.iter().map(|s| s.rss_bytes)).unwrap_or(0);
@@ -814,6 +824,14 @@ struct Reading {
     hold: Duration,
     spinup: Duration,
     elapsed_secs: f64,
+    /// The fewest sessions seen alive at any sample, when the target can say.
+    ///
+    /// `None` for targets that cannot lose one without the ramp noticing:
+    /// pipe and pty hold a slot each and restart what exits, so the count
+    /// asked for is the count held by construction. A daemon holds them on
+    /// the ramp's behalf and does not restart anything, so it has to be
+    /// asked.
+    fewest_alive: Option<u32>,
 }
 
 /// Why a rung describes the observer rather than the machine, when it does.
@@ -850,12 +868,32 @@ fn why_unmeasurable(reading: &Reading) -> Option<String> {
     // four rungs of "held" at zero bytes resident and three thousand
     // replacements, and the ramp reported a floor of fifty sessions from it.
     // Nothing was ever running to scale.
-    (reading.peak_processes == 0).then(|| {
-        format!(
+    if reading.peak_processes == 0 {
+        return Some(format!(
             "{} session(s) asked for and not one process resident across {} sample(s), with {} replacement(s) — the command exits faster than it can be seen, so this rung measured the spawn loop and not a workload",
             reading.sessions, reading.samples, reading.replacements,
-        )
-    })
+        ));
+    }
+
+    // The fourth, and the only one written before a run went wrong rather than
+    // after. Per-session work rate divides by the count the rung asked for,
+    // which pipe and pty may do because they restart what exits. A target that
+    // holds the sessions itself and does not restart them breaks that: the
+    // numerator falls as sessions die, the denominator does not, the rate
+    // reads low, low reads as saturation, and the ladder returns a redline
+    // from a target that was working perfectly.
+    //
+    // Dividing by the live count instead would produce a number, and it would
+    // be a number about a different session count than the one on the rung.
+    reading
+        .fewest_alive
+        .filter(|alive| *alive < reading.sessions)
+        .map(|alive| {
+            format!(
+                "{} session(s) asked for and only {alive} alive at some sample — the rung stopped being a rung at {} sessions, and dividing by either count would describe something nobody asked for",
+                reading.sessions, reading.sessions,
+            )
+        })
 }
 
 /// The N sessions a rung keeps alive.
@@ -1170,7 +1208,35 @@ mod tests {
             hold: Duration::from_secs(60),
             spinup: Duration::from_secs(20),
             elapsed_secs: 60.0,
+            fewest_alive: None,
         }
+    }
+
+    #[test]
+    fn a_rung_that_lost_sessions_is_not_a_rung_at_the_count_it_asked_for() {
+        // Written before a run went wrong rather than after, which none of the
+        // other three were. Per-session rate divides by the count asked for,
+        // and a target that does not restart what exits makes that denominator
+        // a lie in the direction of saturation — a redline from a daemon that
+        // was working perfectly.
+        let lost = Reading {
+            fewest_alive: Some(18),
+            ..reading()
+        };
+        let why = why_unmeasurable(&lost).expect("a short rung is inconclusive");
+        assert!(why.contains("18"), "it names how many were left: {why}");
+        assert!(why.contains("25"), "and what was asked for: {why}");
+
+        // Holding everything asked for says nothing, and neither does a target
+        // that cannot lose one without the ramp noticing.
+        assert!(
+            why_unmeasurable(&Reading {
+                fewest_alive: Some(25),
+                ..reading()
+            })
+            .is_none()
+        );
+        assert!(why_unmeasurable(&reading()).is_none());
     }
 
     #[test]
