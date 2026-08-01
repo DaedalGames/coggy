@@ -132,13 +132,22 @@ fn link_targets(body: &str) -> Vec<String> {
     links(body).into_iter().map(|(_, target)| target).collect()
 }
 
-/// Decimal figures in a piece of prose: `1.87`, `3.27`, `12.5`.
+/// Figures in a piece of prose: `1.87`, `361`, `13,100`.
 ///
-/// Decimals only. A bare integer is too often a count, a year or a milestone
-/// number to be worth chasing, and the figures that go stale here carry a
-/// point.
+/// **Integers as well as decimals, and the two need different care.** A
+/// decimal rarely collides by accident; `580` sits inside `15801` and `07`
+/// sits inside every date in the repository. So dates are dropped here and
+/// [`holds`] refuses a match that is part of a longer number — widening what
+/// is checked has to come with narrowing what counts as found, or the check
+/// starts passing for reasons unrelated to the claim.
+///
+/// Skipped: years, single digits, and bare integers of five or more digits,
+/// which in these documents are timestamps and build numbers rather than
+/// measurements.
 fn figures(text: &str) -> Vec<String> {
     let chars: Vec<char> = text.chars().collect();
+    let digit_at = |i: usize| chars.get(i).is_some_and(char::is_ascii_digit);
+
     let mut found = Vec::new();
     let mut i = 0;
     while i < chars.len() {
@@ -147,21 +156,62 @@ fn figures(text: &str) -> Vec<String> {
             continue;
         }
         let start = i;
-        while i < chars.len() && chars[i].is_ascii_digit() {
+        while digit_at(i) {
             i += 1;
         }
-        let decimal_follows =
-            chars.get(i) == Some(&'.') && chars.get(i + 1).is_some_and(char::is_ascii_digit);
-        if !decimal_follows {
-            continue;
+        let integer_digits = i - start;
+
+        // Comma groups, then at most one decimal part.
+        let mut grouped = false;
+        while chars.get(i) == Some(&',') && digit_at(i + 1) && digit_at(i + 2) && digit_at(i + 3) {
+            i += 4;
+            grouped = true;
         }
-        i += 1;
-        while i < chars.len() && chars[i].is_ascii_digit() {
+        let mut fractional = false;
+        if chars.get(i) == Some(&'.') && digit_at(i + 1) {
             i += 1;
+            while digit_at(i) {
+                i += 1;
+            }
+            fractional = true;
         }
-        found.push(chars[start..i].iter().collect());
+
+        // A run joined to another by a hyphen is a date or a version, not a
+        // measurement: 2026-07-31 would otherwise contribute 07 and 31, and
+        // two-digit numbers turn up somewhere in almost any document.
+        let hyphenated = (start > 0 && chars[start - 1] == '-' && digit_at(start - 2))
+            || (chars.get(i) == Some(&'-') && digit_at(i + 1));
+        let token: String = chars[start..i].iter().collect();
+        let year = integer_digits == 4 && !grouped && !fractional && token.starts_with("20");
+        let too_plain = !grouped && !fractional && !(2..=4).contains(&integer_digits);
+
+        if !hyphenated && !year && !too_plain {
+            found.push(token);
+        }
     }
     found
+}
+
+/// Whether `text` states `figure` as a number rather than inside a longer one.
+///
+/// `580` must not be found in `15801`, and `1.87` must not be found in
+/// `1.874`. Comma grouping is accepted either way, since a target may write
+/// the same quantity as `13,100` or `13100`.
+fn holds(text: &str, figure: &str) -> bool {
+    let ungrouped = figure.replace(',', "");
+    [figure, ungrouped.as_str()]
+        .iter()
+        .any(|form| occurs(text, form))
+}
+
+fn occurs(haystack: &str, needle: &str) -> bool {
+    let bytes = haystack.as_bytes();
+    haystack.match_indices(needle).any(|(at, _)| {
+        let before = at == 0 || !matches!(bytes[at - 1], b'0'..=b'9' | b'.' | b',');
+        let end = at + needle.len();
+        let after = end >= bytes.len() || !bytes[end].is_ascii_digit();
+        before && after
+    })
 }
 
 /// Every component that owns a document is listed in the map that promises to
@@ -263,7 +313,7 @@ fn a_figure_quoted_in_a_link_appears_in_the_document_it_points_at() {
                 continue;
             };
             for figure in figures(&label) {
-                if !cited.contains(&figure) {
+                if !holds(&cited, &figure) {
                     stale.push(format!(
                         "{}  claims {figure}  ->  {target}  (which does not contain it)",
                         doc.display()
@@ -353,16 +403,32 @@ fn every_cross_reference_resolves() {
 }
 
 #[test]
-fn figures_reads_decimals_and_leaves_counts_alone() {
+fn figures_reads_measurements_and_leaves_dates_and_versions_alone() {
     assert_eq!(figures("four readings give 1.865 GiB and 6%"), ["1.865"]);
     assert_eq!(figures("3.27 GiB and 1.24 cores"), ["3.27", "1.24"]);
-    // Counts, years and milestone numbers carry no point and are not chased.
+    assert_eq!(figures("a teardown 361× slower"), ["361"]);
+    assert_eq!(figures("about 13,100 MB across a hundred"), ["13,100"]);
+    // A date would otherwise contribute 07 and 31, and a two-digit number
+    // turns up somewhere in almost any document.
+    assert_eq!(figures("Frozen on 2026-07-31 at nine"), [] as [&str; 0]);
+    // Single digits, years and long bare runs are not measurements here.
     assert_eq!(
-        figures("nine sessions on 16 cores in 2026, M0"),
+        figures("9 sessions in 2026 on build 26200"),
         [] as [&str; 0]
     );
     // A run already consumed is not re-entered from inside itself.
     assert_eq!(figures("12.5%"), ["12.5"]);
+}
+
+#[test]
+fn holds_refuses_a_figure_that_is_part_of_a_longer_number() {
+    assert!(holds("the CLI holds 580 MiB", "580"));
+    assert!(!holds("port 15801 was open", "580"));
+    assert!(holds("1.87 GiB", "1.87"));
+    assert!(!holds("1.874 GiB", "1.87"));
+    // A target may group the same quantity either way.
+    assert!(holds("reached 13100 MB", "13,100"));
+    assert!(holds("reached 13,100 MB", "13,100"));
 }
 
 #[test]
