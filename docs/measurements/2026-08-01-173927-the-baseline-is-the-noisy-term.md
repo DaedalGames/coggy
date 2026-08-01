@@ -48,6 +48,22 @@ The samples say which of the two it is. Across all twelve solo holds:
 
 Cache and memory locality fit *same share, less work* as well as core speed does, and this run does not separate them. What it does establish is the axis: the variance is in what the session got to run on, not in how much it was allowed to run.
 
+## Three more things the samples rule out
+
+Read down the twelve solo holds again, sorted by rate:
+
+- **Memory is not the variable.** Peak RSS is 28.70 MiB in all twelve, to the
+  tenth of a mebibyte. The workload is deterministic and its footprint says so,
+  which is what makes a 4.54% spread in *speed* the only thing that moved.
+- **Neither is how much CPU each got at the end.** Last-sample share runs 96.5%
+  to 99.2% and does not track the rate: the fastest hold sat at 98.5% and the
+  slowest at 98.3%.
+- **And the machine did not warm up over the run.** Per-repeat solo means go
+  44.96, 44.04, 44.50 across roughly six minutes — down then up, so there is no
+  trend for a thermal or a scheduler-settling story to sit on. Repeat means
+  spread 2.07% where holds within a repeat spread about 3%, which is what
+  per-hold placement noise looks like and not what drift looks like.
+
 ## What this says about the allowance
 
 `SOLO_AGREEMENT_PERCENT` is 5%, and [the record that set it](2026-07-31-171719-what-a-baseline-is-worth.md) measured a ramp's solo rung reproducing to 0.37% over two and a half minutes, with gaps across ramps forming a 0.0–4.2% band. Five sits just above that band.
