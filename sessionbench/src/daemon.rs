@@ -160,6 +160,95 @@ pub fn watch_output(
     })
 }
 
+/// A daemon started by the harness, held until dropped.
+pub struct Held {
+    pub child: std::process::Child,
+    /// Held open for the life of the hold, never written to.
+    ///
+    /// **The whole stop condition, and it is why this cannot go through
+    /// [`session::spawn`](crate::session).** That spawner gives every session
+    /// `Stdio::null()`, which is right for a workload and fatal here: the
+    /// daemon stops at end-of-file, so a null stdin ends it before the first
+    /// sample. Holding a pipe open instead means the graceful stop is simply
+    /// letting go of it — no signal, no console, and no separate process to
+    /// hold the pipe, which is what an hour-long hold needed when this was
+    /// driven by hand.
+    stdin: Option<std::process::ChildStdin>,
+    pub watch: std::sync::Arc<std::sync::Mutex<Watch>>,
+    drain: Option<std::thread::JoinHandle<std::io::Result<()>>>,
+}
+
+impl Held {
+    /// Starts `daemon` holding `sessions` copies of `workload`.
+    ///
+    /// `workload` may carry `${session}` where each session needs something of
+    /// its own; the daemon expands it, so the workload learns nothing about
+    /// COGGY and this process names no COGGY-specific path.
+    ///
+    /// Job membership is inherited at creation, so this must be called after
+    /// the tree is armed or the daemon and everything under it sits outside
+    /// the measurement.
+    pub fn start(
+        daemon: &std::path::Path,
+        sessions: u32,
+        workload: &[String],
+        log: std::path::PathBuf,
+    ) -> std::io::Result<Self> {
+        let mut child = std::process::Command::new(daemon)
+            .arg("--sessions")
+            .arg(sessions.to_string())
+            .arg("--")
+            .args(workload)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()?;
+
+        let stdin = child.stdin.take();
+        let watch = std::sync::Arc::new(std::sync::Mutex::new(Watch::default()));
+        let drain = child
+            .stdout
+            .take()
+            .map(|out| watch_output(out, log, std::sync::Arc::clone(&watch)));
+
+        Ok(Self {
+            child,
+            stdin,
+            watch,
+            drain,
+        })
+    }
+
+    /// Closes stdin and waits for the daemon to clear its pool.
+    ///
+    /// The graceful path, which runs `Drop for Session` inside the daemon.
+    /// Killing instead also reclaims every tree — both were measured doing so
+    /// — but only this one exercises the code that has to order the job
+    /// release before the drains are joined.
+    pub fn stop(mut self) -> std::io::Result<std::process::ExitStatus> {
+        drop(self.stdin.take());
+        let status = self.child.wait()?;
+        if let Some(drain) = self.drain.take() {
+            drain
+                .join()
+                .map_err(|_| std::io::Error::other("the daemon's reader panicked"))??;
+        }
+        Ok(status)
+    }
+
+    /// What the daemon has said so far.
+    pub fn seen(&self) -> Watch {
+        let held = self
+            .watch
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        Watch {
+            latest: held.latest,
+            fewest_running: held.fewest_running,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
