@@ -161,6 +161,21 @@ Rungs are judged on all four conditions, so a run that cannot evaluate one does 
 
 Step 3 is where a heavier session would change the answer: `η` belongs to the workload as much as the machine, and `cpu-spin --resident` is the knob for it if the real session's footprint is far from 20 MiB.
 
+## Running gate M1 on a machine that can pass it
+
+[M1](../ROADMAP.md#m1--headless-daemon) asks for a hundred sessions held an hour, under 4 GB, within 2× of solo work rate, with nothing dropped. **This machine answers all three and fails two**, and both failures are arithmetic rather than daemon: a hundred sessions wanting `100 × d` cores from sixteen cannot come within 2× at the duty a real session has, and the box stops dead at forty-one minutes of that load.
+
+So the gate needs a wider machine, and what travels is the sizing rather than the numbers.
+
+1. **`C ≥ N·d ÷ 2η`.** At a hundred sessions, [the measured driven duty of 0.27](../docs/measurements/2026-07-31-054657-the-driven-duty.md) and an `η` near 0.73, that is about **nineteen logical processors**. Treat it as a floor: `η` belongs to the machine as much as the workload, and more cores can mean more claimants on one memory system.
+2. **Measure `η` there rather than carrying this one.** Hold `N` sessions at two duties whose product `N·d` differs, back to back, and read the totals — `concurrent × N = η·C ÷ w`, so the core count and the unit time cancel and the ratio is `η` alone. [No solo baseline is involved](../docs/measurements/2026-08-02-121359-eta-follows-the-awake-count.md), which matters because a solo hold is the noisiest number this instrument produces.
+3. **Check the plug.** [The same command returns 7.8× less on battery](../docs/measurements/2026-08-02-195840-the-same-command-on-battery.md) with every other recorded figure identical, so a laptop measured unplugged is a different machine. `doctor` says which state it is in.
+4. **Run the hour only if the machine survives it.** Sustained full-core load stopped this one at forty-one minutes with no bugcheck. Hold twenty minutes first; if that completes, the hour is a question about the daemon rather than about the hardware.
+5. **Read the drift control before the verdict.** `hold --with-solo` brackets the run and refuses a ratio when its two baselines disagree by more than the machine makes while being itself.
+6. **State the duty the run actually held**, not the one it asked for. `--duty` delivers a stated duty on any machine; a fixed `--wait-ms` does not, and [calibrated warm and run cold it delivered 0.172 where 0.271 was asked for](../docs/measurements/2026-08-01-210316-the-wait-mechanism-cancels.md).
+
+**What does not need re-deciding:** dropped output is answered by the daemon's own `failed_reads` on any machine, since a pipe blocks rather than dropping; and replacement stays out of reach until something restarts a session that exited.
+
 ## What we measure against
 
 A benchmark that only measures `coggyd` is marketing. At minimum, these run on identical hardware.
