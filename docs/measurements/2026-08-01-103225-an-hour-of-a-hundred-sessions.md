@@ -111,3 +111,19 @@ The per-window rate has no trend: mean 137 B, spread ±22%, and the whole-span f
 | stdin holder | `waitfor /t 3600 coggyhour` — `timeout /t` [returns instantly without a console](2026-07-31-035111-between-builds.md), and a second `ping` would have been counted as a session |
 | Sampling | 13 readings, t=60 s then every 5 min · `Get-Process` working sets · `Win32_OperatingSystem` free memory |
 | Machine free memory | 6.426 GiB before, 6.518 after, swinging ±1.2 between — which is why it is a cause channel here and not a second measurement |
+
+## 2026-08-03: filling the scrollback does not cost the sessions
+
+The daemon's own cost changes at the cap — before it the buffer grows, after it every line taken drops one — and whether that shift reaches the sessions had not been asked. If it did, the gate's work-rate and dropped-output conditions would share a cause.
+
+Across the three hundred-session holds from 2026-08-03, splitting each run's per-interval rate at the crossing (200,000 lines for a hundred sessions):
+
+| | before the cap | after | |
+|---|---|---|---|
+| 20 MiB | 955.9 units/s | 940.0 | −1.7% |
+| 33 MiB | 1035.1 | 1061.6 | +2.6% |
+| 36 MiB | 1034.7 | 1049.3 | +1.4% |
+
+**The sign is not consistent and nothing exceeds 3%.** There is no step at the crossing that the sessions can feel.
+
+**The comparison is weaker than it looks and still answers the question.** At these rates the cap is crossed in the first three minutes of a twenty-minute hold, so *before* is always the run's opening and carries whatever the opening carries — the 20 MiB run's negative is more likely [its two episodes of lost occupancy](2026-08-03-024222-the-footprint-never-mattered.md), which fall after the crossing, than anything about the buffer. What survives that confound is the absence of a large consistent step, which is what the question was about.
