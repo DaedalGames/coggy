@@ -147,12 +147,32 @@ if ($Sweep -eq 'sessions') {
         # Slope through the origin, which is what `total = N*d/w` says it is.
         $slope = ($rising | ForEach-Object { $_[1] * $_[0] } | Measure-Object -Sum).Sum /
                  ($rising | ForEach-Object { $_[0] * $_[0] } | Measure-Object -Sum).Sum
-        $knee = $plateau / $slope
+
+        # **And then check the line it just drew.** Being under 85% of the
+        # plateau does not put a point on the rise -- a smoke run with two
+        # points at 2 and 4 sessions cleared that bar, sat on the shoulder
+        # anyway, and returned a knee of 5.5 where the model says 11.7. A
+        # curved rise has no one slope, and the residual is what says so.
+        $worst = 0.0
+        foreach ($p in $rising) {
+            $err = [Math]::Abs($p[1] - $slope * $p[0]) / ($slope * $p[0]) * 100
+            if ($err -gt $worst) { $worst = $err }
+        }
         "rising slope over {0} point(s): {1:N2} units/s per session" -f $rising.Count, $slope
-        "knee    = plateau / slope = {0:N1} sessions" -f $knee
-        "redline = 2 x knee        = {0:N1} sessions" -f (2 * $knee)
-        "`nStraightness is the assumption underneath: check the rising points against"
-        "the fitted line before quoting the knee, since a curved rise has no one slope."
+        "worst residual against it:     {0:N2}%" -f $worst
+        foreach ($p in $rising) {
+            $fit = $slope * $p[0]
+            "   N={0,-5:N0} measured {1,8:N1}   line {2,8:N1}   {3,7:N1}% off" -f `
+                $p[0], $p[1], $fit, (($p[1] - $fit) / $fit * 100)
+        }
+        if ($worst -gt 5.0) {
+            "`nKNEE UNREADABLE: the rise bends by {0:N1}%, so it has no single slope." -f $worst
+            "Sweep lower session counts until the low points fall on one line."
+        }
+        else {
+            "`nknee    = plateau / slope = {0:N1} sessions" -f ($plateau / $slope)
+            "redline = 2 x knee        = {0:N1} sessions" -f (2 * ($plateau / $slope))
+        }
     }
 }
 
