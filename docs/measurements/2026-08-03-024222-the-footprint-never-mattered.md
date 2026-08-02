@@ -99,3 +99,19 @@ Six to seven minutes of clean running between them, and the second runs to withi
 **What correlates is 1.65 GiB of free memory going missing** at the same time. Something outside the job held it and used cores for two episodes, then gave both back.
 
 **This is as far as these artifacts go.** The sampler attributed only what was inside the job, so the thing that took the machine cannot be named from here — which is [why every sample now carries the whole machine's CPU](../../sessionbench/src/sampler.rs). The next run that dips will say how much of the machine was busy, and the difference will be a measurement instead of an inference.
+
+### And the other two runs do not have a smaller version of it
+
+The 15-core cut above was chosen because two runs never go below it, which cannot answer whether they carry the same thing at a smaller size. Measured instead against **each run's own median**, counting anything more than 2% under it:
+
+| | median | samples under | mean occupancy lost |
+|---|---|---|---|
+| 20 MiB | 15.37 | 73 of 225 (32%) | **1.096 cores** |
+| 33 MiB | 15.49 | 8 of 228 (4%) | **0.014 cores** |
+| 36 MiB | 15.39 | 3 of 228 (1%) | **0.004 cores** |
+
+**Seventy to two hundred and fifty times apart.** The two runs taken tonight lose 0.1% and 0.03% of their occupancy to this; the 20 MiB run loses 7.1% of its median. Its five episodes at this threshold are 60–100 s, 376–391, 427–574, 915–1117 and 1162–1167.
+
+The 1.096 cores lost also reconciles the two ways of reading that run: its median is 15.37 and its mean 14.31, a gap of 1.06.
+
+**So the 2% footprint effect is not contamination at a smaller scale.** Whatever it is, it is not this.
