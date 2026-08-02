@@ -165,16 +165,21 @@ pub struct Sample {
     /// were real — output fell with them — but nothing said what took the
     /// cores, because nothing was counting outside the job.
     ///
-    /// **First readings, and it does the job it was added for.** At eight
-    /// sessions the difference from the job comes to 2.56–4.21 cores, which
-    /// is what `doctor` reported for this box minutes earlier by another
-    /// route. At a hundred the machine reads exactly 16.00 — the counter is
-    /// a percentage and saturates — so the difference becomes conservation
-    /// rather than an independent reading, and that is precisely the case
-    /// worth having: when a hold dips, a machine still pinned at 16 says
-    /// something else took the cores, and a machine dipping with it says the
-    /// job simply stopped using them. What is lost at saturation is
-    /// resolution, not the discrimination.
+    /// **The first readings were taken by converting, and the stored column was
+    /// not.** At eight sessions the difference from the job came to 2.56–4.21
+    /// cores and agreed with what `doctor` reported minutes earlier; at a
+    /// hundred the machine came to 16.00 cores, saturated. Both are right and
+    /// neither could have come out of these two fields as they were then, which
+    /// is [how the scale defect survived being looked
+    /// at](../../docs/measurements/2026-08-03-061911-the-machine-column-was-narrower-than-the-job.md):
+    /// the analysis carried the multiplication that the sampler did not, so the
+    /// numbers checked out while the artifact did not.
+    ///
+    /// Read it as `(machine_cpu_percent - cpu_percent) / 100.0` for cores.
+    /// Saturation costs resolution rather than the discrimination that matters:
+    /// when a hold dips, a machine still pinned at every core says something
+    /// else took them, and a machine dipping with the job says the job stopped
+    /// using them.
     pub machine_cpu_percent: f32,
     /// `None` when Defender is not running, which is itself worth recording.
     pub defender_cpu_percent: Option<f32>,
