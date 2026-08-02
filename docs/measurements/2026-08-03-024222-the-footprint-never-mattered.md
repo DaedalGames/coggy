@@ -129,3 +129,19 @@ The 1.096 cores lost also reconciles the two ways of reading that run: its media
 As a share of each median that is **7.6% against 0.3–0.4%**, a twenty-fold separation where the 2% variant above gives seventy. The constant is what buys the extra, and a constant taken from this machine would have to be right on every other one.
 
 Spin-up is dropped by the same self-calibrating rule — everything before the run first reaches its own median — which is what stops a short hold reporting its own startup as an interruption.
+
+### A later run confirms the number this record inferred
+
+The re-reading above says the 20 MiB hold's published **9.3363 units/s/session carries that afternoon's interruptions**, and that undisturbed it was doing **10.402** at **67.41 units per core-second**. Those are inferences from intervals inside a run that had already happened.
+
+A fresh hold at the same shape — a hundred sessions, `--resident 20 --duty 0.27`, 90 s counted, rested box — ran afterwards for an unrelated reason:
+
+| | inferred | measured |
+|---|---|---|
+| units/s/session | 10.402 | **10.4982** — +0.9% |
+| units per core-second | 67.41 | **67.73** — +0.5% |
+| occupancy lost | — | 0.045 cores, undisturbed |
+
+**+12.4% against the figure of record**, and within a percent of what this record said was underneath it. Nothing was tuned to make that happen: the run's purpose was to match a tick-cost comparison, and its rate was read afterwards.
+
+So the disturbance correction is not only internally consistent — it predicted a later measurement.

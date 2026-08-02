@@ -156,3 +156,13 @@ The argument for the crossing sitting above 87 still holds — fewer sessions aw
 should cost each other less — but [that effect measured flat between twenty-seven
 awake and forty-five](2026-08-02-194155-eta-is-flat-where-it-was-said-to-fall.md),
 so there is less room in the range than this section assumed.
+
+## 2026-08-03: this run lost the machine for part of its window
+
+The 2.301 above divides a solo baseline by **9.3363 units/s/session**, and that concurrent figure is low for a reason nothing here recorded. Read per interval rather than as a mean, [this hold lost the machine in 18% of its samples](2026-08-03-024222-the-footprint-never-mattered.md) — occupancy down to 0.58 cores against a median of 15.37, in two episodes of two and three minutes, with output falling alongside so the dips are real rather than a sampler artifact.
+
+On the intervals where it held the machine it was doing **10.402 units/s/session**, which makes the undisturbed slowdown **2.065** rather than 2.301 — the figure of record is **10.2% high**.
+
+**A later hold of the same shape confirms it**: a hundred sessions at `--resident 20 --duty 0.27` on a rested box returned **10.4982**, 0.9% from the inferred value and 12.4% above what this record published.
+
+None of that was visible from the report, which summarised occupancy as a mean and nothing else. Holds and rungs now carry median, mean and lost cores for exactly this.
