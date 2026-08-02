@@ -919,6 +919,23 @@ fn doctor(strict: bool) -> anyhow::Result<()> {
         ),
         None => println!("\n  power state unknown — see query errors"),
     }
+
+    // **The other state, which nothing names.** A solo session runs at 21.5
+    // units/s on this box rested and 9.4 in a slower one seen three times, and
+    // a gate bracket ran entirely inside the slow one with nothing in its
+    // artifact to say so. Whether either of these two figures distinguishes
+    // them is unknown — the run that tried could not induce the slow state, so
+    // both its phases sampled the fast one. They print because the state has
+    // to be caught rather than ordered, and a number nobody is collecting
+    // cannot be checked against the next occurrence.
+    match (facts.thermal_c, facts.processor_performance) {
+        (None, None) => {}
+        (c, p) => println!(
+            "  thermal {} · cores clocking at {} of nominal — neither is known to name the slow state",
+            c.map(|c| format!("{c:.1} °C")).unwrap_or("—".into()),
+            p.map(|p| format!("{p:.0}%")).unwrap_or("—".into()),
+        ),
+    }
     block("provenance", provenance.rows());
 
     println!("\naxes");

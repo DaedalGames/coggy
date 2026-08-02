@@ -54,6 +54,14 @@ try {
   $plan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan -Filter "IsActive=true" -ErrorAction Stop
   "power_plan`t$($plan.ElementName)"
 } catch { "error`tWin32_PowerPlan: $($_.Exception.Message)" }
+try {
+  $zone = Get-CimInstance -Namespace root/WMI -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop | Select-Object -First 1
+  if ($zone) { "thermal_c`t$([Math]::Round($zone.CurrentTemperature / 10 - 273.15, 1))" }
+} catch { "error`tMSAcpi_ThermalZoneTemperature: $($_.Exception.Message)" }
+try {
+  $perf = (Get-Counter '\Processor Information(_Total)\% Processor Performance' -ErrorAction Stop).CounterSamples[0].CookedValue
+  "processor_performance`t$([Math]::Round($perf, 1))"
+} catch { "error`t% Processor Performance: $($_.Exception.Message)" }
 "#;
 
 /// What the host says about itself at the moment a report is taken.
@@ -77,6 +85,25 @@ pub struct HostFacts {
     pub on_battery: Option<bool>,
     pub charge_percent: Option<u8>,
     pub power_plan: Option<String>,
+    /// The ACPI thermal zone in degrees Celsius, and how fast the cores are
+    /// actually clocking as a percentage of their nominal rate.
+    ///
+    /// **Recorded because the state they might name is worth 72% and nothing
+    /// reports it.** This box runs a solo session at 21.5 units/s rested and
+    /// 9.4 in a slower state that has now been seen three times, each state
+    /// flat across its own samples. A gate bracket ran entirely inside the
+    /// slow one with nothing in its artifact to say so.
+    ///
+    /// **Neither field has been shown to distinguish the two**, and the run
+    /// that tried could not: a deliberate saturating burst failed to induce
+    /// the slow state, so both of its phases sampled the fast one and agreed
+    /// to 0.1%. The state cannot be ordered, so it has to be caught — which
+    /// takes these travelling in every artifact until it next arrives.
+    ///
+    /// `None` where the counter is absent, which is ordinary: `MSAcpi` is not
+    /// exposed by every firmware.
+    pub thermal_c: Option<f64>,
+    pub processor_performance: Option<f64>,
     /// Anything the query could not answer, kept rather than discarded so a
     /// partial result never reads as a complete one.
     pub errors: Vec<String>,
@@ -138,6 +165,8 @@ impl HostFacts {
                 "on_battery" => facts.on_battery = parse_bool(value),
                 "charge" => facts.charge_percent = value.parse().ok(),
                 "power_plan" => facts.power_plan = Some(value.to_string()),
+                "thermal_c" => facts.thermal_c = value.parse().ok(),
+                "processor_performance" => facts.processor_performance = value.parse().ok(),
                 "error" => facts.errors.push(value.to_string()),
                 _ => {}
             }
