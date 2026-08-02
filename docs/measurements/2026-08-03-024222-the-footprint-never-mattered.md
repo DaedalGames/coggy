@@ -115,3 +115,17 @@ The 15-core cut above was chosen because two runs never go below it, which canno
 The 1.096 cores lost also reconciles the two ways of reading that run: its median is 15.37 and its mean 14.31, a gap of 1.06.
 
 **So the 2% footprint effect is not contamination at a smaller scale.** Whatever it is, it is not this.
+
+### The shipped metric, which counts every sample under the median
+
+`sessionbench` now reports this per hold and per rung, and it takes no threshold — every sample below the run's own median counts, so ordinary tick noise contributes and the floor is not zero:
+
+| | median | mean | lost |
+|---|---|---|---|
+| 20 MiB | 15.39 | 14.28 | **1.173** |
+| 33 MiB | 15.48 | 15.46 | **0.061** |
+| 36 MiB | 15.40 | 15.40 | **0.052** |
+
+As a share of each median that is **7.6% against 0.3–0.4%**, a twenty-fold separation where the 2% variant above gives seventy. The constant is what buys the extra, and a constant taken from this machine would have to be right on every other one.
+
+Spin-up is dropped by the same self-calibrating rule — everything before the run first reaches its own median — which is what stops a short hold reporting its own startup as an interruption.
