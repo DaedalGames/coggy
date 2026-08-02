@@ -1,16 +1,32 @@
-# Does any readable counter distinguish the two machine states?
+# Can a saturating burst induce the slow machine state, and does any counter
+# name it?
 #
-# A three-minute saturating burst halves this box's solo rate for about ninety
-# minutes, and nothing in any artifact says which state a run was in -- see
+# THIS HAS RUN ONCE AND THE ANSWER TO THE FIRST HALF WAS NO. At -BurstSeconds
+# 180 the box stayed fast throughout: solo 21.45 units/s before and 21.43
+# after, thermal zone 39.1 both times, % Processor Performance 173.1 and 173.3.
+# So the second half went unanswered -- with both phases in the same state the
+# counters agree to 0.1%, which says nothing either way.
+#
+# The state itself is measured and not in doubt: two levels 2.2x apart, each
+# flat across its own samples, seen three times. Its cause is not. A burst sat
+# in the twelve-minute gap where the change happened and this script was
+# written to test it; see
 # docs/measurements/2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md.
-# `doctor` names the power state because Win32_Battery hands it over in one
-# field; this asks whether the thermal state has an equivalent.
+#
+# WHAT IS LEFT TO VARY IS THE DURATION, which is why it is a parameter. Three
+# minutes is not enough; the evening that produced the state had run far more
+# than that in total. Anything longer costs the box for about an hour if it
+# works, so pick the number deliberately.
 #
 # Order matters: the fast state is the one you lose by measuring, so it goes
-# first. The burst between the two phases is what induces the slow state, and
-# it leaves the box slow for about an hour afterwards.
+# first.
 #
 # READ THE OUTPUT, NOT THE EXIT CODE.
+
+param(
+    [int]$BurstSeconds = 180,
+    [int]$BurstSessions = 100
+)
 
 $ErrorActionPreference = 'Stop'
 $root = 'C:\Users\LilMG\Desktop\coggy'
@@ -52,14 +68,18 @@ function Phase([string]$name) {
 
 $fast = Phase 'fast'
 
-"=== burst: 100 sessions, 180 s (this is what induces the slow state) ==="
-& $bench hold --label thermal-burst --sessions 100 --duration 180 --interval 30 `
+"=== burst: {0} sessions, {1} s (180 s was not enough) ===" -f $BurstSessions, $BurstSeconds
+& $bench hold --label thermal-burst --sessions $BurstSessions --duration $BurstSeconds --interval 30 `
     --daemon "$root\target\release\coggyd.exe" -- $spin @work 2>&1 |
     Select-String -Pattern 'rate |peak rss' | ForEach-Object { "  " + $_.Line.Trim() }
 
 $slow = Phase 'slow'
 
 "`n=== verdict ==="
+if ([Math]::Abs($fast.Rate / $slow.Rate - 1) -lt 0.15) {
+    "  THE BURST DID NOT INDUCE THE STATE. Both phases are the same machine, so"
+    "  the counters below are two readings of one state and settle nothing."
+}
 "  solo rate       {0,7:N2} -> {1,7:N2}   ({2:N2}x)" -f $fast.Rate, $slow.Rate, ($fast.Rate / $slow.Rate)
 "  thermal zone    {0,7:N1} -> {1,7:N1}   ({2:+0.0;-0.0} C)" -f $fast.C, $slow.C, ($slow.C - $fast.C)
 "  % proc perf     {0,7:N1} -> {1,7:N1}   ({2:N2}x)" -f $fast.Perf, $slow.Perf, ($fast.Perf / $slow.Perf)
