@@ -27,15 +27,26 @@
 #     workload rather than scattering — 0.73-0.78 at 20 MiB and 0.84-0.93 at 80
 #     — and a real session holds 2.39 GiB, thirty times the heavier of them.
 #
+#   -Sweep sessions -Values 10,20,30,40,50,60,80 -Reference 100
+#     Finds the knee in N, which is where the redline actually lives: total
+#     throughput rises with the session count until the machine is claimed and
+#     is flat after, so the redline is twice the bend. Both `w` and `d` cancel
+#     out of `plateau / rising-slope`, so nothing here divides by a solo rung.
+#     It also tests the assumption underneath that: the rise is only a straight
+#     line if sessions below saturation cost each other nothing, and several
+#     points on the way up are what say whether it curves.
+#
 # READ THE OUTPUT, NOT THE EXIT CODE. Piping this makes $LASTEXITCODE the last
 # native command's, and neither `exit` nor `throw` survives that. A run that
 # went ahead prints a line per hold; one that refused prints REFUSING and stops.
 
 param(
-    [Parameter(Mandatory)][ValidateSet('duty', 'resident')][string]$Sweep,
+    [Parameter(Mandatory)][ValidateSet('duty', 'resident', 'sessions')][string]$Sweep,
     [Parameter(Mandatory)][double[]]$Values,
     [Parameter(Mandatory)][double]$Reference,
     [int]$Sessions = 100,
+    [double]$Duty = 0.27,
+    [double]$Resident = 20,
     [int]$HoldSeconds = 240
 )
 
@@ -73,29 +84,40 @@ if ($health | Select-String -Pattern 'ON BATTERY' -Quiet) {
 function Work([double]$duty, [double]$resident) {
     @('--units', '100000000', '--duty', "$duty", '--resident', "$resident")
 }
-$refWork = if ($Sweep -eq 'duty') { Work $Reference 20 } else { Work 0.27 $Reference }
+
+# One swept axis at a time; the other two hold at their defaults. Sessions is
+# not a workload argument, so a step carries its own count rather than sharing
+# the script's -- which is the whole point of the `sessions` sweep.
+function Step([string]$name, [double]$v, [string]$tag) {
+    switch ($Sweep) {
+        'duty' { @{ n = $name; work = (Work $v $Resident); sessions = $Sessions; tag = $tag } }
+        'resident' { @{ n = $name; work = (Work $Duty $v); sessions = $Sessions; tag = $tag } }
+        'sessions' { @{ n = $name; work = (Work $Duty $Resident); sessions = [int]$v; tag = $tag } }
+    }
+}
 
 # References at both ends and between every pair, so each swept point sits
 # inside a bracket rather than beside one. The gap between two references is the
 # drift, and a point is only readable when the effect exceeds it.
-$plan = @(@{ n = 'ref0'; work = $refWork; tag = "reference" })
+$plan = @(Step 'ref0' $Reference 'reference')
 for ($i = 0; $i -lt $Values.Count; $i++) {
-    $v = $Values[$i]
-    $work = if ($Sweep -eq 'duty') { Work $v 20 } else { Work 0.27 $v }
-    $plan += @{ n = "v$i"; work = $work; tag = "$Sweep=$v" }
-    $plan += @{ n = "ref$($i+1)"; work = $refWork; tag = "reference" }
+    $plan += Step "v$i" $Values[$i] "$Sweep=$($Values[$i])"
+    $plan += Step "ref$($i+1)" $Reference 'reference'
 }
 
 "`nsweeping $Sweep over $($Values -join ', ') against $Reference — $($plan.Count) holds of ${HoldSeconds}s"
 $totals = @{}
 foreach ($step in $plan) {
-    $out = & $bench hold --label "sw-$($step.n)" --sessions $Sessions --interval 5 `
+    $out = & $bench hold --label "sw-$($step.n)" --sessions $step.sessions --interval 5 `
         --duration $HoldSeconds --rss-budget-gb 8 -- $spin @($step.work) 2>&1
     $m = $out | Select-String -Pattern 'rate       ([\d.]+)' | Select-Object -First 1
     if ($null -eq $m) { $out | Select-Object -Last 20; throw "$($step.n) produced no rate" }
     $per = [double]$m.Matches[0].Groups[1].Value
-    $totals[$step.n] = $per * $Sessions
-    "{0,-6} {1,-14} {2,8:N3} per session   {3,9:N1} total" -f $step.n, $step.tag, $per, ($per * $Sessions)
+    # Total, not per session — it is what cancels the core count and the unit
+    # time between adjacent holds, and it is the quantity whose bend is the knee.
+    $totals[$step.n] = $per * $step.sessions
+    "{0,-6} {1,-16} {2,4} sess {3,8:N3} each {4,9:N1} total" -f `
+        $step.n, $step.tag, $step.sessions, $per, ($per * $step.sessions)
 }
 
 # --- the drift is what says whether any of it is readable.
@@ -104,5 +126,34 @@ $stat = $refs | Measure-Object -Average -Minimum -Maximum
 $drift = ($stat.Maximum - $stat.Minimum) / $stat.Average * 100
 "`nreferences: {0}" -f (($refs | ForEach-Object { '{0:N1}' -f $_ }) -join ', ')
 "drift across them: {0:N2}%  — an effect smaller than this is not an effect" -f $drift
+
+# --- for a sessions sweep, locate the bend rather than leaving it to the eye.
+# Below saturation the total rises with slope d/w; above it is flat at eta*C/w.
+# The knee is plateau / slope, and the redline is twice it. Both w and d cancel.
+if ($Sweep -eq 'sessions') {
+    $pts = @()
+    for ($i = 0; $i -lt $Values.Count; $i++) { $pts += , @([double]$Values[$i], $totals["v$i"]) }
+    $pts = $pts | Sort-Object { $_[0] }
+    $plateau = ($refs | Measure-Object -Average).Average
+
+    # The rising part is whatever sits far enough under the plateau to be on the
+    # slope rather than on the shoulder. Two points at minimum, or say so.
+    $rising = $pts | Where-Object { $_[1] -lt $plateau * 0.85 }
+    "`nplateau (references): {0:N1}" -f $plateau
+    if ($rising.Count -lt 2) {
+        "KNEE UNREADABLE: only {0} point(s) below 85% of the plateau — sweep lower session counts." -f $rising.Count
+    }
+    else {
+        # Slope through the origin, which is what `total = N*d/w` says it is.
+        $slope = ($rising | ForEach-Object { $_[1] * $_[0] } | Measure-Object -Sum).Sum /
+                 ($rising | ForEach-Object { $_[0] * $_[0] } | Measure-Object -Sum).Sum
+        $knee = $plateau / $slope
+        "rising slope over {0} point(s): {1:N2} units/s per session" -f $rising.Count, $slope
+        "knee    = plateau / slope = {0:N1} sessions" -f $knee
+        "redline = 2 x knee        = {0:N1} sessions" -f (2 * $knee)
+        "`nStraightness is the assumption underneath: check the rising points against"
+        "the fitted line before quoting the knee, since a curved rise has no one slope."
+    }
+}
 
 "`nDO NOT PRUNE bench-out until the record is written."
