@@ -35,6 +35,8 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 | [M3 · governor](#m3--resource-governor) | 0 / 5 | |
 | [M4 · audit surface](#m4--audit-surface) | 0 / 5 | |
 
+[M5](#m5--engine-surfaces-exploratory) is not in the denominator and has no row: it enumerates nothing yet, because its gate gets rewritten after M4 measures. Everything below M1 is a plan rather than a count of work done.
+
 **M0 — 5 of 6.** One session measured before the ramp; `sessionbench` built with its metric, six axes and comparison set; the duty relation derived and checked against a rung predicted in advance; G0 frozen at nine sessions with memory named as the cause; the attribution rule fired and Decision 1 re-grounded. Open: the comparison set has no daemon ramp, and its pseudoconsole row is recorded as unfilled.
 
 **M1 builds five things and a CLI, and has three.** Pipe-first spawning, a ring-buffer scrollback bounded in both lines and bytes, and a job object per session all exist. Session status events exist as a `Status` a caller polls rather than a stream. **The socket API and the `coggy` CLI are deliberately absent** — [M2 derives the API backward from the calls a harness makes](#m2--harness-contract), so choosing verbs now invents what that milestone exists to discover, and the gate asks for none of it.
