@@ -35,9 +35,9 @@ So the footprint that fits the memory condition fails the work-rate condition **
 
 Today's [split of four `η` values by footprint](2026-08-02-202535-the-core-ceiling-is-four-numbers-for-two-workloads.md) read 0.73–0.78 at 20 MiB and 0.84–0.93 at 80 MiB and concluded that a heavier session keeps more, because one already waiting on memory has less left to lose. **Tonight moves footprint alone, at a fixed duty, and gets the opposite sign.**
 
-The split's pairs were never a controlled comparison: its 80 MiB entry is a **duty-1.00** run and its 20 MiB entries are at 0.27 and at mixed duties. Footprint and duty covaried, and the reading assigned the whole difference to footprint. One deliberate variation of the one variable is worth more than four runs that each moved two.
+The split's pairs were never a controlled comparison: two of its four rows sit at duties other than 0.27, so footprint and duty moved together and the reading assigned the whole difference to footprint. One deliberate variation of the one variable is worth more than four runs that each moved two. **The section appended below narrows this further** — duty is not the whole story, and what separates the 80 MiB reading from these two is how it was estimated.
 
-**So the middle was worth measuring and the answer was not the one the interpolation offered.** A straight line between the two footprints predicted `η(33) ≈ 0.794`; the measurement is 0.518, below *both* anchors. There is no monotone curve through 0.733 at 20, 0.518 at 33 and 0.842 at 80, which means at least one of those three is measuring something other than footprint.
+**So the middle was worth measuring and the answer was not the one the interpolation offered.** A straight line between the two footprints predicted `η(33) ≈ 0.794`; the measurement is 0.518, below *both* anchors.
 
 ## The solo rung stopped being a fingerprint
 
@@ -55,7 +55,7 @@ Four `doctor` readings before the run spread **26.7%** — 3.63 to 4.69 cores �
 
 ## What this cannot say
 
-- **One footprint pair, one duty.** 20 and 33 MiB at 0.27. Whether `η` keeps falling past 33 is unmeasured, and the 80 MiB figure sits at a different duty.
+- **One footprint pair, one duty.** 20 and 33 MiB at 0.27. Whether `η` keeps falling past 33 is unmeasured — the 80 MiB reading at this duty exists but was estimated another way, as the section below sets out.
 - **Two afternoons, and no fingerprint to bridge them.** For the reason above. A same-session pair would need both footprints back to back.
 - **Nothing here explains the mechanism.** Why a heavier session should cost its neighbours *more* rather than less is not answered by a slowdown.
 - **The mid-run rate excursion is a sampling beat, not work.** Five samples out of 239 carry about 10 300 units where the mean is 1 449, alternating with low neighbours. The reported total comes from the daemon's own cumulative counter rather than a sum of deltas, so the rate is unaffected.
@@ -72,3 +72,27 @@ Four `doctor` readings before the run spread **26.7%** — 3.63 to 4.69 cores �
 | Daemon | `coggyd` 0.0.0, release |
 | Shape | 3 solo × 120 s, 100 sessions × 1200 s, 3 solo × 120 s, 30 s uncounted warm-up before each |
 | Artifact | `bench-out/1785680927-eta-at-33-daemon/` |
+
+## Same night: the duty explanation does not hold, and one of the three points is a different estimator
+
+This record blames the earlier split on duty covarying with footprint. **Half of that is wrong.** The 80 MiB pair contains a duty-**0.27** entry as well as the duty-1.00 one, and it is the higher of the two: `η = 0.925`. So all three footprints have a reading at this gate's own duty, and the non-monotonicity survives:
+
+| footprint | `η` at duty 0.27 | how it was obtained | implied redline |
+|---|---|---|---|
+| 20 MiB | 0.733 | slowdown 2.301 at a fixed `N = 100` | 87 |
+| **33 MiB** | **0.518** | slowdown 3.261 at a fixed `N = 100` | 61 |
+| 80 MiB | 0.925 | **a redline fitted across a ladder** | 110 |
+
+**The odd one out is the estimator, not the footprint.** The 80 MiB figure never came from a hundred sessions slowing down — that ladder *held* a hundred at 1.83×, comfortably under its own redline, and `2ηC = 29.59` was fitted from where the ladder crossed. The other two are single-point slowdowns at a count that sits *above* their redlines.
+
+So the comparison that stands is the pair measured the same way: **20 MiB against 33 MiB, both single-point at `N = 100`, and `η` falls.** Whether it recovers by 80 MiB is not answered by a number produced a different way, and reading all three as one curve is the mistake this record accused the earlier split of making.
+
+## And the fingerprint point was already recorded
+
+*A footprint sweep moves the solo rung, so it stops being a machine fingerprint* is written above as though it were new. [It was recorded on 2026-08-01 for the duty knob](2026-08-01-080158-the-relation-at-a-quarter-duty.md), which moved a baseline from 77.34 to 19.11 while both ramps held their own solo rungs to under a percent:
+
+> **A solo rung is a machine fingerprint only across ramps that share a workload.** The tool now splits the verdict on whether the commands differ, and still refuses the pair, because two redlines measured against different baselines cannot be subtracted whatever moved them.
+
+`sessionbench compare` already implements it. What last night adds is that the rule reaches `--resident` and not only `--duty`, and that it applies to a pair of holds as much as to a pair of ramps — the same conclusion arrived at from the other knob, which is worth one sentence rather than a section.
+
+Reading the repository's own reference list first is this project's first rule, and it would have supplied both of these before the arithmetic went looking.
