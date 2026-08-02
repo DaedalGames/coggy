@@ -127,6 +127,8 @@ cargo +1.88.0 check --all-targets      # the declared MSRV, which the tracking t
 cargo run -p sessionbench -- doctor    # and read it
 ```
 
+And for anything touching `coggyd` or the code that drives it, [the three coupling examples](sessionbench/README.md#running-it) come before the measurement — `cargo test` compiles them and runs none, which is a choice that README explains and a gap this list would otherwise hide.
+
 When an independent check disagrees with the code, suspect the check first — but say so either way. [CONTRIBUTING's accident modes](CONTRIBUTING.md#the-one-rule-that-matters) are each a real mistake made in this repository.
 
 ### Verify before you launch, too
