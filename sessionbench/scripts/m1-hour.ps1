@@ -138,11 +138,22 @@ $busy = Get-Capture (& $bench doctor 2>&1) 'busy before we start ([\d.]+)'
 "background: {0} of 16 logical" -f $busy
 
 # --- and what that leaves the concurrent hold, which the probe below cannot
-# see. The precondition is two SOLO holds agreeing within 5%, and a solo needs
-# one core: with ten cores held by something else there are still six free, so
-# both probes run at full speed and agree tightly while the hundred-session hold
-# gets six cores instead of sixteen. A steady tenant is invisible to an
-# agreement check and fatal to the ratio it is guarding.
+# see. The precondition is two SOLO holds agreeing within 5%, and agreement is
+# not a level: two probes taken inside the same disturbance agree with each
+# other and are both wrong.
+#
+# A SOLO IS NOT IMMUNE, WHICH IS NOT WHAT THIS COMMENT FIRST SAID. It claimed a
+# solo needs one core and therefore runs at full speed under a tenant. Measured:
+# 11.5 of 16 cores held costs a single session 26%, 17.561 units/s against
+# 13.002. So the probes do slow -- just far less than the hundred-session hold
+# they are guarding, and by an amount the 5% agreement gate never sees.
+#
+# WORSE, THE LEVEL CHECK BELOW MISNAMES IT. Probes averaging under 15 units/s
+# are reported as the post-saturation machine state. A tenant lands in the same
+# place -- three solos under one averaged exactly 15.0 -- and the two have
+# different remedies: waiting an hour fixes the state and does nothing about a
+# tenant. What separates them is this line: the slow state leaves the machine
+# idle, a tenant does not.
 #
 # THE THRESHOLD IS NOT LOW, AND THAT IS DELIBERATE. Ordinary background here
 # reads about 2.2 cores idle and collapses to roughly 0.6 once a hundred
@@ -192,7 +203,10 @@ $gap = [Math]::Abs($probe[0] - $probe[1]) / (($probe[0] + $probe[1]) / 2) * 100
 # says nothing about the state; the level does.
 $mean = ($probe[0] + $probe[1]) / 2
 if ($mean -lt 15) {
-    "NOTE: {0:N1} units/s is the post-saturation state, not the rested one (~21.5)." -f $mean
+    "NOTE: {0:N1} units/s is not the rested state (~21.5). Two causes reach here:" -f $mean
+    "      the post-saturation machine, and something else holding cores. The"
+    "      background line above separates them -- the slow state leaves the"
+    "      machine idle and a tenant does not."
     "      The run will complete and its slowdown will read high. Let the box sit"
     "      for an hour if the figure is meant to be compared with a rested one."
 }
