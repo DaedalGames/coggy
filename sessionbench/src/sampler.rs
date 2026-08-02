@@ -195,16 +195,14 @@ impl Sampler {
         // method exists to avoid: the full table cost eighty seconds at
         // twenty-five sessions. This is per core, not per process.
         //
-        // **Its own cost was checked, and the check is not a matched pair.**
-        // Tick slip against the interval asked for: +23.7 and +23.8 ms at a
-        // hundred sessions on a 5 s tick before this line existed, +13.3 and
-        // +11.9 ms at eight sessions on a 2 s tick after. Smaller in
-        // absolute terms at a much smaller session count, which is what a
-        // per-core read should look like beside a per-process one — but the
-        // two differ in session count and tick length, so it bounds the cost
-        // rather than measuring it. Rule 5 of keeping it honest is that the
+        // **Its own cost is measured, at a matched pair.** Tick slip against
+        // the interval asked for, all at a hundred sessions on a 5 s tick:
+        // +23.7 and +23.8 ms before this line existed, +23.9 after —
+        // **0.2 ms, or 0.004% of the tick**, with the median at exactly
+        // +24.0 in all three. Rule 5 of keeping it honest is that the
         // observer becoming the bottleneck is the one failure that does not
-        // announce itself.
+        // announce itself, and a per-core read is the cheapest way to ask
+        // the whole machine what it was doing.
         self.sys.refresh_cpu_usage();
         let kind = ProcessRefreshKind::nothing().with_cpu().with_memory();
 
