@@ -34,6 +34,15 @@
 # peak against the gate's stated 4 GB, and the two solo sides against each
 # other.
 #
+# THE PROBE CHECKS TWO THINGS AND ONLY ONE OF THEM IS A GAP. Two fresh solo
+# holds agreeing says the machine is steady; it does not say which machine.
+# This box runs ~21.5 units/s solo at this workload rested and ~9.7 after a
+# saturating burst, and two probes taken inside the slow state agree with each
+# other to 0.3% while the run they precede reports a slowdown 72% higher. The
+# script now prints a NOTE when the level says post-saturation, and does not
+# refuse on it -- the run is valid, it is just a figure for a different machine
+# state, and refusing would have cancelled the run that found this.
+#
 # USE --duty, AND THE ROUTE TO THAT WAS WRONG TWICE. A mid-run reading said
 # `--duty` backs off rather than competing -- 0.0655 cores a session against
 # 0.27 requested, six of sixteen cores idle -- and that aborted a gate run and
@@ -130,6 +139,20 @@ $probe = foreach ($i in 1..2) {
 }
 $gap = [Math]::Abs($probe[0] - $probe[1]) / (($probe[0] + $probe[1]) / 2) * 100
 "probe baselines: {0} and {1} units/s · gap {2:N1}%" -f $probe[0], $probe[1], $gap
+
+# --- and which machine state they agree in, which the gap cannot tell you.
+# This box gives ~21.5 units/s solo at this workload when rested -- measured
+# twice, two days apart, 0.15% apart. Three minutes of a hundred saturating
+# sessions halves that for about ninety minutes, and two probes taken inside
+# that state agree with each other to under a percent while the run they
+# precede reports a slowdown 72% higher. So the agreement is necessary and
+# says nothing about the state; the level does.
+$mean = ($probe[0] + $probe[1]) / 2
+if ($mean -lt 15) {
+    "NOTE: {0:N1} units/s is the post-saturation state, not the rested one (~21.5)." -f $mean
+    "      The run will complete and its slowdown will read high. Let the box sit"
+    "      for an hour if the figure is meant to be compared with a rested one."
+}
 if ($gap -gt 5) {
     "REFUSING: two fresh solo holds sit {0:N1}% apart, past the 5% the run will be judged by." -f $gap
     "Placement noise alone is worth about 4.5% here; more than that is the machine."
