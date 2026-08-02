@@ -129,6 +129,17 @@ pub struct Sample {
     /// an `η` that was read as a fact about the session's footprint. The dips
     /// were real — output fell with them — but nothing said what took the
     /// cores, because nothing was counting outside the job.
+    ///
+    /// **First readings, and it does the job it was added for.** At eight
+    /// sessions the difference from the job comes to 2.56–4.21 cores, which
+    /// is what `doctor` reported for this box minutes earlier by another
+    /// route. At a hundred the machine reads exactly 16.00 — the counter is
+    /// a percentage and saturates — so the difference becomes conservation
+    /// rather than an independent reading, and that is precisely the case
+    /// worth having: when a hold dips, a machine still pinned at 16 says
+    /// something else took the cores, and a machine dipping with it says the
+    /// job simply stopped using them. What is lost at saturation is
+    /// resolution, not the discrimination.
     pub machine_cpu_percent: f32,
     /// `None` when Defender is not running, which is itself worth recording.
     pub defender_cpu_percent: Option<f32>,
