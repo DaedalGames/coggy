@@ -19,6 +19,8 @@ cargo run -p sessionbench -- doctor
 
 Windows-only is deliberate: ConPTY, Job Objects, and Defender are the subject matter.
 
+**`cargo test` needs the machine, and it says so by taking longer rather than by failing.** `coggyd`'s suite spawns real processes and asserts on their reaping, so it competes for cores with whatever else runs. Measured on a sixteen-core box: **18 seconds idle, 47 under a background holding fifteen cores, and 101 with a hundred saturating sessions beside it** — 5.6× at the far end, and green at every one. Give it a timeout with room, and do not read a slow run as a hung one.
+
 ## What gets closed
 
 A PR that assumes away any of [PLAN's anti-patterns](docs/PLAN.md#anti-patterns-these-kill-the-project) gets closed. If you think one is wrong, open an issue arguing against the entry in PLAN — not a PR that quietly works around it.
