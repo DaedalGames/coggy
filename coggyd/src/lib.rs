@@ -354,6 +354,16 @@ enum Reader {
 /// A lossy decode rather than a failure: a session that emits one invalid byte
 /// has not stopped being worth reading, and dropping the whole line would look
 /// exactly like the gap condition 3 reports.
+///
+/// **An error is not end-of-file, and reading it as one is how output gets
+/// dropped here.** These two arms shared a branch: a failed read returned from
+/// the thread exactly as a clean EOF does, so everything the session wrote
+/// afterwards went nowhere and nothing recorded that it had. That is [gate M1's
+/// third condition](../../ROADMAP.md#m1--headless-daemon) failing silently in
+/// the one place able to notice — a pipe does not lose data, it blocks, so the
+/// only way a line disappears between `write` and `read` is if this loop stops
+/// asking. Counted now, so the condition can be answered instead of called
+/// unmeasurable.
 fn drain(reader: Reader, into: Arc<Mutex<Scrollback>>) -> JoinHandle<()> {
     std::thread::spawn(move || {
         let mut buf: Box<dyn BufRead> = match reader {
@@ -364,7 +374,11 @@ fn drain(reader: Reader, into: Arc<Mutex<Scrollback>>) -> JoinHandle<()> {
         loop {
             line.clear();
             match read_line_capped(&mut buf, &mut line) {
-                Ok(0) | Err(_) => return,
+                Ok(0) => return,
+                Err(_) => {
+                    into.lock().unwrap_or_else(|e| e.into_inner()).fail_read();
+                    return;
+                }
                 Ok(_) => {
                     while matches!(line.last(), Some(&NEWLINE | &CARRIAGE_RETURN)) {
                         line.pop();

@@ -36,11 +36,14 @@ use crate::{Session, Status};
 /// that separation was invisible outside this process until the pool summed
 /// it.
 ///
-/// The daemon cannot compute *dropped* on its own. It knows what it read,
-/// never what a session emitted and it missed; the difference is the
-/// [workload contract's ordinals](../../workloads/README.md#the-contract),
-/// which the benchmark holds. So this reports `read` and leaves the
-/// subtraction to whoever knows the other term.
+/// The daemon cannot compute the *difference* between what a session emitted
+/// and what arrived — that subtraction needs the [workload contract's
+/// ordinals](../../workloads/README.md#the-contract), which the benchmark
+/// holds. **What it can do is name the only way a line goes missing on this
+/// side**, which is `failed_reads`: a pipe blocks rather than dropping, so
+/// nothing is lost between a session's `write` and this struct unless the
+/// reader stops asking. That used to be invisible, because a failed read
+/// returned from the drain thread on the same branch as a clean end-of-file.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Output {
     pub read: u64,
@@ -48,6 +51,12 @@ pub struct Output {
     pub read_bytes: u64,
     pub evicted: u64,
     pub truncated: u64,
+    /// Streams whose drain gave up on an error rather than reaching EOF.
+    ///
+    /// **Zero is the gate's third condition holding, and it is a real zero**
+    /// rather than an absent measurement — the counter exists for the whole
+    /// life of every session, so nothing here is the same as nothing happened.
+    pub failed_reads: u64,
 }
 
 /// The sessions this daemon is holding.
@@ -124,6 +133,7 @@ impl Pool {
                 total.read_bytes += back.read_bytes();
                 total.evicted += back.evicted();
                 total.truncated += back.truncated();
+                total.failed_reads += back.failed_reads();
                 total
             })
     }

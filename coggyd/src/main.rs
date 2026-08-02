@@ -110,16 +110,23 @@ fn main() -> Result<()> {
 /// term the benchmark subtracts from what its workload emitted; `evicted` and
 /// `truncated` are policy, and are printed beside it so a shortfall cannot be
 /// blamed on the gate's failure when it was ours.
+///
+/// **`failed_reads` is the condition itself rather than a term in it.** The
+/// other three describe lines that arrived; this counts streams whose drain
+/// gave up on an error instead of an end-of-file, which on a pipe is the only
+/// way a line can go missing at all. Zero answers the gate; anything else is
+/// the number of sessions whose tail is gone.
 fn report(pool: &mut Pool) {
     let running = pool.running();
     let out = pool.output();
     println!(
-        "held {} · running {running} · read {} · bytes {} · evicted {} · truncated {}",
+        "held {} · running {running} · read {} · bytes {} · evicted {} · truncated {} · failed_reads {}",
         pool.len(),
         out.read,
         out.read_bytes,
         out.evicted,
-        out.truncated
+        out.truncated,
+        out.failed_reads
     );
 }
 

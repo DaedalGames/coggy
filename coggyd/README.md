@@ -60,7 +60,7 @@ Admission against a ceiling is [M3](../ROADMAP.md#m3--resource-governor). This c
 ```
 coggyd --sessions 3 -- ping -n 40 127.0.0.1
 holding 3 session(s); stdin closes to stop
-held 3 · running 3 · read 12 · bytes 564 · evicted 0 · truncated 0
+held 3 · running 3 · read 12 · bytes 564 · evicted 0 · truncated 0 · failed_reads 0
 cleared
 ```
 

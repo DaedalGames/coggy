@@ -1388,10 +1388,9 @@ mod tests {
         assert_eq!(slots.fewest_alive(), None, "slots restart what exits");
 
         let watch = Arc::new(Mutex::new(crate::daemon::Watch::default()));
-        watch
-            .lock()
-            .expect("fresh")
-            .observe("held 8 · running 6 · read 40 · bytes 900 · evicted 0 · truncated 0");
+        watch.lock().expect("fresh").observe(
+            "held 8 · running 6 · read 40 · bytes 900 · evicted 0 · truncated 0 · failed_reads 0",
+        );
         let daemon = pool_with(Some(Arc::clone(&watch)));
 
         assert_eq!(daemon.total_units(), 40, "units come from the report");

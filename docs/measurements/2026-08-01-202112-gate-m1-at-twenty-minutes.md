@@ -101,3 +101,49 @@ The tree took **15.50 of 16 cores** at the last sample. A hundred sessions at du
 | Workload | `cpu-spin --units 100000000 --wait-ms 67 --resident 20` |
 | Shape | 3 × 120 s solo · 100 sessions for 1200 s · 3 × 120 s solo, sampled every 5 s, back to back |
 | Samples | 238 on disk, written as they were taken |
+
+## 2026-08-02: dropped output was not out of reach
+
+The table above reports it `OutOfReach`, and the paragraph under it gives the
+reason: a harness cannot subtract what arrived from what a session emitted,
+because under a daemon the reading end belongs to the daemon. That is true and
+it is the wrong question.
+
+**A pipe blocks rather than dropping.** Between a session's `write` and the
+daemon's scrollback there is nothing that can lose a line — the writer stalls
+when the buffer fills and resumes when it drains. So the only loss available on
+this path is the daemon's own reader stopping, and the daemon is the one thing
+positioned to notice.
+
+It was not noticing. Its drain read
+
+```rust
+match read_line_capped(&mut buf, &mut line) {
+    Ok(0) | Err(_) => return,
+```
+
+so a failed read returned from the thread on exactly the branch a clean
+end-of-file uses. Everything the session wrote afterwards went nowhere, and no
+counter moved. **The gate's third condition was failing silently in the only
+place able to see it, and the arrangement was being blamed instead.**
+
+The two arms are separate now and the error one increments a counter the daemon
+reports as `failed_reads`. Zero answers the condition; anything else is the
+number of sessions whose tail is gone. A four-session hold returns
+
+```
+held 4 · running 4 · read 2306 · bytes 45688 · evicted 0 · truncated 0 · failed_reads 0
+  dropped    Held
+```
+
+where every run before it returned `OutOfReach`.
+
+**Zero is the passing value, which makes the absence dangerous.** A daemon too
+old to report the field would hand a tolerant parser nothing, nothing would
+become zero, and the run would report a clean bill from a daemon that never
+checked. The parser refuses such a line instead, and that refusal was broken on
+purpose to confirm it fires.
+
+**This does not change the run above**, whose daemon predates the counter. What
+it changes is the count: gate M1 asks three things, and all three are now
+askable. Replacement stays out of reach and stays outside the gate's three.

@@ -45,6 +45,7 @@ pub struct Scrollback {
     read_bytes: u64,
     evicted: u64,
     truncated: u64,
+    failed_reads: u64,
 }
 
 impl Scrollback {
@@ -72,6 +73,7 @@ impl Scrollback {
             read_bytes: 0,
             evicted: 0,
             truncated: 0,
+            failed_reads: 0,
         }
     }
 
@@ -157,6 +159,27 @@ impl Scrollback {
     /// the shape that makes a line-count ceiling stop being a memory ceiling.
     pub fn truncated(&self) -> u64 {
         self.truncated
+    }
+
+    /// Records that a drain stopped on an error rather than end-of-file.
+    ///
+    /// Called at most once a stream, since the drain returns after it.
+    pub fn fail_read(&mut self) {
+        self.failed_reads += 1;
+    }
+
+    /// Streams whose drain gave up on an error instead of reaching EOF.
+    ///
+    /// **This is the gate's dropped output, and the only thing that can be.**
+    /// The other three counters are policy — read and aged out, read and cut —
+    /// while this one means the daemon stopped asking and whatever the session
+    /// wrote afterwards is gone with no record of how much. A pipe does not
+    /// lose data, it blocks; so between a session's `write` and this buffer
+    /// there is nothing to drop, and the only loss available is the reader
+    /// giving up. Non-zero is the condition failing, and it used to be
+    /// unobservable because the error shared a branch with EOF.
+    pub fn failed_reads(&self) -> u64 {
+        self.failed_reads
     }
 
     pub fn retained(&self) -> usize {

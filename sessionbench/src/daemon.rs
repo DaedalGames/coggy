@@ -54,6 +54,13 @@ pub struct Report {
     /// leave a reader to assume it was not.
     pub evicted: u64,
     pub truncated: u64,
+    /// Streams whose drain gave up on an error rather than reaching EOF.
+    ///
+    /// **The gate's dropped output, and required rather than optional.** A
+    /// daemon too old to report it would otherwise hand this a zero, and zero
+    /// is the passing value — so an absent field would read as the condition
+    /// holding. [`parse_report`] refuses the line instead.
+    pub failed_reads: u64,
 }
 
 /// Parses a report line, or `None` if the line is not one.
@@ -61,7 +68,7 @@ pub struct Report {
 /// The daemon also prints a startup line and a `cleared` line, and a rung
 /// reads whatever arrives, so not-a-report is ordinary rather than an error.
 pub fn parse_report(line: &str) -> Option<Report> {
-    // `held 100 · running 100 · read 3 · evicted 0 · truncated 0`, taken by
+    // `held 100 · running 100 · read 3 · evicted 0 · truncated 0 · failed_reads 0`, taken by
     // name so a new field between two old ones changes nothing. Whole tokens
     // rather than substrings: a later `withheld 3` would otherwise answer to
     // `held`.
@@ -81,6 +88,7 @@ pub fn parse_report(line: &str) -> Option<Report> {
         read_bytes: field("bytes")?,
         evicted: field("evicted")?,
         truncated: field("truncated")?,
+        failed_reads: field("failed_reads")?,
     })
 }
 
@@ -596,8 +604,26 @@ impl HeldRun {
             // figure is a second run. Until this command takes one, saying
             // anything else would be inventing a baseline.
             work_rate: Verdict::NotTaken,
-            // Neither of these is reachable through a daemon at all.
-            dropped_output: Verdict::OutOfReach,
+            // **Answerable after all, and it took reading the daemon's drain to
+            // see why.** This was `out_of_reach` on the argument that the
+            // harness cannot subtract what arrived from what was emitted —
+            // true, and not the question. A pipe blocks rather than dropping,
+            // so between a session's `write` and the daemon's scrollback there
+            // is nothing that can lose a line; the only loss available is the
+            // reader giving up, and the daemon now counts that. Zero is the
+            // condition holding.
+            //
+            // `None` stays out of reach: a daemon that never reported has not
+            // said its counter is zero, and a zero nobody sent is the silent
+            // absence this file refuses everywhere else.
+            dropped_output: match last.map(|r| r.failed_reads) {
+                Some(0) => Verdict::Held,
+                Some(_) => Verdict::Broke,
+                None => Verdict::OutOfReach,
+            },
+            // Still out of reach, and structurally: nothing in the daemon
+            // restarts a session that exited, so there is no replacement to
+            // time.
             replacement: Verdict::OutOfReach,
             inconclusive,
         }
@@ -908,7 +934,8 @@ mod tests {
     /// Two sessions echoing `alpha` and `beta`: four lines, and 5+4 bytes
     /// twice. The arithmetic agreeing from the other side is why this is a
     /// captured line rather than a composed one.
-    const REAL: &str = "held 2 · running 0 · read 4 · bytes 18 · evicted 0 · truncated 0";
+    const REAL: &str =
+        "held 2 · running 0 · read 4 · bytes 18 · evicted 0 · truncated 0 · failed_reads 0";
 
     /// Every field this parser requires appears in `coggyd`'s worked example.
     ///
@@ -946,6 +973,7 @@ mod tests {
                 read_bytes: 18,
                 evicted: 0,
                 truncated: 0,
+                failed_reads: 0,
             })
         );
     }
@@ -959,8 +987,7 @@ mod tests {
 
     #[test]
     fn a_field_the_daemon_grows_later_does_not_break_the_ladder() {
-        let grown =
-            "held 9 · running 9 · read 71 · bytes 900 · evicted 2 · truncated 0 · admitted 9";
+        let grown = "held 9 · running 9 · read 71 · bytes 900 · evicted 2 · truncated 0 · failed_reads 0 · admitted 9";
         assert_eq!(parse_report(grown).map(|r| (r.held, r.read)), Some((9, 71)));
     }
 
@@ -981,9 +1008,15 @@ mod tests {
         // The whole reason it exists: a rung that dipped is not a rung at the
         // count it asked for, and the latest report would say it recovered.
         let mut watch = Watch::default();
-        watch.observe("held 4 · running 4 · read 10 · bytes 90 · evicted 0 · truncated 0");
-        watch.observe("held 4 · running 2 · read 14 · bytes 126 · evicted 0 · truncated 0");
-        watch.observe("held 4 · running 4 · read 30 · bytes 270 · evicted 0 · truncated 0");
+        watch.observe(
+            "held 4 · running 4 · read 10 · bytes 90 · evicted 0 · truncated 0 · failed_reads 0",
+        );
+        watch.observe(
+            "held 4 · running 2 · read 14 · bytes 126 · evicted 0 · truncated 0 · failed_reads 0",
+        );
+        watch.observe(
+            "held 4 · running 4 · read 30 · bytes 270 · evicted 0 · truncated 0 · failed_reads 0",
+        );
 
         assert_eq!(watch.units(), Some(30), "units come from the latest");
         assert_eq!(
@@ -998,8 +1031,8 @@ mod tests {
         // Both halves asserted, because the artifact is what lets someone else
         // reach the same number and a drain that only counted would lose it.
         let stream = "holding 4 session(s); stdin closes to stop\n\
-             held 4 · running 4 · read 10 · bytes 90 · evicted 0 · truncated 0\n\
-             held 4 · running 3 · read 25 · bytes 225 · evicted 0 · truncated 0\n\
+             held 4 · running 4 · read 10 · bytes 90 · evicted 0 · truncated 0 · failed_reads 0\n\
+             held 4 · running 3 · read 25 · bytes 225 · evicted 0 · truncated 0 · failed_reads 0\n\
              cleared\n";
         let log = std::env::temp_dir().join(format!(
             "sessionbench-daemon-drain-{}.log",
@@ -1299,44 +1332,75 @@ mod tests {
 
     #[test]
     fn what_a_daemon_cannot_say_reads_differently_from_what_nobody_measured() {
-        // Three conditions come back unanswered and one of them is only
-        // waiting on a second run. Collapsed into one word they read as three
-        // impossibilities, and the tractable one stops being looked for.
+        // These four words exist so that *waiting on a run*, *waiting on a
+        // daemon that reports it*, and *no route at all* do not collapse into
+        // one, which is how the tractable ones stop being looked for. Two of
+        // the three have since become tractable, and only by keeping them
+        // apart was it visible which.
         let run = run_of(4, Some(4), 30).into_report(about());
-        assert_ne!(
-            run.work_rate, run.dropped_output,
-            "a solo run would settle work rate; nothing settles dropped output here"
-        );
-        assert_eq!(run.dropped_output, run.replacement, "both are structural");
-    }
-
-    #[test]
-    fn the_conditions_a_daemon_cannot_answer_are_never_held() {
-        let run = run_of(4, Some(4), 30).into_report(about());
-        // A boolean would have rendered all three as a pass.
-        assert_eq!(
-            run.work_rate,
-            Verdict::NotTaken,
-            "needs a solo run, not a different daemon"
-        );
+        assert_eq!(run.work_rate, Verdict::NotTaken, "needs a solo run");
         assert_eq!(
             run.dropped_output,
-            Verdict::OutOfReach,
-            "ordinals do not reach here"
+            Verdict::Held,
+            "the daemon counts its own failed reads now"
         );
         assert_eq!(
             run.replacement,
             Verdict::OutOfReach,
-            "nothing restarts a session"
+            "and nothing restarts a session"
         );
     }
 
     #[test]
-    fn a_report_missing_the_unit_count_is_refused_rather_than_read_as_zero() {
+    fn dropped_output_is_the_daemon_giving_up_rather_than_a_gap_in_ordinals() {
+        // **Reachable after all.** This was `out_of_reach` on the argument
+        // that a harness cannot subtract what arrived from what was emitted —
+        // true, and the wrong question. A pipe blocks rather than dropping, so
+        // the only loss between a session's write and the scrollback is the
+        // reader stopping, and the daemon reports that.
+        let held = run_of(4, Some(4), 30).into_report(about());
+        assert_eq!(held.dropped_output, Verdict::Held, "zero failed reads");
+
+        let mut lost = run_of(4, Some(4), 30);
+        lost.last = lost.last.map(|mut r| {
+            r.failed_reads = 1;
+            r
+        });
+        assert_eq!(
+            lost.into_report(about()).dropped_output,
+            Verdict::Broke,
+            "one stream whose tail is gone breaks the condition"
+        );
+
+        // **And silence is not a zero.** A daemon that never reported has not
+        // said its counter is clean, and zero is the passing value — so the
+        // absence has to read as out of reach rather than as a pass.
+        let mut quiet = run_of(4, Some(4), 30);
+        quiet.last = None;
+        assert_eq!(
+            quiet.into_report(about()).dropped_output,
+            Verdict::OutOfReach,
+            "nothing said is not nothing dropped"
+        );
+    }
+
+    #[test]
+    fn a_report_missing_a_field_is_refused_rather_than_read_as_zero() {
         // The one that matters. A rung taking zero units from a line that
         // simply did not carry them would read as saturation, and the ladder
         // would return a redline from a daemon that was working fine.
-        let without = "held 9 · running 9 · bytes 90 · evicted 0 · truncated 0";
-        assert!(parse_report(without).is_none());
+        let no_units = "held 9 · running 9 · bytes 90 · evicted 0 · truncated 0 · failed_reads 0";
+        assert!(parse_report(no_units).is_none());
+
+        // **And the same trap on the other end, where zero is the PASSING
+        // value.** A daemon too old to report `failed_reads` would hand a
+        // tolerant parser nothing, nothing would become zero, and zero is the
+        // gate's third condition holding — a run reporting a clean bill from a
+        // daemon that never checked. Refused instead.
+        let no_failures = "held 9 · running 9 · read 71 · bytes 900 · evicted 0 · truncated 0";
+        assert!(
+            parse_report(no_failures).is_none(),
+            "a silent daemon must not read as a passing one"
+        );
     }
 }
