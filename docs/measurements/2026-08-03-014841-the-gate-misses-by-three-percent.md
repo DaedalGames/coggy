@@ -1,5 +1,7 @@
 # Gate M1 misses its work-rate condition by 3.3%, and the two conditions close 372 MB apart
 
+> **Read with [the interval-level re-reading](2026-08-03-024222-the-footprint-never-mattered.md).** The 20 MiB run lost the machine in 18% of its samples, which its mean absorbs; compared on intervals where all three held 15+ cores, the footprint is worth about 2% rather than 11%, and the three slowdowns are 2.065, 2.057 and 2.089 — the same within 1.5%.
+
 > **The 372 MB is withdrawn; the 3.3% stands.** It came from extrapolating a two-point `η` slope four megabytes past its second point, and [a third point at 36 MiB shows the slope has already stopped](2026-08-03-023009-the-footprint-lever-runs-out-before-the-budget-does.md) — `η` 0.811 there against 0.817 at 33. So no footprint reaches the passing value, the memory budget never becomes the binding condition, and **work rate binds at every weight this machine can hold.**
 
 The gate figure of record is **2.301× at 20 MiB a session**, 15% past the 2 it asks for. Run at the heaviest session the memory budget allows, on a rested box, both brackets clean:

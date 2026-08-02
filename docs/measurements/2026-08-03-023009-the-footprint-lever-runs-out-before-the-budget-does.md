@@ -1,5 +1,7 @@
 # `η` stops rising at 33 MiB, so the footprint lever ends 3.7% short of the gate
 
+> **Read with [the interval-level re-reading](2026-08-03-024222-the-footprint-never-mattered.md).** The 20 MiB run lost the machine in 18% of its samples, which its mean absorbs; compared on intervals where all three held 15+ cores, the footprint is worth about 2% rather than 11%, and the three slowdowns are 2.065, 2.057 and 2.089 — the same within 1.5%.
+
 [Forty minutes ago](2026-08-03-014841-the-gate-misses-by-three-percent.md) `η` was measured at 0.733 and 0.817 for sessions holding 20 and 33 MiB, a slope of 0.00643 per MiB, and the gate's passing value of 0.844 was projected to arrive at **37.2 MiB** — a footprint whose hundred sessions need 372 MB more memory than the budget allows. That made RSS the binding condition.
 
 **A third point was predicted before it was run: 36 MiB should give a slowdown of 2.018.** It gives **2.0799**, off by 3.07% and outside the ±1% this instrument supports. `η` there is 0.811 — **below the 33 MiB value, not above it.**

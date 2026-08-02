@@ -1,5 +1,7 @@
 # `η` folds two things together, and the footprint moves the larger one
 
+> **Read with [the interval-level re-reading](2026-08-03-024222-the-footprint-never-mattered.md).** The 20 MiB run lost the machine in 18% of its samples, which its mean absorbs; compared on intervals where all three held 15+ cores, the footprint is worth about 2% rather than 11%, and the three slowdowns are 2.065, 2.057 and 2.089 — the same within 1.5%.
+
 Every `η` in these records is `N·d/(C · slowdown)` with `C` taken as the machine's sixteen logical processors. **The sessions never had sixteen.** Their own samples say how many they held, and it differs by more between runs than the effect being attributed to the footprint.
 
 No run was made. This is arithmetic over three artifacts already on disk.

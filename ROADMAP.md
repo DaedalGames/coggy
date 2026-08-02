@@ -24,13 +24,13 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 ## Where This Stands
 
-**10 of 31**, and the bottleneck is not code — M1's work-rate condition is 3.3% short at the best session weight this machine has, and heavier sessions stop helping rather than stop fitting.
+**10 of 31**, and the bottleneck is not code — M1's work-rate condition is 3–4% short at every session weight, and the sizing that follows is under half a core.
 
 | | done | |
 |---|---|---|
 | [M0 · attribution](#current-priority-m0--attribution) | **5 / 6** | gate G0 frozen |
 | [M1 · daemon](#m1--headless-daemon) — what it builds | **3 / 6** | three deferred to M2 on purpose |
-| M1 — its gate | **2 / 4** | work rate 3.3% short at the best weight; heavier stops helping |
+| M1 — its gate | **2 / 4** | work rate 3–4% short, and the same at every session weight |
 | [M2 · harness contract](#m2--harness-contract) | 0 / 5 | blocked on M1 |
 | [M3 · governor](#m3--resource-governor) | 0 / 5 | |
 | [M4 · audit surface](#m4--audit-surface) | 0 / 5 | |
@@ -43,11 +43,11 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 **And the memory the gate leaves spare is what buys the work rate, which changes how close this is.** `η` rises with a session's weight, so the heaviest session the budget allows is also the one that competes best. At 33 MiB on a rested box, [a hundred sessions slow down 2.065× against the 2 the gate asks for](docs/measurements/2026-08-03-014841-the-gate-misses-by-three-percent.md) — **3.3% short**, where the 20 MiB figure of record is 15% short — with RSS at 3.651 GiB of 3.725 and dropped output zero. Both brackets clean, both in one machine state, which no earlier pairing managed.
 
-**And that is as far as the lever goes.** `η` climbs 0.00643 per MiB from 20 to 33 MiB and then stops: [a third point at 36 MiB, predicted at 2.018, measures 2.0799](docs/measurements/2026-08-03-023009-the-footprint-lever-runs-out-before-the-budget-does.md) with `η` at 0.811 against 0.817. The plateau sits near 0.814 where passing needs 0.844, so **no session weight this machine can hold reaches the condition, and work rate binds at every one of them.** The memory budget never becomes the constraint, which also settles whether *4GB* is decimal or binary — the 3 MiB it buys is worth nothing.
+**And the lever turns out to be about two percent rather than eleven.** [Read per interval rather than as a mean](docs/measurements/2026-08-03-024222-the-footprint-never-mattered.md), the 20 MiB hold lost the machine in 18% of its samples — real, since its output fell with them — and that is most of what looked like a footprint effect. Compared only where all three runs held the machine, their slowdowns are 2.065, 2.057 and 2.089: **the same within 1.5%, and every one 3–4% above the condition of 2.** So the session weight is not a lever, the memory budget never becomes the constraint, and whether *4GB* is decimal or binary buys nothing.
 
 **The larger term is the machine's own state.** The same hundred sessions at 20 MiB return **2.301** on a rested box and **3.958** on one that has recently been saturated — [72%](docs/measurements/2026-08-03-003443-the-footprint-result-was-the-machine.md), from [a slow state that arrives on its own and lasts about an hour](docs/measurements/2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md), whose cause is not established — a deliberate saturating burst did not induce it. M1's verdict depends on that more than on anything the daemon or the workload does.
 
-**So the bottleneck is a decision, not an implementation.** Either the gate says what it asks of the hardware it runs on, or it runs on hardware that can answer it. **The sizing is now half a core**: `C ≥ N·d/(2η)` at the heaviest session the budget allows gives **16.5 logical processors** against sixteen, where the lighter session's `η` gave 17.3 and 18.4 and the nineteen quoted elsewhere was 18.4 rounded up. The hour is the other half and is untouched — the box still stops dead at forty-one minutes. Writing more daemon moves neither, and **any figure quoted for this gate has to name the session weight and the machine state it was taken in**.
+**So the bottleneck is a decision, not an implementation.** Either the gate says what it asks of the hardware it runs on, or it runs on hardware that can answer it. **The sizing is now half a core**: `C ≥ N·d/(2η)` at `η ≈ 0.82` gives **16.4 logical processors** against sixteen, and it no longer depends on the session weight — the 17.3 and 18.4 quoted earlier came from a run whose mean carried its own interruptions, and nineteen was 18.4 rounded up. The hour is the other half and is untouched — the box still stops dead at forty-one minutes. Writing more daemon moves neither, and **any figure quoted for this gate has to name the session weight and the machine state it was taken in**.
 
 **Nor does writing more instrument, and that is measured rather than assumed.** Six fixes landed in one day — a counted window, streamed samples, a failed-read counter, repeated baselines, an uncounted warm-up hold, and a standard error where a range had been. [The bracket's two refusals both turned out to be the run's opening hold](docs/measurements/2026-08-02-222324-the-instrument-is-done-arguing.md) rather than a noisy baseline or a moving machine, and the warm-up already answers that. Two attempts to escape the solo baseline altogether — comparing total throughputs, and reading a redline off a knee — ended one useful and one [closed by there being no knee](docs/measurements/2026-08-02-220514-there-is-no-knee.md). **After all of it the two failing numbers are unchanged.**
 
