@@ -42,7 +42,7 @@ Ways the rule gets violated by accident:
 
 ## Benchmark integrity
 
-`sessionbench` measures what COGGY competes with, so it is held apart from COGGY on purpose. The three rules that do the holding are in [sessionbench/README.md](sessionbench/README.md#keeping-it-honest): the baseline freezes at M0, workloads know nothing about `coggyd`, and a lone improving axis is distrusted.
+`sessionbench` measures what COGGY competes with, so it is held apart from COGGY on purpose. The rules that do the holding open [sessionbench's honesty list](sessionbench/README.md#keeping-it-honest): the baseline freezes at M0, workloads know nothing about `coggyd`, and a lone improving axis is distrusted. The rest of that list guards the measurement rather than the separation, so it is longer than what this section is about and gets longer as runs find new ways to lie.
 
 A PR that breaks one is closed even when the numbers look good.
 
