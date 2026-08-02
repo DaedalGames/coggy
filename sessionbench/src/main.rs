@@ -89,8 +89,12 @@ enum Command {
     /// measures one session and multiplies — here the sessions are really
     /// there.
     ///
-    /// Two of the four conditions cannot be asked of a daemon and the report
-    /// says so rather than passing them.
+    /// One of the four conditions cannot be asked of a daemon and the report
+    /// says so rather than passing it. Replacement is that one: nothing in the
+    /// daemon restarts a session that exited. Dropped output was in this
+    /// sentence until the daemon was asked the question a pipe actually poses
+    /// — not *is there a gap in the ordinals*, which needs a stream nobody
+    /// here holds, but *did a reader give up*, which it counts.
     Hold {
         #[arg(long, default_value = "hold")]
         label: String,

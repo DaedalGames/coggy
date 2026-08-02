@@ -828,12 +828,17 @@ pub fn solo_agrees(before: f64, after: f64) -> Result<f64, String> {
 
 /// Whether a gate condition passed, failed, or was never in reach.
 ///
-/// **Three states because two would lie.** [Two of the four
-/// conditions](../../sessionbench/README.md#what-we-measure-against) cannot be
-/// asked of a daemon at all: dropped output is found by watching ordinals in a
-/// session's own stream, which ends in the daemon's scrollback, and nothing in
-/// the daemon restarts a session that exited. A boolean would render both as
-/// `true`, which is a pass earned by never having been asked.
+/// **Three states because two would lie.** Replacement cannot be asked of a
+/// daemon at all — nothing in it restarts a session that exited — and a
+/// boolean would render that as `true`, which is a pass earned by never having
+/// been asked.
+///
+/// **Dropped output sat here too, and it was the route that was out of reach
+/// rather than the condition.** Watching ordinals needs a session's own
+/// stream, which ends in the daemon's scrollback; asking whether a reader gave
+/// up needs a counter, and the daemon keeps one. [The comparison
+/// set](../../sessionbench/README.md#what-we-measure-against) records which
+/// entry points have been wired to it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Verdict {
@@ -841,9 +846,11 @@ pub enum Verdict {
     Broke,
     /// Nothing this target can say, however the run is arranged.
     ///
-    /// Dropped output and replacement are both this: the ordinals live in a
-    /// stream the daemon owns, and nothing in it restarts a session. More
-    /// running would not help.
+    /// Replacement is this: nothing in the daemon restarts a session that
+    /// exited, so more running would not help. Dropped output is not — it is
+    /// out of reach through a ramp's ordinals and in reach through the
+    /// daemon's own failed-read counter, which makes it a wiring question
+    /// rather than a property of the target.
     OutOfReach,
     /// Answerable, and this run did not answer it.
     ///
