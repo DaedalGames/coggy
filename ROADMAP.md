@@ -30,7 +30,7 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 |---|---|---|
 | [M0 · attribution](#current-priority-m0--attribution) | **5 / 6** | gate G0 frozen |
 | [M1 · daemon](#m1--headless-daemon) — what it builds | **3 / 6** | three deferred to M2 on purpose |
-| M1 — its gate | **2 / 4** | both failures are the machine |
+| M1 — its gate | **2 / 4** | both failures are the machine, at every session weight the budget allows |
 | [M2 · harness contract](#m2--harness-contract) | 0 / 5 | blocked on M1 |
 | [M3 · governor](#m3--resource-governor) | 0 / 5 | |
 | [M4 · audit surface](#m4--audit-surface) | 0 / 5 | |
@@ -39,11 +39,15 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 **M1 builds five things and a CLI, and has three.** Pipe-first spawning, a ring-buffer scrollback bounded in both lines and bytes, and a job object per session all exist. Session status events exist as a `Status` a caller polls rather than a stream. **The socket API and the `coggy` CLI are deliberately absent** — [M2 derives the API backward from the calls a harness makes](#m2--harness-contract), so choosing verbs now invents what that milestone exists to discover, and the gate asks for none of it.
 
-**M1's gate is measured in full and two conditions fail.** A hundred sessions hold under 4 GB with a third to spare, and dropped output is zero. Work rate returns 2.301 where the gate asks for 2, and the hour ends at twenty minutes because the machine stops dead at forty-one. **Neither failure is the daemon**: a hundred sessions wanting twenty-seven cores from sixteen is arithmetic, and the hard stop is thermal or power.
+**M1's gate is measured in full and two conditions fail.** Dropped output is zero and RSS holds. Work rate returns 2.301 where the gate asks for 2, and the hour ends at twenty minutes because the machine stops dead at forty-one. **Neither failure is the daemon**: a hundred sessions wanting twenty-seven cores from sixteen is arithmetic, and the hard stop is thermal or power.
 
-**So the bottleneck is a decision, not an implementation.** Either the gate says what it asks of the hardware it runs on, or it runs on hardware that can answer it — roughly 15% more cores than this box has, and one that survives an hour of saturation. Writing more daemon does not move either number.
+**And the memory the gate leaves spare cannot be spent to buy the work rate.** That was the one remaining move — `η` looked like it rose with a session's footprint, so a heavier session might clear the ratio inside the same budget. [Measured, it runs the other way](docs/measurements/2026-08-03-000430-the-footprint-lever-runs-backwards.md): at 33 MiB a session, the most the budget allows, a hundred sessions slow down 3.261× against 2.301 at 20 MiB, while RSS climbs to 3.648 GiB of 3.725. **So M1 fails on work rate at both weights anyone has run, and the heavier one fails worse.**
+
+**So the bottleneck is a decision, not an implementation.** Either the gate says what it asks of the hardware it runs on, or it runs on hardware that can answer it — roughly 15% more cores than this box has, and one that survives an hour of saturation. Writing more daemon does not move either number, and neither does choosing a different session weight.
 
 **Nor does writing more instrument, and that is measured rather than assumed.** Six fixes landed in one day — a counted window, streamed samples, a failed-read counter, repeated baselines, an uncounted warm-up hold, and a standard error where a range had been. [The bracket's two refusals both turned out to be the run's opening hold](docs/measurements/2026-08-02-222324-the-instrument-is-done-arguing.md) rather than a noisy baseline or a moving machine, and the warm-up already answers that. Two attempts to escape the solo baseline altogether — comparing total throughputs, and reading a redline off a knee — ended one useful and one [closed by there being no knee](docs/measurements/2026-08-02-220514-there-is-no-knee.md). **After all of it the two failing numbers are unchanged.**
+
+**The instrument is nonetheless where the last two fixes landed, and both were about evidence rather than accuracy.** The failed-read count is now written to the artifact instead of being folded into a verdict, since a condition whose passing value is zero cannot be audited from the word *held*. And the rule that told you to pre-screen a ratio on `doctor` readings is gone: four of them spread 26.7% and preceded the quietest bracket this instrument has produced, at 0.28%. Pre-screening on a proxy can only subtract runs, and the bracket already refuses itself when its baselines disagree.
 
 ## Current Priority: M0 · Attribution
 
