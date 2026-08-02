@@ -39,7 +39,18 @@ The sentence is deliberately absolute. A softer one invites the reading that a b
 
 - **The 7.8× is one pair.** Noon against evening, one configuration. How the gap varies with duty, session count or charge level is unmeasured, and there is no reason to expect it constant.
 - **The mechanism is inferred.** A base-clock reading and a cool thermal zone point at a power budget rather than heat, and nothing here separates the platform's power limit from the plan's own governor.
-- **It does not invalidate the within-run findings.** [The awake-count result](2026-08-02-121359-eta-follows-the-awake-count.md) and [the flat-`η` result](2026-08-02-194155-eta-is-flat-where-it-was-said-to-fall.md) compare holds run back to back on one power state, which is what they were designed to do. What it does invalidate is any figure compared across runs, which is what the day already concluded for other reasons.
+- **It does not invalidate the within-run findings, and that is checked rather than assumed.** Neither of those runs recorded a power field — it did not exist yet, and their directories are pruned — but the magnitude is its own fingerprint. Battery produces 135; [the awake-count run](2026-08-02-121359-eta-follows-the-awake-count.md) produced 1035 to 1057 and [the flat-`η` run](2026-08-02-194155-eta-is-flat-where-it-was-said-to-fall.md) 901 to 914. The two states are 7.8× apart and cannot overlap. And within each run the holds agree to between 0.37% and 1.46%, so a state that had flipped mid-run would have left one leg seven times off and did not. **Both ran entirely on mains.** What is invalidated is any figure compared across runs, which the day had already concluded for other reasons.
+
+
+## The three scales, now that all of them are measured
+
+| what varies | how much |
+|---|---|
+| Power state | **7.8×** |
+| Run to run, same power state | up to **14%** |
+| Hold to hold inside one run | **0.4 – 1.5%** |
+
+Each is an order of magnitude apart from the next, which is why only the last supports a comparison and why the first went unnoticed for a day: it is so large that a figure carrying it does not look like a noisy version of the other state, it looks like a different measurement of something else.
 
 ## Provenance
 
