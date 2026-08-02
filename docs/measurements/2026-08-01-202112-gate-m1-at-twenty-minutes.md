@@ -159,3 +159,15 @@ This record has one unit costing **24.9 ms** minutes after forty-one minutes of 
 That pairing is why it stays untested for now. Reproducing it means running the load that stopped the machine dead, and a hard stop takes the session-scoped scheduler with it.
 
 **What this changes about the record above:** the 0.172 duty is not only a calibration mistake. `--wait-ms 67` was calibrated on a machine in the slow state and spent in one that had recovered, so **the fixed-wait mechanism converts a machine-state change directly into a duty change** — which is the sharpest argument yet for `--duty`, whose sleep is proportional to measured work and cancels it.
+
+## 2026-08-03: the hour has never been attempted at a fixed duty
+
+The forty-one minutes that stopped this machine ran on `--wait-ms 67`, and that mechanism does not hold a duty — it holds a wall-clock sleep, so `duty = computed / (computed + 67)` **rises as the machine slows**. This record measures both ends of it: 0.172 at a 13.9 ms unit and 0.271 at 24.9 ms.
+
+**So the load that crashed was climbing.** It started near 0.172 on a rested box and was demanding something closer to 0.27 by the time the box had heated into the slow state — a positive feedback, where a slower machine asks for more.
+
+`--duty 0.27` is the opposite by construction: sleep is proportional to the work just measured, so the share of its own cycle a session computes is fixed whatever the machine does. Under contention the cycle stretches and the demand does not.
+
+**Nothing has held a hundred sessions at a fixed 0.27 for longer than twenty minutes.** Four such holds ran on 2026-08-02 and 08-03 and every one finished clean, leaving the box where it started. What the hard stop rules out is an hour of a *rising* load; whether a flat one survives is unmeasured rather than reproduced-and-failed.
+
+That does not make the hour safe to attempt casually — the same run would test the slow state's twenty-to-forty-one-minute threshold, and a hard stop takes any session-scoped scheduler with it. It does mean the gate's third condition is untried at the duty the gate is stated in, rather than tried and failed.

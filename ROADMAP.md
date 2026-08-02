@@ -24,13 +24,13 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 ## Where This Stands
 
-**10 of 31**, and the bottleneck is not code — M1's work-rate condition is 3–4% short at every session weight, and the sizing that follows is under half a core.
+**10 of 31**, and the bottleneck is not code — M1's work-rate condition is 3–4% short at every session weight, the sizing that follows is under half a core, and the hour has never been attempted at the duty the gate is stated in.
 
 | | done | |
 |---|---|---|
 | [M0 · attribution](#current-priority-m0--attribution) | **5 / 6** | gate G0 frozen |
 | [M1 · daemon](#m1--headless-daemon) — what it builds | **3 / 6** | three deferred to M2 on purpose |
-| M1 — its gate | **2 / 4** | work rate 3–4% short, and the same at every session weight |
+| M1 — its gate | **2 / 4** | work rate 3–4% short at every weight; the hour untried at this duty |
 | [M2 · harness contract](#m2--harness-contract) | 0 / 5 | blocked on M1 |
 | [M3 · governor](#m3--resource-governor) | 0 / 5 | |
 | [M4 · audit surface](#m4--audit-surface) | 0 / 5 | |
@@ -39,7 +39,7 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 **M1 builds five things and a CLI, and has three.** Pipe-first spawning, a ring-buffer scrollback bounded in both lines and bytes, and a job object per session all exist. Session status events exist as a `Status` a caller polls rather than a stream. **The socket API and the `coggy` CLI are deliberately absent** — [M2 derives the API backward from the calls a harness makes](#m2--harness-contract), so choosing verbs now invents what that milestone exists to discover, and the gate asks for none of it.
 
-**M1's gate is measured in full and two conditions fail.** Dropped output is zero and RSS holds. Work rate returns **2.0654** where the gate asks for 2, and the hour ends at twenty minutes because the machine stops dead at forty-one. The 2.301 quoted until now was one hold that [lost the machine to something else for 18% of its samples](docs/measurements/2026-08-03-024222-the-footprint-never-mattered.md); on the intervals it held, the same run gives 2.0654, and a later hold of the same shape returned a rate 0.9% from that. **Neither failure is the daemon**: a hundred sessions wanting twenty-seven cores from sixteen is arithmetic, and the hard stop is thermal or power.
+**M1's gate is measured in full and two conditions fail.** Dropped output is zero and RSS holds. Work rate returns **2.0654** where the gate asks for 2, and the hour ends at twenty minutes because the machine stopped dead at forty-one — [on a rising load, which is not the one the gate is stated in](docs/measurements/2026-08-01-202112-gate-m1-at-twenty-minutes.md): that run held a fixed wall-clock wait, so its duty climbed from 0.172 toward 0.271 as the box slowed. **At a fixed 0.27 nothing has been held past twenty minutes**, so the third condition is untried rather than tried and failed. The 2.301 quoted until now was one hold that [lost the machine to something else for 18% of its samples](docs/measurements/2026-08-03-024222-the-footprint-never-mattered.md); on the intervals it held, the same run gives 2.0654, and a later hold of the same shape returned a rate 0.9% from that. **Neither failure is the daemon**: a hundred sessions wanting twenty-seven cores from sixteen is arithmetic, and the hard stop is thermal or power.
 
 **And the memory the gate leaves spare is what buys the work rate, which changes how close this is.** `η` rises with a session's weight, so the heaviest session the budget allows is also the one that competes best. At 33 MiB on a rested box, [a hundred sessions slow down 2.065× against the 2 the gate asks for](docs/measurements/2026-08-03-014841-the-gate-misses-by-three-percent.md) — **3.3% short**, where the 20 MiB figure of record is 15% short — with RSS at 3.651 GiB of 3.725 and dropped output zero. Both brackets clean, both in one machine state, which no earlier pairing managed.
 
@@ -156,7 +156,7 @@ That rule already bit once. [A hundred sessions were held for an hour on 2026-08
 
 **Replacement is not one of these three**, though it is easy to count as one: it is [the redline's fourth condition](sessionbench/README.md#redline) and the daemon has no counterpart for it either. A ramp under the daemon therefore loses two of four where a hold loses one of three, and the coincidence of small numbers is what makes the two lists blur.
 
-**So all three conditions are measured, and the gate does not pass.** Dropped output is zero; work rate returns **2.0654** against a 2, and the hour is unreachable because the box stops dead at forty-one minutes of this load. **Both failures are the machine rather than the daemon**, so M1 is not waiting on code.
+**So all three conditions are measured, and the gate does not pass.** Dropped output is zero; work rate returns **2.0654** against a 2, and the hour is untried at this duty — the run that stopped the box at forty-one minutes held a fixed wait whose duty climbed as the machine slowed, and four holds at a fixed 0.27 have finished clean at twenty. **Both failures are the machine rather than the daemon**, so M1 is not waiting on code.
 
 **The session's weight is not a lever, and three readings of that took a night.** `η` looked like it rose steeply with the footprint, then like it fell, and neither survived: read per interval on a rested box, [a hundred sessions slow down 2.0654, 2.0569 and 2.0887 at 20, 33 and 36 MiB](docs/measurements/2026-08-03-024222-the-footprint-never-mattered.md) — the same within 1.5%, with the footprint worth about 2%. RSS held at every one of them and dropped output was zero. **So work rate fails by 3–4% at every weight this machine can hold**, the memory budget never becomes the binding condition, and whether *4GB* is decimal or binary buys nothing.
 
