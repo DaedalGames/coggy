@@ -104,6 +104,10 @@ The fourth had a different answer, which is the part worth remembering: the numb
 
   **And a second loop had the same hole**, found hours later. Two sampling loops in two files each read a daemon and neither asked whether it was alive; fixing one is what made the other visible. **When a fix is for a shape rather than a line, grep for the shape.** The tell is a fix whose commit message describes a category — an absence reading as a value, a stopped thing reading as a steady one — and the fix touching one call site.
 
+  **Having the rule did not fire it.** A commit teaching the daemon to count failed reads wired one of two entry points; three doc comments and a README row went on saying two of the four gate conditions were out of reach, and the README was then edited to say three, which made it claim something the ramp does not do. That is the rule's second miss, and the first is what wrote it.
+
+  **So it was measured before a third rule was written on top.** 23 of 254 commits — **9.1%** — exist because an earlier change left something behind, and the obvious automation was rejected on its own numbers: *message uses category language* fires on 77% of commits and *touches one source file* on 24%, so the alarm fires on 18% to catch 9.1%, and most of the 9.1% is a document trailing code rather than a second call site. One in five commits alarming is a check people learn to skip, which is the same reason [a looser citation check was not made a gate](sessionbench/tests/docs.rs). **What is left is the habit, and the habit is cheapest at the moment the commit message is written**: if the message names a class, the diff should show more than one place, or say why one is all there is.
+
 **The tell is a confident answer from an instrument nobody checked against the one that decides**, and the adjacent instrument is always the convenient one. When several things look wrong at once, suspect the check before the subject — one place being wrong is usually that place, many places being wrong is usually you.
 
 Before saying a change works:
