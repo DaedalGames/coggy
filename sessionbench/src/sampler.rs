@@ -152,7 +152,10 @@ pub struct Sample {
     pub pseudoconsoles: usize,
     pub cpu_percent: f32,
     /// The whole machine's CPU as a percentage of one core, on the same scale
-    /// as [`Sample::cpu_percent`] so the two subtract.
+    /// as [`Sample::cpu_percent`] so the two subtract — which needs the raw
+    /// `global_cpu_usage` multiplied onto the logical core count, since that
+    /// call averages the CPUs into 0–100 and a process's `cpu_usage` is its
+    /// share of a single one.
     ///
     /// **What is left is everything this instrument does not attribute**, and
     /// until it was recorded that quantity was inferred from the core count.
@@ -185,8 +188,26 @@ pub struct Sample {
     pub members: Vec<ProcessSample>,
 }
 
+/// The whole machine on a process's scale: `global_cpu_usage` averages the CPUs
+/// and tops out at 100, while a process's `cpu_usage` is its share of a single
+/// one and a job of a hundred sessions reaches 1600.
+///
+/// **Subtracting them raw is wrong by the width of the machine, and it read as
+/// a plausible number rather than as a zero.** Four holds recorded before this
+/// existed put the job above the whole machine in 31 of their 36 samples —
+/// 796 against 61.5 at nine sessions — and nothing complained, because the
+/// column had been added and not yet subtracted from anything.
+fn machine_percent(global: f32, logical_cores: f32) -> f32 {
+    global * logical_cores
+}
+
 pub struct Sampler {
     sys: System,
+    /// The machine's logical processor count, held because
+    /// [`Sample::machine_cpu_percent`] has to be multiplied onto it and
+    /// `sysinfo` will not report it once the process list is being refreshed
+    /// selectively.
+    logical_cores: f32,
     /// Defender's pid, so it can be refreshed by name only once.
     defender: Option<Pid>,
     /// Why the sampling thread could not be raised above the sessions, when it
@@ -204,6 +225,10 @@ impl Sampler {
     pub fn new() -> Self {
         let mut sampler = Self {
             sys: System::new(),
+            // Set below, after the priming refresh: `System::new()` has not
+            // enumerated the CPUs yet, and a zero here would silently flatten
+            // the whole machine column to nothing.
+            logical_cores: 1.0,
             defender: None,
             unprioritised_reason: raise_current_thread().err(),
         };
@@ -211,6 +236,10 @@ impl Sampler {
             eprintln!("warning: the sampler runs at ordinary priority — {reason}");
         }
         sampler.refresh(None);
+        // `sys.cpus().len()`, the same route [`crate::machine`] takes, so the
+        // two never disagree about how wide this box is. Floored at one because
+        // it multiplies rather than divides.
+        sampler.logical_cores = (sampler.sys.cpus().len() as f32).max(1.0);
         sampler
     }
 
@@ -290,7 +319,7 @@ impl Sampler {
                 .filter(|m| m.attribution == Attribution::Pseudoconsole)
                 .count(),
             cpu_percent: members.iter().map(|m| m.cpu_percent).sum(),
-            machine_cpu_percent: self.sys.global_cpu_usage(),
+            machine_cpu_percent: machine_percent(self.sys.global_cpu_usage(), self.logical_cores),
             defender_cpu_percent: defender.map(|p| p.cpu_usage()),
             defender_rss_bytes: defender.map(|p| p.memory()),
             available_memory_bytes: self.sys.available_memory(),
@@ -424,4 +453,28 @@ fn desired_priority() -> thread_priority::ThreadPriority {
 #[cfg(not(windows))]
 fn desired_priority() -> thread_priority::ThreadPriority {
     thread_priority::ThreadPriority::Max
+}
+
+#[cfg(test)]
+mod tests {
+    use super::machine_percent;
+
+    /// One multiplication is the whole of the conversion, so this is what
+    /// stands between the column and the scale it shipped with.
+    #[test]
+    fn the_machine_column_is_read_in_cores_not_in_one_core() {
+        assert!((machine_percent(100.0, 16.0) - 1600.0).abs() < f32::EPSILON);
+        assert!((machine_percent(50.0, 16.0) - 800.0).abs() < f32::EPSILON);
+    }
+
+    /// The shipped shape, in its own numbers: nine sessions summing to 796 on a
+    /// machine column reading 61.5 — a machine narrower than the work on it.
+    /// Converted, the same reading clears the job with room to spare.
+    #[test]
+    fn a_job_can_no_longer_exceed_the_machine_it_runs_on() {
+        let job = 796.0;
+        let raw_global = 61.5;
+        assert!(raw_global < job, "this is the reading that shipped");
+        assert!(machine_percent(raw_global, 16.0) > job);
+    }
 }
