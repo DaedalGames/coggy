@@ -117,3 +117,29 @@ boundary, and that is the region a governor works in.
 
 The rest of this record stands: the gate's work-rate condition breaks at 2.301, the
 crossing measures at 87 sessions, and neither depends on `η` varying.
+
+## 2026-08-02: this is the only measurement of `η` there is
+
+The 0.733 above looks corroborated. Three ways of reaching it exist in these
+records — dividing this run's slowdown, projecting the core crossing at 87, and
+dividing a total throughput by a solo rate — and they give 0.7334, 0.7334 and
+0.7333.
+
+**They are one expression written three ways.** The crossing is `2N/s`, so
+`redline·d/2C` is `N·d/(C·s)`. A total is `N × concurrent` and a unit time is
+`d/solo`, so `total·w/C` is `N·d/(C·s)` as well. All three reduce to the first,
+and the agreement is arithmetic rather than evidence.
+
+So **`η` on this machine rests on a single slowdown**, and a slowdown divides by
+a solo baseline — [the noisiest figure this instrument produces, spread 25% across
+six holds on one afternoon](2026-08-02-114542-the-control-refused-its-own-run.md).
+[The awake-count run](2026-08-02-121359-eta-follows-the-awake-count.md) does not
+help: it shows two configurations share an `η`, which is a relative result and
+says nothing about the value.
+
+**One genuinely independent route exists and has not been run.** Below saturation
+total throughput is `N·d ÷ w` and above it is `η·C ÷ w`, so the duty at which the
+curve stops rising gives `η·C` with no solo, no slowdown and no division by
+either. A sweep to find it was started and discarded — [the machine was on
+battery](2026-08-02-195840-the-same-command-on-battery.md) — and it is worth
+rerunning on mains for this reason rather than for the curve's shape.
