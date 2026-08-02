@@ -598,6 +598,7 @@ impl HeldRun {
             output_bytes: last.map(|r| r.read_bytes),
             evicted: last.map(|r| r.evicted),
             truncated: last.map(|r| r.truncated),
+            failed_reads: last.map(|r| r.failed_reads),
             rss,
             // **Not measured here, and not because it is hard.** The condition
             // is a ratio against the same workload run alone, and a solo
@@ -922,6 +923,16 @@ pub struct HoldReport {
     /// gate's dropped output.
     pub evicted: Option<u64>,
     pub truncated: Option<u64>,
+    /// Sessions whose tail the daemon's reader gave up on.
+    ///
+    /// **The quantity behind [`HoldReport::dropped_output`], recorded because
+    /// a verdict is not evidence.** `evicted` and `truncated` are policy and
+    /// were kept from the start; this is the one the gate is stated in, and it
+    /// was being folded into a word and discarded — leaving `hold.json`
+    /// asserting *held* with nothing an auditor could recompute it from. Zero
+    /// is the passing value, which is exactly why it has to be written rather
+    /// than assumed.
+    pub failed_reads: Option<u64>,
     pub rss: Verdict,
     pub work_rate: Verdict,
     pub dropped_output: Verdict,

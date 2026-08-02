@@ -475,7 +475,7 @@ fn main() -> anyhow::Result<()> {
                 println!("\nINCONCLUSIVE: {why}");
             }
             println!(
-                "\n  sessions   {} (fewest alive {:?})\n  window     {} ms counted of {} ms held\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?}\n  replaced   {:?}",
+                "\n  sessions   {} (fewest alive {:?})\n  window     {} ms counted of {} ms held\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?} ({} failed reads)\n  replaced   {:?}",
                 report.sessions,
                 report.fewest_running,
                 // The rate's real denominator beside the one people assume it
@@ -501,6 +501,13 @@ fn main() -> anyhow::Result<()> {
                 report.rss,
                 report.work_rate,
                 report.dropped_output,
+                // A dash rather than a zero, for the reason above and more
+                // sharply: zero is what this condition passes on, so a zero
+                // printed when nothing was counted is the verdict's own
+                // failure mode wearing the evidence's clothes.
+                report
+                    .failed_reads
+                    .map_or_else(|| "—".to_string(), |f| f.to_string()),
                 report.replacement,
             );
             println!("\nwritten to {}", out_dir.display());

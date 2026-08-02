@@ -86,3 +86,22 @@ So the ceiling is `budget/100 − 4.06 − 0.44`:
 **And this widens the `η` question rather than settling it.** The footprint that fits is larger than this record first said, so if the gate's budget is the binary 4 GiB there is room up to 36.5 MiB — still far below the 80 MiB where `η` was measured above 0.844, and still inside the gap nobody has run.
 
 *Neither of these observations is a hold.* One session at 25 seconds says what one process costs; it says nothing about `η`, which needs a hundred.
+
+## 2026-08-02, later still: the RSS half is measured at a hundred, and it fits
+
+The additive model predicted 3.662 GiB for a hundred sessions at `--resident 33`. **Measured: 3,899,691,008 bytes — 3.632 GiB, 0.9% under the prediction and 97.49% of the budget.** Verdict `Held`, with 100 MB spare.
+
+| | |
+|---|---|
+| Sessions | 100, `fewest alive` 100 |
+| Window | 181 173 ms counted of 182 558 ms held |
+| Peak RSS | **3.632 GiB of 3.725** |
+| Per session | 37.190 MiB against a solo 37.06 |
+| `failed_reads` | **0** — dropped output `Held` |
+| Work rate | `NotTaken`, and deliberately |
+
+**The work rate was not taken, because the machine could not carry it.** Four consecutive `doctor` readings before the run gave 4.80, 5.30, 6.40 and 6.58 cores of background — a **30.8% spread**, against the 6.3% this question is chasing between `η = 0.794` and `η = 0.844`. A swinging background hands each hold a different machine, so no bracket was requested and the instrument reported `NotTaken` rather than a number. The rate it does print, 5.604 units/s/session, is a fact about this afternoon and divides into nothing.
+
+**So the kill-check passes and the gate question survives.** Had a hundred sessions at 33 MiB broken the RSS budget, `η` would not have mattered — the footprint that could clear the work rate would not exist. It does exist, with 2.5% of the budget to spare.
+
+**One number does not reconcile.** Per-session RSS above solo is +0.130 MiB here and +0.44 MiB in the resident-20 gate hold, both peaks of a hundred sessions. The daemon's own cost is [254 KiB a session](2026-08-01-163935-what-the-harness-says-about-itself.md), which sits between them and explains neither. Two peaks taken minutes apart on a machine whose background moved 30% is the obvious suspect and is not evidence. It is recorded because it is the kind of small disagreement that gets rounded away and then quoted.
