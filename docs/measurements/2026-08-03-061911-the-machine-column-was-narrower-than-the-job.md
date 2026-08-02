@@ -8,12 +8,12 @@ Every hold recorded between the column landing and this fix, comparing the two c
 
 | run | sessions | machine (median) | job (median) | samples where job exceeds machine |
 |---|---|---|---|---|
-| `1785700857-worsttick-daemon` | 9 | 61.5 | 796.1 | **9 of 10** |
-| `1785700981-worsttick2-daemon` | 9 | 59.4 | 795.3 | **9 of 10** |
-| `1785701337-tickmove-daemon` | 9 | 72.9 | 791.9 | **8 of 10** |
-| `1785701632-slowdown-field-daemon` | 5 | 36.4 | 397.0 | **5 of 6** |
+| `1785700857-worsttick-daemon` | 8 | 61.5 | 796.1 | **9 of 10** |
+| `1785700981-worsttick2-daemon` | 8 | 59.4 | 795.3 | **9 of 10** |
+| `1785701337-tickmove-daemon` | 8 | 72.9 | 791.9 | **8 of 10** |
+| `1785701632-slowdown-field-daemon` | 4 | 36.4 | 397.0 | **5 of 6** |
 
-**Thirty-one of thirty-six samples describe a machine narrower than the work running on it.** Nothing complained, because nothing had subtracted the two columns yet — the whole point of the column is a difference nobody had taken.
+**31 of 36 samples describe a machine narrower than the work running on it.** Nothing complained, because nothing had subtracted the two columns yet — the whole point of the column is a difference nobody had taken.
 
 ## To-be
 
@@ -21,7 +21,7 @@ Same instrument, one multiplication, eight sessions at `--duty 0.50` on a box al
 
 | run | sessions | machine (median) | job (median) | samples where job exceeds machine |
 |---|---|---|---|---|
-| `1785705102-scalecheck-daemon` | 9 | **1470.0** | 285.4 | **0 of 18** |
+| `1785705102-scalecheck-daemon` | 8 | **1470.0** | 285.4 | **0 of 18** |
 
 The remainder — what the instrument does not attribute — comes to 9.02 cores at its lowest, 12.07 median, 15.10 highest, against `doctor` reporting 10.68 cores of background before the run and 10.97 after.
 
@@ -36,6 +36,12 @@ The remainder — what the instrument does not attribute — comes to 9.02 cores
 ## What guards it now
 
 Two unit tests on the extracted conversion, both shown failing with the multiplication removed and passing with it restored: one asserts a saturated machine reads 1600 rather than 100, the other replays this record's own 796-against-61.5 and requires the converted reading to clear the job.
+
+## A borrowed column heading, inside the record about a borrowed scale
+
+The session counts above first read 9, 9, 9 and 5. Those are `peak_processes` — the sessions plus the daemon — pulled from the artifacts by a script whose output column was then labelled `sessions`. `hold.json` says 8, 8, 8 and 4.
+
+No figure in the finding moves, which is what makes it worth keeping: the numbers were right and the heading came from the field beside them. **A record correcting a mislabelled quantity carried one for its first ten minutes.**
 
 ## Provenance
 

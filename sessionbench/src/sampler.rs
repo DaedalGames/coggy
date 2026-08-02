@@ -195,7 +195,7 @@ pub struct Sample {
 /// **Subtracting them raw is wrong by the width of the machine, and it read as
 /// a plausible number rather than as a zero.** Four holds recorded before this
 /// existed put the job above the whole machine in 31 of their 36 samples —
-/// 796 against 61.5 at nine sessions — and nothing complained, because the
+/// 796 against 61.5 at eight sessions — and nothing complained, because the
 /// column had been added and not yet subtracted from anything.
 fn machine_percent(global: f32, logical_cores: f32) -> f32 {
     global * logical_cores
