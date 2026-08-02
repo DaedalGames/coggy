@@ -83,3 +83,20 @@ The section above reads the failed inductions as a duration threshold: three min
 So the crashing run was a **rising** load on a heating box, and the failed inductions were flat ones. Duration is still the obvious variable and it is no longer the only difference: a load that asks for more as it gets less is its own candidate, and it is the one this box has actually been stopped by.
 
 Which leaves the threshold bracketed the same way and the mechanism less settled than the section above implies.
+
+### Both counters are ruled out on this box
+
+The two readings added to every artifact were a bet that one of them names the state. Neither does, and this is measured rather than still open.
+
+**The ACPI thermal zone cannot.** It returns **39.1 °C in every artifact** — idle and at the end of twenty minutes of a hundred saturating sessions alike — and the box exposes exactly one zone with no `Win32_TemperatureProbe` beside it. There is no varying temperature available here to read.
+
+**`% Processor Performance` was given a fair test and failed it.** A hold was taught to take the reading before the run as well as after, so a single run could show the machine changing under itself:
+
+| | before | after |
+|---|---|---|
+| 1 session, 20 s | 171% | **154%** |
+| 100 sessions, 120 s | 159% | **200%** |
+
+The loaded run's clock ratio *rose*. On an idle box the counter follows whichever core happens to be boosting, so the *before* is the noisy half — and two twenty-minute holds of identical shape ended at 144.3 and 182.1, a 26% spread with no difference between the runs to explain it. **The pair was built, measured and removed**; both fields stay in the host block because the query is already made and another machine may answer differently.
+
+So the slow state has no detector on this hardware. What remains is what has always identified it: **a solo hold's own rate**, ~21.5 units/s rested against ~9.4 slowed. That is not a counter to sample, it is a measurement to take — which is what the gate's own bracket does at the start and end of every run.

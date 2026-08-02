@@ -109,8 +109,19 @@ pub struct HostFacts {
     /// difference between the runs. Sampling either per tick would cost a
     /// PowerShell process, which is why they are not.
     ///
-    /// So they travel in every artifact as a cheap bet on the next
-    /// occurrence, not as an instrument anything has been shown to read.
+    /// **Both are now ruled out on this box, and the second was tested.** The
+    /// zone has one instance, returns 39.1 °C whatever the load, and there is
+    /// no `Win32_TemperatureProbe` beside it. `processor_performance` was
+    /// given a before-reading so a hold could show the machine changing under
+    /// it, and the pair is noise: one session for twenty seconds went 171% →
+    /// 154%, a hundred sessions for two minutes went 159% → 200%. The loaded
+    /// run rose. On an idle box the counter follows whichever core happens to
+    /// be boosting, so the *before* is the noisy half — and two twenty-minute
+    /// holds of the same shape ended at 144.3 and 182.1, which is too wide to
+    /// separate states with. The pair was built, measured and removed.
+    ///
+    /// They travel in every artifact because the query is already made and
+    /// another machine may answer differently. Nothing here reads them.
     ///
     /// `None` where the counter is absent, which is ordinary: `MSAcpi` is not
     /// exposed by every firmware.
