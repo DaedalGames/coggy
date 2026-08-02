@@ -49,6 +49,13 @@ fn slug(heading: &str) -> String {
         .to_lowercase()
 }
 
+/// Every file that can carry a cross-reference, which is not only the prose.
+///
+/// **Rust doc comments cite measurement records too, and nobody was checking
+/// them.** Sixteen such links existed when this was widened, two of them added
+/// the same day, pointing at records from a doc comment that `cargo test` read
+/// past. The three callers are all link checks and none of them cares whether
+/// the source it scans compiles.
 fn markdown_files(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
@@ -61,7 +68,12 @@ fn markdown_files(dir: &Path, out: &mut Vec<PathBuf>) {
             if !matches!(name.as_ref(), "target" | ".git") {
                 markdown_files(&path, out);
             }
-        } else if path.extension().is_some_and(|e| e == "md") {
+        } else if path.extension().is_some_and(|e| e == "md" || e == "rs")
+            // This file's own test fixtures are strings that look like links
+            // — `record.md`, `serialise.md` — and checking them checks the
+            // sample data rather than the repository.
+            && name != "docs.rs"
+        {
             out.push(path);
         }
     }
@@ -504,6 +516,14 @@ fn every_cross_reference_resolves() {
                 || target.starts_with("https://")
                 || target.starts_with("mailto:")
             {
+                continue;
+            }
+            // **A rustdoc intra-doc link is not a path**, and `rustdoc` already
+            // resolves it — `[Comparison](crate::compare::Comparison)` names an
+            // item, not a file. Eleven of the fourteen reports the first widened
+            // run produced were these; excluding them by the `::` that makes
+            // them Rust leaves the three that were real.
+            if target.contains("::") {
                 continue;
             }
 

@@ -14,7 +14,7 @@
 //! So the numerator changes and the coupling appears. It is deliberately one
 //! function in one file: a benchmark that reached into `coggyd` as a library
 //! would share its drain, and [the instrument and its subject keeping separate
-//! implementations](README.md#keeping-it-honest) is what stops the benchmark
+//! implementations](../README.md#keeping-it-honest) is what stops the benchmark
 //! measuring its own reader.
 //!
 //! **Tolerant of fields it does not know, strict about the ones it needs.** A
@@ -720,7 +720,7 @@ pub struct BracketedReport {
     /// How many times slower a concurrent session ran than a solo one.
     ///
     /// **Solo over concurrent, matching [the ramp's own
-    /// column](../report.rs).** The inverse reads just as naturally and would
+    /// column](report.rs).** The inverse reads just as naturally and would
     /// give two artifacts a similarly named field meaning opposite things —
     /// the condition is "within 2× of solo", so the number a reader compares
     /// against 2 is this one.

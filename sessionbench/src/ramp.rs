@@ -228,7 +228,7 @@ pub struct Step {
     /// holds it — a daemon draining into its own scrollback — leaves nothing
     /// to count, and reporting `0` there would put a condition's tolerance of
     /// zero against a number nobody measured. The condition is then skipped
-    /// and [the report says so](../report.rs) rather than passing it.
+    /// and [the report says so](report.rs) rather than passing it.
     pub dropped_units: Option<u64>,
     /// Wall-clock the rung actually took, which exceeds the hold when the
     /// machine could not keep the sampler running.
