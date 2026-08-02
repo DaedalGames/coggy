@@ -56,6 +56,13 @@ function Phase([string]$name) {
     for ($i = 0; $i -lt 11; $i++) { Start-Sleep -Seconds 5; $rows += Sample }
     $p.WaitForExit(120000) | Out-Null
     $rate = (Select-String -Path $log -Pattern 'rate\s+([\d.]+)').Matches.Groups[1].Value
+    # **What else held the machine while this phase ran.** The whole probe
+    # attributes a solo rate drop to the burst, and a tenant produces the same
+    # drop: 11.5 of 16 cores held cost a single session 26% on 2026-08-03, which
+    # is larger than most of what this is looking for. Every hold prints the
+    # figure; without reading it, a busy afternoon reads as an induced state.
+    $restMatch = Select-String -Path $log -Pattern '([\d.]+) cores held outside the job'
+    $rest = if ($restMatch) { [double]$restMatch.Matches.Groups[1].Value } else { [double]::NaN }
     $c    = ($rows | Where-Object { $_.C } | Measure-Object -Property C -Average).Average
     $perf = ($rows | Measure-Object -Property Perf -Average).Average
     $mhz  = ($rows | Measure-Object -Property MHz -Average).Average
@@ -63,7 +70,8 @@ function Phase([string]$name) {
     Write-Host ("  thermal zone     {0:N1} C" -f $c)
     Write-Host ("  % proc perf      {0:N1}" -f $perf)
     Write-Host ("  frequency        {0:N0} MHz" -f $mhz)
-    [pscustomobject]@{ Rate = [double]$rate; C = $c; Perf = $perf; MHz = $mhz }
+    Write-Host ("  cores elsewhere  {0:N2}" -f $rest)
+    [pscustomobject]@{ Rate = [double]$rate; C = $c; Perf = $perf; MHz = $mhz; Rest = $rest }
 }
 
 $fast = Phase 'fast'
@@ -79,6 +87,14 @@ $slow = Phase 'slow'
 if ([Math]::Abs($fast.Rate / $slow.Rate - 1) -lt 0.15) {
     "  THE BURST DID NOT INDUCE THE STATE. Both phases are the same machine, so"
     "  the counters below are two readings of one state and settle nothing."
+}
+# **Read this line before the rate.** A rate that fell while the cores held by
+# everything else rose has not measured the burst; it has measured a neighbour.
+"  cores elsewhere {0,7:N2} -> {1,7:N2}   ({2:+0.00;-0.00})" -f $fast.Rest, $slow.Rest, ($slow.Rest - $fast.Rest)
+if (($slow.Rest - $fast.Rest) -gt 1.0) {
+    "  NOTE: {0:N2} more cores were held by something else during the slow phase." -f ($slow.Rest - $fast.Rest)
+    "        The rate below cannot separate that from the burst. Name it with"
+    "        Get-Counter '\Process(*)\% Processor Time' and run the probe again."
 }
 "  solo rate       {0,7:N2} -> {1,7:N2}   ({2:N2}x)" -f $fast.Rate, $slow.Rate, ($fast.Rate / $slow.Rate)
 "  thermal zone    {0,7:N1} -> {1,7:N1}   ({2:+0.0;-0.0} C)" -f $fast.C, $slow.C, ($slow.C - $fast.C)
