@@ -708,6 +708,13 @@ pub struct BracketedReport {
     pub after_error_percent: Option<f64>,
     /// How far the two sides' means sat apart, as a percentage.
     pub solo_gap_percent: Option<f64>,
+    /// Cores held outside the job while each side's baselines ran.
+    ///
+    /// A gap the two sides agree on still needs this: the pair can agree
+    /// because nothing moved, or because the same thing was moving through
+    /// both. Read it before the gap.
+    pub before_rest_cores: Option<f64>,
+    pub after_rest_cores: Option<f64>,
     /// Why the pair may not be set against each other, when it may not.
     pub machine_moved: Option<String>,
     /// How many times slower a concurrent session ran than a solo one.
@@ -718,7 +725,13 @@ pub struct BracketedReport {
     /// the condition is "within 2× of solo", so the number a reader compares
     /// against 2 is this one.
     ///
-    /// `None` when either half is missing or the machine moved under the run.
+    /// `None` when either half is missing or the two sides disagree.
+    ///
+    /// **Disagreement is the symptom and not the cause.** The first run to
+    /// print the rest-of-machine line refused itself at 10.7% while both sides
+    /// sat under twelve cores of someone else's work — the machine had not
+    /// moved, it was loaded from end to end, and the two readings have
+    /// different remedies.
     /// **Not computed anyway and labelled**: a ratio across a machine that
     /// changed is the afternoon, and offering it invites quoting it.
     pub slowdown: Option<f64>,
@@ -764,6 +777,20 @@ pub fn bracket(
 ) -> BracketedReport {
     let (before_rate, before_spread, before_error) = side(&before);
     let (after_rate, after_spread, after_error) = side(&after);
+    // **What the baselines were measured beside, not only whether they agree.**
+    // Agreement has no opinion about what the pair agrees on: two baselines
+    // inside the same disturbance sit tightly together and are both wrong. A
+    // `doctor` reading cannot cover it either — 1.89 cores approved a window in
+    // which a tenant then took 11.5 of 16 for two of three solo holds.
+    let rest = |side: &[HoldReport]| -> Option<f64> {
+        let v: Vec<f64> = side
+            .iter()
+            .filter_map(|r| r.occupancy.map(|o| o.rest_cores_median))
+            .collect();
+        (!v.is_empty()).then(|| v.iter().sum::<f64>() / v.len() as f64)
+    };
+    let before_rest_cores = rest(&before);
+    let after_rest_cores = rest(&after);
     let rates = (
         before_rate,
         concurrent.units_per_session_per_sec,
@@ -841,6 +868,8 @@ pub fn bracket(
         before_error_percent: before_error,
         after_error_percent: after_error,
         solo_gap_percent: gap,
+        before_rest_cores,
+        after_rest_cores,
         machine_moved: moved,
         slowdown,
         work_rate,
@@ -870,7 +899,7 @@ pub fn solo_agrees(before: f64, after: f64) -> Result<f64, String> {
     let gap = (before - after).abs() / mean * 100.0;
     if gap > crate::compare::SOLO_AGREEMENT_PERCENT {
         return Err(format!(
-            "solo holds {before:.3} and {after:.3} units/s/session sit {gap:.1}% apart against a {:.0}% allowance — the machine moved under the run, so a ratio taken across it would report the afternoon",
+            "solo holds {before:.3} and {after:.3} units/s/session sit {gap:.1}% apart against a {:.0}% allowance — a ratio taken across them would report the afternoon. Read the solo rest line before deciding why: a machine that drifted is worth rerunning, one that had cores held throughout is worth waiting out",
             crate::compare::SOLO_AGREEMENT_PERCENT,
         ));
     }

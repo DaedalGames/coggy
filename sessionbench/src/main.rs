@@ -436,8 +436,10 @@ fn main() -> anyhow::Result<()> {
                 // far as the gap has not measured the gap.
                 let percent =
                     |v: Option<f64>| v.map_or_else(|| "—".to_string(), |x| format!("{x:.1}%"));
+                let cores =
+                    |v: Option<f64>| v.map_or_else(|| "—".to_string(), |x| format!("{x:.2} cores"));
                 println!(
-                    "\n  solo spread {} before · {} after\n  solo error  ±{} before · ±{} after\n  solo gap   {}\n  slowdown   {}",
+                    "\n  solo spread {} before · {} after\n  solo error  ±{} before · ±{} after\n  solo rest   {} before · {} after\n  solo gap    {}\n  slowdown    {}",
                     percent(bracketed.before_spread_percent),
                     percent(bracketed.after_spread_percent),
                     // The spread is what the holds did; the error is what the
@@ -445,6 +447,10 @@ fn main() -> anyhow::Result<()> {
                     // an allowance on a difference of means.
                     percent(bracketed.before_error_percent),
                     percent(bracketed.after_error_percent),
+                    // **Before the gap, because the gap cannot see it.** Two
+                    // baselines inside one disturbance agree with each other.
+                    cores(bracketed.before_rest_cores),
+                    cores(bracketed.after_rest_cores),
                     percent(bracketed.solo_gap_percent),
                     bracketed
                         .slowdown

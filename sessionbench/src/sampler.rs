@@ -58,6 +58,19 @@ impl TickCost {
 pub struct Occupancy {
     pub median_cores: f64,
     pub mean_cores: f64,
+    /// Cores held by everything outside the job, at the median.
+    ///
+    /// **Unlike `lost_cores`, this one is worth having on a single session**,
+    /// and the difference is which side of the subtraction the session is on.
+    /// `lost_cores` measures the job against itself, so at one session its
+    /// floor and its signal sit under two-fold apart and it is left out.
+    /// The rest of the machine does not care how big the job is: three
+    /// back-to-back solo holds gave **2.99, 11.46 and 11.60 cores** here while
+    /// the job held 0.24 to 0.26 in all three, and the two fast-and-quiet
+    /// versus slow-and-crowded groups are what said [a 30% spread was a tenant
+    /// rather than the slow machine
+    /// state](../../docs/measurements/2026-08-03-070018-a-solo-triple-spread-thirty-percent-and-the-column-said-why.md).
+    pub rest_cores_median: f64,
     /// Mean cores below the median, summed over samples under it.
     ///
     /// **The one number that would have caught it**, and it has a floor rather
@@ -132,6 +145,13 @@ impl Occupancy {
         if cores.is_empty() {
             return None;
         }
+        // The same window, so the two describe the same stretch of the run.
+        let mut rest: Vec<f64> = samples[from..]
+            .iter()
+            .map(|s| f64::from(s.machine_cpu_percent - s.cpu_percent) / 100.0)
+            .collect();
+        rest.sort_by(f64::total_cmp);
+        let rest_median = rest[rest.len() / 2];
         cores.sort_by(f64::total_cmp);
         let median = cores[cores.len() / 2];
         let lost = cores.iter().map(|c| (median - c).max(0.0)).sum::<f64>() / cores.len() as f64;
@@ -139,6 +159,7 @@ impl Occupancy {
             median_cores: median,
             mean_cores: cores.iter().sum::<f64>() / cores.len() as f64,
             lost_cores: lost,
+            rest_cores_median: rest_median,
         })
     }
 }
