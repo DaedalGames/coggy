@@ -28,7 +28,7 @@ The upper bound alone refutes it, without having to separate 0.9 from 0.7. Even 
 ## What this changes
 
 - **Defender is not the dominant term.** The claim that it wanted 72% of the machine's cores at a hundred sessions is withdrawn.
-- **M3's exclusion work is not the largest lever.** [PLAN calls it a five-minute implementation with the largest felt impact](../PLAN.md#anti-patterns-these-kill-the-project); on this evidence the exclusion buys about 0.2 cores out of sixteen at fifty write-heavy sessions. It may still be worth five minutes. It is not worth reordering a milestone for.
+- **M3's exclusion work is not the largest lever.** [ROADMAP calls it a five-minute implementation with the largest felt impact](../../ROADMAP.md#m3--resource-governor); on this evidence the exclusion buys about 0.2 cores out of sixteen at fifty write-heavy sessions. It may still be worth five minutes. It is not worth reordering a milestone for.
 - **The exclusion axis has its answer**, and it is small. Running the axis at one session could never have found this: at that scale the only visible term is Defender's CPU rate, which is exactly the quantity the background swamps.
 
 ## What survives
@@ -45,3 +45,9 @@ The instrument, and the discipline that caught this. The figure was withdrawn by
 | sessionbench | 0.0.0 at commit `ce5c3b1`, clean tree, release build |
 | Ladders | 1, 10, 25, 50 sessions · 60 s holds, first 30 s unmeasured · resolution 2 |
 | Defender | real-time protection on; exclusion held over the sessions' scratch root for ladder B only, verified back to zero afterwards |
+
+## 2026-08-02: the citation above pointed at the wrong file
+
+The bullet quoting *a five-minute implementation with the largest felt impact* cited PLAN's anti-patterns. **PLAN has never held that phrase** — it was ROADMAP's M3 line, from the scaffold commit onward, and the pointer is corrected above. The right document with a plausible-sounding section is the shape this repository keeps producing; a citation carrying no figure is checked by no test.
+
+*Largest felt impact* has since left ROADMAP too, in the two commits that acted on this record. The quotation stands as what was written when this was measured, which is what a log is for.

@@ -340,6 +340,102 @@ fn a_figure_quoted_in_a_link_appears_in_the_document_it_points_at() {
     );
 }
 
+/// A link whose text names a document points at that document.
+///
+/// **The half of a citation that can be checked without reading it.** The
+/// sibling test above catches a link quoting a figure its target does not
+/// hold, and a citation carrying no figure was checked by nobody: `PLAN calls
+/// it a five-minute implementation` pointed at PLAN's anti-patterns, and PLAN
+/// has never held that phrase — it was ROADMAP's, from the scaffold commit
+/// onward. The right document with a plausible-sounding section is the shape
+/// this repository keeps producing.
+///
+/// Prose cannot be checked, but *`PLAN` in the link text and `ROADMAP.md` in
+/// the destination* is a contradiction with no reading that makes it correct.
+/// So this is deliberately narrow: it says nothing about whether the section
+/// supports the claim, only that the file is the one the sentence names. A
+/// looser version — do the link's words appear in the target section — was
+/// tried first and returned seven suspects for one defect, which is a check
+/// people learn to skip.
+///
+/// Records are included where the figure test excludes them. A record is a log
+/// of what was true when it was taken, and no reading of that makes the
+/// document name in its own sentence wrong.
+#[test]
+fn a_link_naming_a_document_points_at_that_document() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crate sits one level below the repository root");
+
+    let named: [(&str, &str); 4] = [
+        ("PLAN", "PLAN.md"),
+        ("ROADMAP", "ROADMAP.md"),
+        ("CONTRIBUTING", "CONTRIBUTING.md"),
+        ("CLAUDE", "CLAUDE.md"),
+    ];
+
+    /// The name has to stand as a word, so `PLANNED` and a path spelled out in
+    /// the label are both left alone.
+    fn names_document(label: &str, name: &str) -> bool {
+        label.match_indices(name).any(|(at, _)| {
+            let before = label[..at].chars().next_back();
+            let after = label[at + name.len()..].chars().next();
+            let boundary =
+                |c: Option<char>| !c.is_some_and(|c| c.is_ascii_alphanumeric() || c == '.');
+            boundary(before) && boundary(after)
+        })
+    }
+
+    let mut docs = Vec::new();
+    markdown_files(root, &mut docs);
+
+    let mut wrong = Vec::new();
+    let mut checked = 0usize;
+    for doc in &docs {
+        let body = fs::read_to_string(doc).expect("readable markdown");
+        for (label, target) in links(&body) {
+            if target.starts_with("http") {
+                continue;
+            }
+            let path_part = target.split('#').next().unwrap_or_default();
+            if path_part.is_empty() {
+                continue; // an anchor alone stays inside this file
+            }
+            for (name, file) in named {
+                if !names_document(&label, name) {
+                    continue;
+                }
+                checked += 1;
+                if !path_part.ends_with(file) {
+                    wrong.push(format!(
+                        "{}  says {name}  ->  {target}",
+                        doc.strip_prefix(root).unwrap_or(doc).display()
+                    ));
+                }
+            }
+        }
+    }
+
+    // A check nobody has seen fail is a check nobody has read. This one was
+    // shown failing on the citation in the doc comment before it was fixed.
+    //
+    // Fifteen links name a document today, counted twice by different routes —
+    // once here and once by a sweep over the same tree — after the second
+    // route was taught to skip fenced blocks, which is where the first
+    // disagreement lived. The floor sits below that and above zero, so
+    // deleting the last such link fails loudly rather than passing vacuously.
+    assert!(
+        checked >= 12,
+        "only {checked} links name a document, so this test is looking at nothing"
+    );
+    assert!(
+        wrong.is_empty(),
+        "{} link(s) naming one document and pointing at another:\n{}",
+        wrong.len(),
+        wrong.join("\n")
+    );
+}
+
 /// Every measurement record is reachable from the index that promises to list
 /// them.
 ///
