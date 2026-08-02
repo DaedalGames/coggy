@@ -176,3 +176,17 @@ Carried through at full precision, and against the identity `N·d/(2η) = C·s/2
 Nothing else moves: 3% is still 3%, the ceiling is still ≈97, and the gate still fails. What the slip cost is the one place this figure gets used, which is sizing a machine to buy — where 16.4 rounds down to sixteen and 16.52 does not.
 
 **The two routes agree to four digits because they are one route.** That is not a check on the number; it is what makes rounding either input a silent error, since nothing else in the arithmetic can disagree with it.
+
+## 2026-08-03: the ceiling table is the slowdown table
+
+`η` in the table above is `N·d ÷ (C·s)`. Substituted into `2ηC/d`, every term but the slowdown cancels:
+
+```
+2 * (N.d / (C.s)) * C / d  =  2N / s
+```
+
+Checked against all four rows — 96.834, 97.234, 95.753, 50.531 — which is what the *ceiling at `d = 0.27`* column already holds. **The column is `200 ÷ slowdown`.** It carries no information about the core count or the duty, and the three rested ceilings agreeing to a session is the three slowdowns agreeing to 1.5% restated.
+
+So the ceiling is measured **at the count that was run and nowhere else**. Reading it at any other N needs `η` to be flat there, which is a separate measurement rather than something this relation supplies.
+
+Nothing in the record changes. What changes is what the ceiling can be cited as: not a second line of evidence beside the slowdown, but the same number in units a governor would use.
