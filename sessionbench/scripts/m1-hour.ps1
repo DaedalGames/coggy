@@ -137,6 +137,40 @@ if ($stray) {
 $busy = Get-Capture (& $bench doctor 2>&1) 'busy before we start ([\d.]+)'
 "background: {0} of 16 logical" -f $busy
 
+# --- and what that leaves the concurrent hold, which the probe below cannot
+# see. The precondition is two SOLO holds agreeing within 5%, and a solo needs
+# one core: with ten cores held by something else there are still six free, so
+# both probes run at full speed and agree tightly while the hundred-session hold
+# gets six cores instead of sixteen. A steady tenant is invisible to an
+# agreement check and fatal to the ratio it is guarding.
+#
+# THE THRESHOLD IS NOT LOW, AND THAT IS DELIBERATE. Ordinary background here
+# reads about 2.2 cores idle and collapses to roughly 0.6 once a hundred
+# sessions compete -- it yields, so pre-screening a ratio on it measures the
+# wrong thing, which is why the standing rule says a ratio is refused by its own
+# bracket rather than by `doctor`. What this looks for is the other kind: a
+# tenant that keeps computing under load. On 2026-08-03 this box sat at 10.4 of
+# 16 for over twenty minutes, one headless browser holding 7.6 cores by itself,
+# with `doctor` reading a steady 65-67% and nothing here saying so.
+#
+# A quarter of the machine is above anything idle background has reached on this
+# box and below anything a real tenant leaves. It is a heuristic and it is not a
+# refusal; the number that decides is the run's own `occupancy`, which reports
+# the cores the job actually held and now carries the whole machine's CPU beside
+# it. Read that line before the slowdown.
+$free = 16 - [double]$busy
+"free for the run: {0:N2} of 16 logical" -f $free
+if ([double]$busy -gt 4.0) {
+    "NOTE: something else holds {0:N2} cores, a quarter of the machine or more." -f ([double]$busy)
+    "      That is a tenant rather than idle background, which yields under load."
+    "      The slowdown will read high in proportion, and the solo probes below"
+    "      will NOT notice, because a solo needs one core and {0:N2} are free." -f $free
+    "      Name it before spending the hour:"
+    "        Get-Counter '\Process(*)\% Processor Time'"
+    "      Get-Process | Sort-Object CPU does not answer this -- that column is"
+    "      cumulative lifetime seconds, not a current rate."
+}
+
 # --- the precondition: can two baselines agree today? --units 100000000
 # because cpu-spin's default is 60 and it EXITS after them.
 $work = @('--units', '100000000', '--duty', '0.27', '--resident', '20')
