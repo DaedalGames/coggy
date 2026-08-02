@@ -157,3 +157,14 @@ which cost it nothing but its own report.
 | Daemon | `coggyd` 0.0.0, release build |
 | Workload | `cpu-spin --units 10000 --duty 1.0 --resident 20` |
 | Shape | three repeats of solo 20 s · 8 sessions 24 s · solo 20 s × 3, sampled every 4 s, back to back |
+
+## 2026-08-03: a fourth candidate the samples could not rule out
+
+The three things ruled out above are all quantities of the job — its RSS, its CPU share, what it held at the last sample. Nothing here describes the machine **outside** the job, because nothing recorded it until [the whole-machine column was added and put on the job's scale](2026-08-03-061911-the-machine-column-was-narrower-than-the-job.md).
+
+That matters because a neighbour produces this record's exact signature. [Nine one-session holds taken since](2026-08-03-081500-a-neighbour-costs-the-solo-baseline-twenty-seven-percent.md) put the rate 27% apart between quiet and crowded windows **while the job's own share stayed at 0.24 to 0.26 cores throughout** — speed moving, the session's own quantities flat, which is the shape read here as core placement.
+
+So *which core the session landed on* remains a candidate and is no longer the only one, and these twelve holds cannot be re-read: their artifacts predate the column. **The check is cheap and has not been run** — repeat twelve fresh one-session holds now that each records the cores held elsewhere, and see whether the 4.54% survives when the quiet ones are taken alone.
+
+What does not change: the spread is real, it is what a bracket's baselines actually do, and [the 5% allowance](../../sessionbench/src/compare.rs) sits above it either way. What changes is that the allowance's stated mechanism is one of two, and the wrong one would mean the spread is a property of the afternoon rather than of the machine.
+

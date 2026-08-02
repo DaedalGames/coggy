@@ -61,6 +61,14 @@ use crate::ramp::RampReport;
 /// at a CPU share spanning 1.95%, so what moves them is which core the one
 /// session landed on rather than anything a repeat would average out.
 ///
+/// **That mechanism has a rival, found later and not separable now.** Those
+/// twelve holds recorded the job and not the machine around it, and a neighbour
+/// makes the same signature — nine one-session holds on 2026-08-03 moved 27%
+/// between quiet and crowded windows while the job's own share held 0.24 to
+/// 0.26 cores. So the 4.54% may be core placement or may be an afternoon, and
+/// the constant sits above it either way. Twelve fresh holds would tell them
+/// apart now that every one records the cores held elsewhere.
+///
 /// Left at five rather than widened here, because [`crate::daemon::bracket`] is
 /// what would need the wider number and the population it should be calibrated
 /// against has been measured once. Widening a shared constant to fit the noisier
