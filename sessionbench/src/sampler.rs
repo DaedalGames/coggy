@@ -21,6 +21,38 @@ use crate::tree::{Attribution, ProcessSample, SessionTree};
 /// Windows Defender's scanning service.
 const DEFENDER_PROCESS: &str = "MsMpEng.exe";
 
+/// What one tick of the instrument cost.
+///
+/// A scaling benchmark has to know its own overhead, because the one failure it
+/// cannot detect from the outside is the observer becoming the bottleneck. The
+/// first ramp against a saturating workload spent seventy-five seconds on a
+/// fifteen second hold, and without this there was no way to say which part of
+/// the tick had eaten it.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct TickCost {
+    /// Walking the tracked processes, or the whole table when membership needs it.
+    pub refresh_ms: u64,
+    /// Checking for finished sessions and restarting them.
+    pub replace_ms: u64,
+    /// Reading the job's members and their memory.
+    pub sample_ms: u64,
+    /// Serialising the sample and flushing it to disk.
+    pub write_ms: u64,
+}
+
+impl TickCost {
+    pub fn total_ms(&self) -> u64 {
+        self.refresh_ms + self.replace_ms + self.sample_ms + self.write_ms
+    }
+
+    /// Keeps whichever tick cost more in total.
+    pub(crate) fn keep_worse(&mut self, other: TickCost) {
+        if other.total_ms() > self.total_ms() {
+            *self = other;
+        }
+    }
+}
+
 /// How much of the machine the sessions held, and how steadily.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Occupancy {

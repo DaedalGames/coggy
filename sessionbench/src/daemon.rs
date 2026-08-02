@@ -338,7 +338,7 @@ pub struct HeldRun {
     /// per rung since it existed and a hold did not: the observer becoming the
     /// bottleneck is the one failure that gives no other sign. The gate runs on
     /// holds, so the guard belonged here first.
-    pub worst_tick: crate::ramp::TickCost,
+    pub worst_tick: crate::sampler::TickCost,
     pub elapsed: std::time::Duration,
     /// How much of `elapsed` the last report's counter actually covers.
     ///
@@ -420,7 +420,7 @@ pub fn hold(
 
     let mut sampler = crate::sampler::Sampler::new();
     let mut samples = Vec::new();
-    let mut worst_tick = crate::ramp::TickCost::default();
+    let mut worst_tick = crate::sampler::TickCost::default();
     let mut left_early = None;
 
     // **Written as they are taken, not collected and saved at the end.** An
@@ -485,7 +485,7 @@ pub fn hold(
         let at = std::time::Instant::now();
         let tracked = tree.known_pids();
         sampler.refresh(tracked.as_deref());
-        let mut cost = crate::ramp::TickCost {
+        let mut cost = crate::sampler::TickCost {
             refresh_ms: at.elapsed().as_millis() as u64,
             ..Default::default()
         };
@@ -977,7 +977,7 @@ pub struct HoldReport {
     /// when nothing was sampled.
     pub occupancy: Option<crate::sampler::Occupancy>,
     /// The most expensive tick of the hold — see [`HeldRun::worst_tick`].
-    pub worst_tick: crate::ramp::TickCost,
+    pub worst_tick: crate::sampler::TickCost,
     pub rss: Verdict,
     pub work_rate: Verdict,
     pub dropped_output: Verdict,
@@ -1139,7 +1139,7 @@ mod tests {
     fn run_of(sessions: u32, fewest: Option<u64>, samples: usize) -> HeldRun {
         HeldRun {
             sessions,
-            worst_tick: crate::ramp::TickCost::default(),
+            worst_tick: crate::sampler::TickCost::default(),
             // Built by hand rather than by deriving Default on Sample, which
             // would add a convenience to the real type that only a test wants.
             samples: (0..samples)

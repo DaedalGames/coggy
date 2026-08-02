@@ -132,42 +132,6 @@ pub struct RampConfig {
     pub command: Vec<String>,
 }
 
-/// What one tick of the instrument cost.
-///
-/// A scaling benchmark has to know its own overhead, because the one failure it
-/// cannot detect from the outside is the observer becoming the bottleneck. The
-/// first ramp against a saturating workload spent seventy-five seconds on a
-/// fifteen second hold, and without this there was no way to say which part of
-/// the tick had eaten it.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-pub struct TickCost {
-    /// Walking every process on the machine.
-    pub refresh_ms: u64,
-    /// Checking for finished sessions and restarting them.
-    pub replace_ms: u64,
-    /// Reading the job's members and their memory.
-    pub sample_ms: u64,
-    /// Serialising the sample and flushing it to disk.
-    pub write_ms: u64,
-}
-
-impl TickCost {
-    pub fn total_ms(&self) -> u64 {
-        self.refresh_ms + self.replace_ms + self.sample_ms + self.write_ms
-    }
-
-    /// Keeps whichever tick cost more in total.
-    ///
-    /// `pub(crate)` because a hold accumulates the same way — the guard is
-    /// against the sampler becoming the bottleneck, which is not a property
-    /// of ladders.
-    pub(crate) fn keep_worse(&mut self, other: TickCost) {
-        if other.total_ms() > self.total_ms() {
-            *self = other;
-        }
-    }
-}
-
 /// What ending a rung cost, stage by stage.
 ///
 /// Teardown is instrumented for the same reason ticks are: it is the
@@ -270,7 +234,7 @@ pub struct Step {
     /// machine could not keep the sampler running.
     pub elapsed_secs: f64,
     /// The most expensive tick of the rung, broken down.
-    pub worst_tick: TickCost,
+    pub worst_tick: crate::sampler::TickCost,
     /// What ending the rung cost, broken down.
     pub teardown: TeardownCost,
     /// Why this rung supports no verdict, when it supports none.
@@ -697,7 +661,7 @@ fn hold(
     let mut measured: Vec<Sample> = Vec::new();
     let mut units_at_spinup = None;
     let mut last: Option<Sample> = None;
-    let mut worst_tick = TickCost::default();
+    let mut worst_tick = crate::sampler::TickCost::default();
 
     let mut daemon_left_early = None;
     while started.elapsed() < config.hold {
@@ -718,7 +682,7 @@ fn hold(
         // after the work: under load the work is the interval, and adding one
         // on top turns a fifteen second hold into forty.
         let tick = Instant::now();
-        let mut cost = TickCost::default();
+        let mut cost = crate::sampler::TickCost::default();
 
         let at = Instant::now();
         let tracked = tree.known_pids();
