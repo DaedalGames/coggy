@@ -168,9 +168,24 @@ if ($gap -gt 5) {
     throw "the baseline cannot support the judgement"
 }
 
+# --- the label carries the duration, because that is the only thing the hour
+# buys and nothing else in the artifact distinguishes it. This script is named
+# for an hour and defaults to a third of one, deliberately (see the header), so
+# two runs of it produce the same numbers under the same name and only one of
+# them can claim the gate's third condition.
+$label = "m1-{0}s" -f $DurationSeconds
+if ($DurationSeconds -ge 3600) {
+    "duration: {0}s — meets the gate's hour. A human should be present: this box" -f $DurationSeconds
+    "          stopped dead at forty-one minutes of a rising load, and that is the"
+    "          threshold this run is the first to test at a fixed duty."
+} else {
+    "duration: {0}s — SHORT OF THE GATE'S HOUR. Every other number is valid at" -f $DurationSeconds
+    "          this exposure; the duration condition is unmet and the record has"
+    "          to say so. Pass -DurationSeconds 3600 for the gate run."
+}
 "`nstarting — about {0:N0} minutes, leave the machine alone" -f (($DurationSeconds + 720) / 60)
 & $bench hold `
-    --label m1 --sessions 100 --interval 5 --duration $DurationSeconds `
+    --label $label --sessions 100 --interval 5 --duration $DurationSeconds `
     --with-solo --solo-duration 120 --solo-repeats 3 `
     -- $spin @work
 
