@@ -70,7 +70,7 @@ It did not land outside the architecture. The governor below already carries a c
 
 ### The instrument and the metric
 
-**`sessionbench`** is the one tool that exists today. It stays a standalone benchmark rather than folding into a `coggy` subcommand — [the naming rules](#name-coggy-settled) explain why the measuring tool must not wear the product's name.
+**`sessionbench`** is the tool a user runs, and since M1 opened it shares the workspace with `coggyd`, which is a daemon rather than something anyone invokes. It stays a standalone benchmark rather than folding into a `coggy` subcommand — [the naming rules](#name-coggy-settled) explain why the measuring tool must not wear the product's name.
 
 **`redline`** is the single number it produces. Exactly as an engine's redline is the speed past which it comes apart, this is **the maximum number of concurrent sessions a machine sustains.**
 
