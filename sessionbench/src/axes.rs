@@ -168,7 +168,9 @@ mod tests {
                 present,
                 ..DefenderFacts::default()
             },
-            errors: Vec::new(),
+            // Which axes are available does not depend on the power state, so
+            // these stay at their default rather than being varied here.
+            ..HostFacts::default()
         }
     }
 

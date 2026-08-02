@@ -871,6 +871,27 @@ fn doctor(strict: bool) -> anyhow::Result<()> {
     // ramp would start on rather than one this command already disturbed.
     let background = BackgroundLoad::measure(Duration::from_secs(5));
     block("background", background.rows());
+
+    // **Loudest line in the command, because it is the one that invalidates a
+    // day's comparisons in silence.** A hundred sessions at duty 0.27 returned
+    // 907 units/s at noon on mains and 135 the same evening on battery — 7.8×,
+    // from a laptop held at its base clock. Nothing was hot, nothing was
+    // running, and no artifact recorded which of the two machines it came from.
+    match facts.on_battery {
+        Some(true) => println!(
+            "\n  ON BATTERY — {} — every figure from this machine is a different machine's{}",
+            facts.power_plan.as_deref().unwrap_or("power plan unknown"),
+            facts
+                .charge_percent
+                .map(|c| format!(" ({c}% charged)"))
+                .unwrap_or_default()
+        ),
+        Some(false) => println!(
+            "\n  on mains — {}",
+            facts.power_plan.as_deref().unwrap_or("power plan unknown")
+        ),
+        None => println!("\n  power state unknown — see query errors"),
+    }
     block("provenance", provenance.rows());
 
     println!("\naxes");

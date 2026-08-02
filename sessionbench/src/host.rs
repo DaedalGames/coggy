@@ -45,6 +45,15 @@ try {
   foreach ($item in @($prefs.ExclusionPath))    { if ($item) { "exclusion_path`t$item" } }
   foreach ($item in @($prefs.ExclusionProcess)) { if ($item) { "exclusion_process`t$item" } }
 } catch { "error`tGet-MpPreference: $($_.Exception.Message)" }
+try {
+  $battery = Get-CimInstance Win32_Battery -ErrorAction Stop | Select-Object -First 1
+  if ($battery) { "on_battery`t$($battery.BatteryStatus -ne 2)"; "charge`t$($battery.EstimatedChargeRemaining)" }
+  else { "on_battery`tfalse" }
+} catch { "error`tWin32_Battery: $($_.Exception.Message)" }
+try {
+  $plan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan -Filter "IsActive=true" -ErrorAction Stop
+  "power_plan`t$($plan.ElementName)"
+} catch { "error`tWin32_PowerPlan: $($_.Exception.Message)" }
 "#;
 
 /// What the host says about itself at the moment a report is taken.
@@ -54,6 +63,20 @@ pub struct HostFacts {
     /// query itself failed.
     pub elevated: Option<bool>,
     pub defender: DefenderFacts,
+    /// Whether the machine was on battery, and which power plan was active.
+    ///
+    /// **The axis that broke every cross-run comparison in one day, and the
+    /// only one this struct did not ask about.** A hundred sessions at duty
+    /// 0.27 returned 907 units/s at noon on AC and 135 the same evening on
+    /// battery — 7.8×, from a laptop pinned to its base clock with the CPU
+    /// budget cut. Temperature was 42 °C, so it was not thermal, and nothing
+    /// in the artifact said which machine had produced which number.
+    ///
+    /// `None` means the query failed, which on a desktop is also how *no
+    /// battery exists* arrives — [`HostFacts::errors`] separates them.
+    pub on_battery: Option<bool>,
+    pub charge_percent: Option<u8>,
+    pub power_plan: Option<String>,
     /// Anything the query could not answer, kept rather than discarded so a
     /// partial result never reads as a complete one.
     pub errors: Vec<String>,
@@ -112,6 +135,9 @@ impl HostFacts {
                 "engine" => facts.defender.engine_version = Some(value.to_string()),
                 "exclusion_path" => facts.defender.exclusion_paths.push(value.to_string()),
                 "exclusion_process" => facts.defender.exclusion_processes.push(value.to_string()),
+                "on_battery" => facts.on_battery = parse_bool(value),
+                "charge" => facts.charge_percent = value.parse().ok(),
+                "power_plan" => facts.power_plan = Some(value.to_string()),
                 "error" => facts.errors.push(value.to_string()),
                 _ => {}
             }
