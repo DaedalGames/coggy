@@ -29,6 +29,8 @@ The climb on its own is not enough, and this is measured rather than argued: a c
 
 The line goes through the origin because that is what the relation says: `slowdown = N·d/(η·C)` is linear in `N` with no constant term, so **the fitted slope is `η`** and the crossing is `2ηC/d`. Letting the intercept float made the answer less reproducible, which is what a parameter absorbing noise does. The climb and the refinement still run — they are what put rungs on both sides of the budget for the line to be drawn through.
 
+**`C` is the machine's core count, and the sessions do not get all of it**, so the fitted `η` carries whatever else was on the box. Three hundred-session holds put the job at 14.11, 15.33 and 15.27 of sixteen — [a spread that read as an 11% property of the workload until it was divided out](../docs/measurements/2026-08-03-023657-eta-was-two-quantities-multiplied.md). Within one ladder the convention cancels, since every rung divides by the same sixteen; **across ladders it does not**, which is one more reason two redlines from different afternoons are not subtractable. Each rung now records what it actually held.
+
 **redline is a pair, not a scalar:** `84 / RSS`, never bare `84`. A redline without its limiting cause cannot be reproduced, and the cause is what says where to optimize next.
 
 Different machines yielding different values is correct behavior, not noise. Every report carries its hardware: core count, RAM, disk, and Defender state.
