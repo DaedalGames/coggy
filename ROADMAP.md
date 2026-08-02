@@ -140,7 +140,9 @@ That rule already bit once. [A hundred sessions were held for an hour on 2026-08
 
 **Replacement is not one of these three**, though it is easy to count as one: it is [the redline's fourth condition](sessionbench/README.md#redline) and the daemon has no counterpart for it either. A ramp under the daemon therefore loses two of four where a hold loses one of three, and the coincidence of small numbers is what makes the two lists blur.
 
-**So all three conditions are measured, and the gate does not pass.** RSS holds with a third of the budget spare and dropped output is zero; work rate returns 2.301 against a 2, which is a machine 15% narrower than the condition wants, and the hour is unreachable because the box stops dead at forty-one minutes of this load. **Both failures are the machine rather than the daemon**, so M1 is not waiting on code — it is waiting on a decision about what a gate should ask of the hardware it runs on.
+**So all three conditions are measured, and the gate does not pass.** Dropped output is zero; work rate returns 2.301 against a 2, and the hour is unreachable because the box stops dead at forty-one minutes of this load. **Both failures are the machine rather than the daemon**, so M1 is not waiting on code.
+
+**And the third of the budget RSS leaves spare is not spare — it is what the work rate would have to spend.** `η` rises with a session's footprint, so the sessions that clear the work-rate condition are the ones too heavy to hold a hundred of: [every `η` above the 0.844 a hundred sessions need was measured at 80 MiB, and a hundred of those is 1.95× the budget](docs/measurements/2026-08-02-225348-the-two-failing-conditions-are-not-independent.md). The two failing conditions close on each other, which is why the sizing above is a floor rather than an estimate. **What is unmeasured is the middle** — `η` at the 33.4 MiB footprint the RSS budget allows, between the two footprints anyone has run — and that single hold is the only path to passing M1 on this hardware rather than on a wider one.
 
 ## M2 · Harness Contract
 
