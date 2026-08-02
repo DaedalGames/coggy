@@ -637,6 +637,9 @@ impl HeldRun {
             failed_reads: last.map(|r| r.failed_reads),
             occupancy,
             worst_tick: self.worst_tick,
+            // Filled by the bracket afterwards, which is the only thing that
+            // can know it.
+            slowdown: None,
             rss,
             // **Not measured here, and not because it is hard.** The condition
             // is a ratio against the same workload run alone, and a solo
@@ -819,6 +822,15 @@ pub fn bracket(
     // disagreeing about a condition, which is worse than either being wrong.
     let mut concurrent = concurrent;
     concurrent.work_rate = work_rate;
+    // **The figure beside the verdict it produced, which is the same fault
+    // one level down.** The comment above fixed the two files disagreeing;
+    // this fixes one of them being unreadable alone — `hold.json` said
+    // `work_rate: broke` with the 2.0655 behind it living only in
+    // `bracket.json`. That is the shape `failed_reads` had until the same
+    // fix: a verdict a reader cannot recompute. `None` here travels with
+    // `NotTaken`, so the pair cannot come apart. The bracket keeps its six
+    // holds and their spreads; this is the one number the verdict is.
+    concurrent.slowdown = slowdown;
 
     BracketedReport {
         before,
@@ -978,6 +990,10 @@ pub struct HoldReport {
     pub occupancy: Option<crate::sampler::Occupancy>,
     /// The most expensive tick of the hold — see [`HeldRun::worst_tick`].
     pub worst_tick: crate::sampler::TickCost,
+    /// Per-session work rate against the same workload held alone, when a
+    /// bracket was taken. `None` without `--with-solo`, and also when the
+    /// bracket refused itself — a run whose baselines disagree has no ratio.
+    pub slowdown: Option<f64>,
     pub rss: Verdict,
     pub work_rate: Verdict,
     pub dropped_output: Verdict,
