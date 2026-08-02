@@ -49,6 +49,12 @@ pub struct Occupancy {
     /// disturbed one 7.6%. At one session the floor and the signal are under
     /// two-fold apart, so the number could not tell them apart and is left out
     /// rather than shipped as a column nobody can read.
+    ///
+    /// The seven are `workdrift-check`, `workdrift-long`, `workdrift-fixed`,
+    /// `rss-20`, `rss-33` and `pathA-observe` under `bench-out/`. Named
+    /// because a figure whose artifact is not named is a figure the next
+    /// prune deletes the evidence for — which has already happened once, to
+    /// the seven runs behind a redline's ±12.5%.
     pub lost_cores: f64,
 }
 
