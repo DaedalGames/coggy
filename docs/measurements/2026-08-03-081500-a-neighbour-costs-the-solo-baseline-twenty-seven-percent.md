@@ -59,3 +59,20 @@ Every hold now prints the figure, which is what makes this readable at all — a
 ## The three fingerprint attempts that produced this
 
 None of the three sets was the measurement it was launched as. The first spread 30% and was read as a possible machine state until the column said tenant; the second agreed to 2.7% and was wrong; the third caught one quiet hold and lost two. **The set that answers a question here is the union of three runs that each failed at their own**, which was only assemblable because every hold records what was beside it rather than only what it did.
+
+## What the two bands rule out about the gate's own figure
+
+The work-rate condition is `slowdown = solo ÷ concurrent`, so a neighbour during the baselines lowers the numerator and flatters the gate. The three runs behind [the figure of record](2026-08-03-024222-the-footprint-never-mattered.md) took their baselines before anything recorded the machine around them, and their artifacts cannot be re-read.
+
+The bands answer it anyway:
+
+| baseline of record | rate | against today's quiet mean | against the crowded ceiling |
+|---|---|---|---|
+| 20 MiB | 21.484 | +13.5% | **+36.8%** |
+| 33 MiB | 21.826 | +15.3% | **+38.9%** |
+| 36 MiB | 21.837 | +15.4% | **+39.0%** |
+
+**Every one sits 37% above the fastest hold measured today under a tenant**, and above the quietest hold measured today. A neighbour of the size seen this afternoon would have put them in the thirteens. So **2.0654 was divided by quiet baselines**, and the gate's 3–4% shortfall stands on this axis.
+
+**It is an exclusion and not a measurement.** What it rules out is a large tenant. The quiet group's own two holds sit 14.4% apart at 1.24 and 2.99 cores held, so a neighbour of two or three cores is inside the noise and cannot be excluded for any of the three — which would move a slowdown by a few percent, in the direction that makes the gate look better.
+
