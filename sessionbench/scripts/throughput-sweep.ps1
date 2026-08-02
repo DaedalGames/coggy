@@ -27,7 +27,7 @@
 #     workload rather than scattering — 0.73-0.78 at 20 MiB and 0.84-0.93 at 80
 #     — and a real session holds 2.39 GiB, thirty times the heavier of them.
 #
-#   -Sweep sessions -Values 10,20,30,40,50,60,80 -Reference 100
+#   -Sweep sessions -Values 8,12,16,20,24,28 -Reference 100
 #     Finds the knee in N, which is where the redline actually lives: total
 #     throughput rises with the session count until the machine is claimed and
 #     is flat after, so the redline is twice the bend. Both `w` and `d` cancel
@@ -35,6 +35,13 @@
 #     It also tests the assumption underneath that: the rise is only a straight
 #     line if sessions below saturation cost each other nothing, and several
 #     points on the way up are what say whether it curves.
+#
+#     **Put every point well under the knee.** At duty 0.27 the knee sits near
+#     `eta*C/d` = 43, and a first draft of this example swept to 80 — where four
+#     of its seven points are on the plateau, get dropped for being over 85% of
+#     it, and leave three to carry the slope. A rounded corner takes the third
+#     as well. Two thirds of the expected knee is the last point worth spending,
+#     and the knee moves with duty, so recompute the ceiling when that changes.
 #
 # READ THE OUTPUT, NOT THE EXIT CODE. Piping this makes $LASTEXITCODE the last
 # native command's, and neither `exit` nor `throw` survives that. A run that
@@ -103,6 +110,28 @@ $plan = @(Step 'ref0' $Reference 'reference')
 for ($i = 0; $i -lt $Values.Count; $i++) {
     $plan += Step "v$i" $Values[$i] "$Sweep=$($Values[$i])"
     $plan += Step "ref$($i+1)" $Reference 'reference'
+}
+
+# --- for a sessions sweep, say before spending the time whether the points can
+# reach the knee at all. The knee sits near `eta*C/d`, and a point at or past it
+# lands on the plateau, gets dropped for being over 85% of it, and leaves fewer
+# behind to carry the slope. A first draft of the documented example swept to 80
+# against a knee near 43 and would have finished with three usable points, or
+# two once the corner's rounding took the third.
+if ($Sweep -eq 'sessions') {
+    $expected = 0.733 * 16 / $Duty      # eta and C for this box; recompute elsewhere
+    $tooHigh = @($Values | Where-Object { $_ -gt $expected * 0.67 })
+    $usable = $Values.Count - $tooHigh.Count
+    "`nknee expected near {0:N0} sessions at duty {1} — points above {2:N0} will land on the shoulder" -f `
+        $expected, $Duty, ($expected * 0.67)
+    if ($tooHigh.Count -gt 0) {
+        "  {0} of {1} points are above it: {2}" -f $tooHigh.Count, $Values.Count, ($tooHigh -join ', ')
+    }
+    if ($usable -lt 3) {
+        "REFUSING: only {0} point(s) sit low enough to carry the rise, and a slope through" -f $usable
+        "two survives no rounding at the corner. Sweep counts under {0:N0}." -f ($expected * 0.67)
+        throw "the sweep cannot reach the knee"
+    }
 }
 
 "`nsweeping $Sweep over $($Values -join ', ') against $Reference — $($plan.Count) holds of ${HoldSeconds}s"
