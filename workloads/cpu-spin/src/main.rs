@@ -85,6 +85,13 @@ struct Args {
     /// Solving both cases gives `slowdown = N·d/C` either way — the mechanism
     /// cancels, provided the wait really releases the core. This flag is what
     /// tests that, by pairing against a `--duty` run of the same solo duty.
+    ///
+    /// **A climbing duty is a positive feedback, and it is what stopped the
+    /// measuring machine.** Less speed asks for more demand, which costs more
+    /// speed. Forty-one minutes of a hundred sessions under this flag ended in
+    /// a hard power-off with its duty travelling from 0.172 toward 0.271;
+    /// holds at a fixed `--duty` have finished clean. Use this to pair against
+    /// `--duty`, not to hold a machine for an hour.
     #[arg(long, value_name = "MS", conflicts_with = "duty")]
     wait_ms: Option<u64>,
 }

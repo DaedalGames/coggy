@@ -64,6 +64,15 @@
 # whose duty really does climb as its compute slows. It is the right flag for
 # realism and the wrong one for a stated parameter.
 #
+# AND IT IS THE LOAD THAT STOPPED THIS BOX. A climbing duty on a slowing
+# machine is a positive feedback -- less speed, more demand -- and the only
+# run that ended in a hard stop was forty-one minutes of exactly that, its
+# duty travelling from 0.172 toward 0.271 as the box heated. Five holds at a
+# fixed 0.27 have finished clean at twenty minutes. So `--duty` is not only
+# the flag that delivers a stated parameter; it is the one whose load does
+# not run away, and the hour is untried under it rather than tried and
+# failed.
+#
 # THE DUTY IS 0.27 AND THAT IS NOT A DETAIL. Read the gate's own arithmetic
 # before spending an hour on it: one session at duty d wants d cores, a hundred
 # want 100d, and sixteen is what there is. Past saturation each session gets
