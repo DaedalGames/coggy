@@ -24,13 +24,13 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 ## Where This Stands
 
-**10 of 31**, and the bottleneck is not code — M1's work-rate condition is now 3.3% short rather than 15%, and RSS is what stops it going further.
+**10 of 31**, and the bottleneck is not code — M1's work-rate condition is 3.3% short at the best session weight this machine has, and heavier sessions stop helping rather than stop fitting.
 
 | | done | |
 |---|---|---|
 | [M0 · attribution](#current-priority-m0--attribution) | **5 / 6** | gate G0 frozen |
 | [M1 · daemon](#m1--headless-daemon) — what it builds | **3 / 6** | three deferred to M2 on purpose |
-| M1 — its gate | **2 / 4** | work rate 3.3% short at the heaviest session the budget allows |
+| M1 — its gate | **2 / 4** | work rate 3.3% short at the best weight; heavier stops helping |
 | [M2 · harness contract](#m2--harness-contract) | 0 / 5 | blocked on M1 |
 | [M3 · governor](#m3--resource-governor) | 0 / 5 | |
 | [M4 · audit surface](#m4--audit-surface) | 0 / 5 | |
@@ -43,7 +43,7 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 **And the memory the gate leaves spare is what buys the work rate, which changes how close this is.** `η` rises with a session's weight, so the heaviest session the budget allows is also the one that competes best. At 33 MiB on a rested box, [a hundred sessions slow down 2.065× against the 2 the gate asks for](docs/measurements/2026-08-03-014841-the-gate-misses-by-three-percent.md) — **3.3% short**, where the 20 MiB figure of record is 15% short — with RSS at 3.651 GiB of 3.725 and dropped output zero. Both brackets clean, both in one machine state, which no earlier pairing managed.
 
-**So the two failing conditions close on each other 372 MB apart.** `η` climbs 0.00643 per MiB, reaching the 0.844 that passes at a footprint of 37.2 MiB — and a hundred of those need 4.072 GiB against a 3.725 budget, over by 9.3%. **RSS is the binding condition now, not work rate.** And [whether *4GB* means decimal or binary](#m1--headless-daemon) is no longer bookkeeping: the binary reading allows 36.5 MiB, which the same slope puts at a slowdown of 2.010.
+**And that is as far as the lever goes.** `η` climbs 0.00643 per MiB from 20 to 33 MiB and then stops: [a third point at 36 MiB, predicted at 2.018, measures 2.0799](docs/measurements/2026-08-03-023009-the-footprint-lever-runs-out-before-the-budget-does.md) with `η` at 0.811 against 0.817. The plateau sits near 0.814 where passing needs 0.844, so **no session weight this machine can hold reaches the condition, and work rate binds at every one of them.** The memory budget never becomes the constraint, which also settles whether *4GB* is decimal or binary — the 3 MiB it buys is worth nothing.
 
 **The larger term is the machine's own state.** The same hundred sessions at 20 MiB return **2.301** on a rested box and **3.958** on one that has recently been saturated — [72%](docs/measurements/2026-08-03-003443-the-footprint-result-was-the-machine.md), from [a slow state that arrives on its own and lasts about an hour](docs/measurements/2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md), whose cause is not established — a deliberate saturating burst did not induce it. M1's verdict depends on that more than on anything the daemon or the workload does.
 

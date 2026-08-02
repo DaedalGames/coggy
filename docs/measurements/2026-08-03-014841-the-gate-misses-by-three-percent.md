@@ -1,5 +1,7 @@
 # Gate M1 misses its work-rate condition by 3.3%, and the two conditions close 372 MB apart
 
+> **The 372 MB is withdrawn; the 3.3% stands.** It came from extrapolating a two-point `η` slope four megabytes past its second point, and [a third point at 36 MiB shows the slope has already stopped](2026-08-03-023009-the-footprint-lever-runs-out-before-the-budget-does.md) — `η` 0.811 there against 0.817 at 33. So no footprint reaches the passing value, the memory budget never becomes the binding condition, and **work rate binds at every weight this machine can hold.**
+
 The gate figure of record is **2.301× at 20 MiB a session**, 15% past the 2 it asks for. Run at the heaviest session the memory budget allows, on a rested box, both brackets clean:
 
 **2.065×.** Three point three percent.
