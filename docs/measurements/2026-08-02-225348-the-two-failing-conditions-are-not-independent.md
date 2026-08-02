@@ -60,3 +60,29 @@ Straight-line between the two upper values puts `η(33 MiB)` near 0.794, which f
 | Inputs | [the gate hold at duty 0.27](2026-08-01-213912-the-gate-breaks-at-its-own-duty.md), [the four `η`](2026-08-02-202535-the-core-ceiling-is-four-numbers-for-two-workloads.md), [the driven duty](2026-07-31-054657-the-driven-duty.md) |
 | Machine | not used |
 | Commit | `d4bc980` |
+
+## 2026-08-02, same evening: the overhead is additive, and it was measured
+
+The weakest assumption above was that a session's 1.225 RSS overhead is a *factor*. It is not. Two 25-second solo observations, twenty minutes after this was written:
+
+| `--resident` | steady RSS | overhead |
+|---|---|---|
+| 20 MiB | 24.06 MiB | **+4.06** |
+| 33 MiB | 37.06 MiB | **+4.06** |
+
+Identical to two decimals, where the multiplicative model predicted 39.7 MiB at 33. The overhead is a constant per process — an executable, a stack, a runtime — and nothing about it scales with what the process then allocates.
+
+**A second route agrees.** A hundred sessions at `--resident 20` came back at 24.50 MiB each and a solo one at 24.06; the 0.44 MiB between them is close to [the daemon's own 254 KiB a session held](2026-08-01-163935-what-the-harness-says-about-itself.md) plus the harness around it, and 24.06 + 0.25 = 24.31 against 24.50 is 0.8%.
+
+So the ceiling is `budget/100 − 4.06 − 0.44`:
+
+```
+4 GiB budget      ->  resident <= 36.5 MiB
+4 GB decimal      ->  resident <= 33.6 MiB
+```
+
+**The run parameter does not change and its reason does.** `--resident 33` was picked from the multiplicative ceiling of 33.4; it survives because it is under the stricter of the two readings of *"under 4GB"* — 3.662 GiB, 98.3% of the decimal budget and 91.6% of the binary one. 34 would clear the binary reading and exceed the decimal one, which is not a margin worth arguing about mid-run.
+
+**And this widens the `η` question rather than settling it.** The footprint that fits is larger than this record first said, so if the gate's budget is the binary 4 GiB there is room up to 36.5 MiB — still far below the 80 MiB where `η` was measured above 0.844, and still inside the gap nobody has run.
+
+*Neither of these observations is a hold.* One session at 25 seconds says what one process costs; it says nothing about `η`, which needs a hundred.
