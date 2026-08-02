@@ -69,7 +69,7 @@ function Phase([string]$name) {
 $fast = Phase 'fast'
 
 "=== burst: {0} sessions, {1} s (180 s was not enough) ===" -f $BurstSessions, $BurstSeconds
-& $bench hold --label thermal-burst --sessions $BurstSessions --duration $BurstSeconds --interval 30 `
+& $bench hold --label "thermal-burst-$($BurstSessions)x$($BurstSeconds)s" --sessions $BurstSessions --duration $BurstSeconds --interval 30 `
     --daemon "$root\target\release\coggyd.exe" -- $spin @work 2>&1 |
     Select-String -Pattern 'rate |peak rss' | ForEach-Object { "  " + $_.Line.Trim() }
 
