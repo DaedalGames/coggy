@@ -71,3 +71,28 @@ The guard now compares the **standard error of each side's mean** against the al
 | Workload | `cpu-spin --units 100000000 --duty 0.27 --resident 20` |
 | Shape | 3 × 120 s solo · 100 sessions for 1200 s · 3 × 120 s solo, sampled every 5 s |
 | Verdict | recomputed from the recorded rates after the guard was corrected; the rates themselves are as measured |
+
+## 2026-08-02: what the run says about the core ceiling, and about the machine the gate needs
+
+Two things fall out of 2.301 without another run.
+
+**The core redline at this duty is at least 87 sessions.** A redline is where the
+slowdown reaches 2, and past saturation each session's share is `C/N`, so the
+slowdown is linear in `N`. A hundred sessions returning 2.301 puts the crossing
+at `100 × 2 ÷ 2.301 = 86.9` — **measured at the duty in question rather than
+projected through a fitted constant.** The figure carried until now, 93, came
+from `2ηC/d` with `η` fitted across ramps at other duties.
+
+It is a floor rather than a replacement. Going from 100 sessions to 87 at the
+same duty takes the awake count from 27 to 23.5, and this run's other finding is
+that `η` improves as fewer are awake together — so the true crossing sits
+somewhere in **87 to 93**, the lower end measured and the upper end projected.
+Both are far above [the nine sessions memory allows a real generation
+session](2026-07-31-150258-g0-frozen.md), so neither moves G0.
+
+**And the gate is achievable, on a machine about 15% wider than this one.** The
+condition needs `N·d ÷ (η·C) ≤ 2`, so `C ≥ 100 × 0.27 ÷ (2 × 0.733) = 18.4`
+logical processors. Sixteen is what this box has. Gate M1 is therefore not
+mis-specified — a nineteen-core machine clears it at the same duty — and the
+figure is a floor for the same reason as above: `η` on a wider machine is
+unmeasured, and more cores can mean more claimants on the same memory system.
