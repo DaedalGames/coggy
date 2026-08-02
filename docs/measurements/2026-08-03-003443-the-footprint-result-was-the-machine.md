@@ -16,6 +16,18 @@
 
 The 20 MiB baseline here is **one-sided** — the run's own bracket refused, for the reason below — so 3.958 is a figure this instrument declines to publish and it is used here only against a same-state counterpart. Its two before-solos agree to 0.51%.
 
+## What each of these implies for admission
+
+`2ηC/d` turns the two slowdowns into the ceiling a governor would admit against:
+
+| | `η` | ceiling at `d = 0.27` |
+|---|---|---|
+| resident 20, slow state | 0.426 | **51** |
+| resident 33, slow state | 0.518 | **61** |
+| resident 20, rested | 0.733 | **87** |
+
+**The state moves it further than the weight does** — 51 to 87 against 51 to 61 — and all three are far below the hundred the gate asks for.
+
 ## What the machine state is worth
 
 The 20 MiB gate figure of record is **2.301**, taken with a solo rung of 21.484. The same hundred sessions, same duty, same footprint, in the slow state give **3.958** — **72% worse**, and the difference is a condition of the box rather than anything the daemon or the workload did.
@@ -31,7 +43,7 @@ before:  9.776   9.727        <- slow
 after:  12.095  21.516        <- climbing, then fully recovered
 ```
 
-**21.516 against the 21.484 recorded on 08-01 is 0.15% apart** — two independent sightings of the same fast state, taken two days apart on the same box. So the slow state is transient, it lasted roughly an hour after [a three-minute saturating burst](2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md), and it ended partway through a five-minute concurrent hold.
+**21.516 against the 21.484 recorded on 08-01 is 0.15% apart** — two independent sightings of the same fast state, taken two days apart on the same box. So the slow state is transient, it lasted roughly an hour, and it ended partway through a five-minute concurrent hold. [What brings it on is not established](2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md) — a saturating burst sat in the gap where it first appeared and a deliberate one of the same shape later failed to reproduce it.
 
 **The bracket refused the run and named it**: *solo holds 9.752 and 16.805 sit 53.1% apart against a 5% allowance — the machine moved under the run.* This is the first time that refusal has fired on a genuine mid-run machine move; [the two before it were the run's opening hold being cold](2026-08-02-222324-the-instrument-is-done-arguing.md). A check whose failure nobody has seen is a check nobody has read, and this one has now been read.
 
