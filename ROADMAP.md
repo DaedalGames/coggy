@@ -165,6 +165,8 @@ Job Object quotas, core budget scheduler, build queueing, automated Defender exc
 
 **Gate M3:** the governor admits sessions up to the measured ceiling, refuses past it, and the machine does not swap while they run — with per-session work rate staying within 2× of solo.
 
+**A ceiling may be the wrong shape for it, and that is measured rather than suspected.** Admitting *up to* a number assumes the cost of one more session changes somewhere. Sweeping eight to twenty-eight sessions [found no such place](docs/measurements/2026-08-02-220514-there-is-no-knee.md): per-session throughput falls 34% across that range while demand stays under three quarters of the free cores, and the marginal return of four more sessions drops from 37.9 units/s to 3.1. **The decline starts at the first sessions and never has a corner**, so what a governor can offer is not a count but a price — at twenty-four sessions the next four buy 3.1 units/s and cost every incumbent 13% of its rate. Whether that is worth paying is a question the gate does not currently ask.
+
 **This replaces "100 concurrent session builds", which G0 made impossible twice over.** [Builds serialise per engine installation](docs/measurements/2026-07-31-034150-unreal-builds-serialise.md) through a lock that cannot be bypassed, so a hundred at once would need a hundred installations; and [memory binds at nine](docs/measurements/2026-07-31-150258-g0-frozen.md) long before that. A gate no machine can pass grades nothing. **The governor's job is admission against a number it measures, not survival of a number someone chose** — which is also why the ceiling belongs in the daemon as a reading rather than a constant.
 
 ## M4 · Audit Surface

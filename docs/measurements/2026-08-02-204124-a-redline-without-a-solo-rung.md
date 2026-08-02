@@ -52,3 +52,23 @@ And the redline is twice it. The ladder's own line passes through `slowdown = 1`
 ## Provenance
 
 Algebra over `sessionbench/src/redline.rs` and figures from `docs/measurements/`, at commit `7044832`. No run was made.
+
+## 2026-08-02, later: the path was walked and it is closed
+
+*Its claim is that a measurement path exists, not that it has been walked.* It has
+been now, and [there is no knee to find](2026-08-02-220514-there-is-no-knee.md).
+
+Eight to twenty-eight sessions at duty 0.27 give per-session throughput falling
+34%, with a line through the origin missing by +30% at the low end and −14% at
+the high one. **The rise is not a rise**, so `plateau ÷ slope` has no slope to
+divide by and `redline = 2 × knee` has nothing to double.
+
+What fails is the assumption named in this record's own first line — that below
+saturation every session gets the cores it asks for. Twenty-eight sessions demand
+7.6 cores of about 10.7 free and are already a third down per session; eight
+demand 2.2 and are already losing to each other. **There is no free regime on
+this workload.**
+
+The algebra above is unchanged and so is the reason for wanting it: a redline
+that divides by a solo hold divides by the noisiest number this instrument makes.
+That problem is still open, and this was the way out that did not work.
