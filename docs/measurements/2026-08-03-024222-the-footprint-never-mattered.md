@@ -158,3 +158,21 @@ A fresh hold at the same shape — a hundred sessions, `--resident 20 --duty 0.2
 **+12.4% against the figure of record**, and within a percent of what this record said was underneath it. Nothing was tuned to make that happen: the run's purpose was to match a tick-cost comparison, and its rate was read afterwards.
 
 So the disturbance correction is not only internally consistent — it predicted a later measurement.
+
+## 2026-08-03: the sizing line above divides a rounded `η`
+
+The closing sentence gives `C ≥ N·d/(2η)` at `η ≈ 0.82` as **16.4 logical processors**. The division is right and the input is rounded: this run's `η` is 0.81703, and 0.82 is the *33 MiB* run's — mixed into a sentence quoting the 20 MiB run's 2.0654.
+
+Carried through at full precision, and against the identity `N·d/(2η) = C·s/2` that holds by construction here:
+
+| | slowdown | `η` | required `C` |
+|---|---|---|---|
+| 20 MiB | 2.0654 | 0.81703 | **16.523** |
+| 33 MiB | 2.0569 | 0.82041 | **16.455** |
+| 36 MiB | 2.0887 | 0.80792 | **16.710** |
+
+**16.4 is below all three.** The gap at the run of record is **0.523 cores**, so *under half a core* was true only at the 33 MiB weight and is withdrawn as a general statement — the range is 0.46 to 0.71.
+
+Nothing else moves: 3% is still 3%, the ceiling is still ≈97, and the gate still fails. What the slip cost is the one place this figure gets used, which is sizing a machine to buy — where 16.4 rounds down to sixteen and 16.52 does not.
+
+**The two routes agree to four digits because they are one route.** That is not a check on the number; it is what makes rounding either input a silent error, since nothing else in the arithmetic can disagree with it.
