@@ -147,3 +147,15 @@ purpose to confirm it fires.
 **This does not change the run above**, whose daemon predates the counter. What
 it changes is the count: gate M1 asks three things, and all three are now
 askable. Replacement stays out of reach and stays outside the gate's three.
+
+## 2026-08-03: the two unit timings in this record are the slow machine state
+
+This record has one unit costing **24.9 ms** minutes after forty-one minutes of full load and **13.9 ms** after a cold boot, and calls it a 79% difference in compute speed. Two nights later the same box was measured switching between two steady levels **2.2× apart** — [a solo session at ~21.5 units/s and ~9.4](2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md), each flat across its own samples, lasting about ninety minutes.
+
+**These are the same thing, and this record saw it first.** 1.79× against 2.2×, both after saturation, both persisting past the load.
+
+**And it supplies the duration the later attempts were missing.** The slow state could not be induced on demand: a deliberate three-minute burst of a hundred saturating sessions left the box at 21.45 units/s before and 21.43 after, and a twenty-minute one left its bracket's solo rungs 0.42% apart. **Forty-one minutes did it.** So the candidates narrow to a threshold somewhere between twenty and forty-one minutes of saturation — which is also, on this machine, where the hard stop lives.
+
+That pairing is why it stays untested for now. Reproducing it means running the load that stopped the machine dead, and a hard stop takes the session-scoped scheduler with it.
+
+**What this changes about the record above:** the 0.172 duty is not only a calibration mistake. `--wait-ms 67` was calibrated on a machine in the slow state and spent in one that had recovered, so **the fixed-wait mechanism converts a machine-state change directly into a duty change** — which is the sharpest argument yet for `--duty`, whose sleep is proportional to measured work and cancels it.

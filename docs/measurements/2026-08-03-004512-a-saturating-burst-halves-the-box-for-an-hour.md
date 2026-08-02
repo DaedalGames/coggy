@@ -65,3 +65,13 @@ A solo hold, then the same three-minute hold of a hundred sessions at `--residen
 **And the counters could not be tested.** They were sampled to see whether either names the state; with both phases in the same state they agree to 0.1%, which says nothing either way. That question is still open and now needs the slow state to arrive on its own.
 
 The candidates left are the ones timing alone cannot separate: cumulative load across the evening rather than one burst, a scheduled background task, or something outside the box entirely. **Timing put the burst in the gap and the burst is what got named** — the same shape as reading a knob's name instead of measuring its effect, one pass after that was written down.
+
+## 2026-08-03, later: an earlier record saw it, and supplies the duration
+
+This state was first seen tonight, and it was not. [The gate's twenty-minute record](2026-08-01-202112-gate-m1-at-twenty-minutes.md) has the same box costing **24.9 ms a unit minutes after forty-one minutes of full load and 13.9 ms after a cold boot** — 1.79× against tonight's 2.2×, both after saturation, both outlasting the load. It read the pair as a calibration hazard rather than as two machine states, which is why nobody went looking.
+
+**And it narrows the cause to a duration.** Deliberate bursts failed at three minutes and at twenty; forty-one minutes produced it. So the threshold sits between twenty and forty-one minutes of a hundred saturating sessions.
+
+**That is also where this machine stops dead**, which is why the test is not being run. Reproducing the state means running the load that ended in event 41, and a hard stop takes the session-scoped scheduler with it — so the experiment costs more than the answer until something else needs that hour anyway.
+
+The candidates that survive are unchanged in kind and narrower in scope: whatever it is, it takes tens of minutes of saturation to arrive and about ninety to leave.
