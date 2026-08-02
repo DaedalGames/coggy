@@ -1,6 +1,7 @@
 # ROADMAP
 
 - [What This Is](#what-this-is)
+- [Where This Stands](#where-this-stands)
 - [Current Priority: M0 · Attribution](#current-priority-m0--attribution)
 - [Sequencing Direction](#sequencing-direction)
 - [M1 · Headless Daemon](#m1--headless-daemon)
@@ -20,6 +21,27 @@ COGGY does not build games. It decides **how many game-building harnesses can ru
 So the unit here is not a feature but a gate. Every milestone ends in a number. No number, no advancing. And when a number contradicts the plan, we change the plan rather than the number — [PLAN.md](docs/PLAN.md) gets rewritten, not the gate.
 
 There are no dates. Duration estimates exist, and an estimate is not a promise.
+
+## Where This Stands
+
+**10 of 31**, and the bottleneck is not code.
+
+| | done | |
+|---|---|---|
+| [M0 · attribution](#current-priority-m0--attribution) | **5 / 6** | gate G0 frozen |
+| [M1 · daemon](#m1--headless-daemon) — what it builds | **3 / 6** | three deferred to M2 on purpose |
+| M1 — its gate | **2 / 4** | both failures are the machine |
+| [M2 · harness contract](#m2--harness-contract) | 0 / 5 | blocked on M1 |
+| [M3 · governor](#m3--resource-governor) | 0 / 5 | |
+| [M4 · audit surface](#m4--audit-surface) | 0 / 5 | |
+
+**M0 — 5 of 6.** One session measured before the ramp; `sessionbench` built with its metric, six axes and comparison set; the duty relation derived and checked against a rung predicted in advance; G0 frozen at nine sessions with memory named as the cause; the attribution rule fired and Decision 1 re-grounded. Open: the comparison set has no daemon ramp, and its pseudoconsole row is recorded as unfilled.
+
+**M1 builds five things and a CLI, and has three.** Pipe-first spawning, a ring-buffer scrollback bounded in both lines and bytes, and a job object per session all exist. Session status events exist as a `Status` a caller polls rather than a stream. **The socket API and the `coggy` CLI are deliberately absent** — [M2 derives the API backward from the calls a harness makes](#m2--harness-contract), so choosing verbs now invents what that milestone exists to discover, and the gate asks for none of it.
+
+**M1's gate is measured in full and two conditions fail.** A hundred sessions hold under 4 GB with a third to spare, and dropped output is zero. Work rate returns 2.301 where the gate asks for 2, and the hour ends at twenty minutes because the machine stops dead at forty-one. **Neither failure is the daemon**: a hundred sessions wanting twenty-seven cores from sixteen is arithmetic, and the hard stop is thermal or power.
+
+**So the bottleneck is a decision, not an implementation.** Either the gate says what it asks of the hardware it runs on, or it runs on hardware that can answer it — about nineteen logical processors, and one that survives an hour of saturation. Writing more daemon does not move either number.
 
 ## Current Priority: M0 · Attribution
 
@@ -114,9 +136,7 @@ That rule already bit once. [A hundred sessions were held for an hour on 2026-08
 
 **Replacement is not one of these three**, though it is easy to count as one: it is [the redline's fourth condition](sessionbench/README.md#redline) and the daemon has no counterpart for it either. A ramp under the daemon therefore loses two of four where a hold loses one of three, and the coincidence of small numbers is what makes the two lists blur.
 
-So M1's gate as written is answerable in two conditions of three. **Closing it needs a decision this milestone has not made.** The obvious candidate is for the daemon to forward each session's newest line verbatim, so the benchmark reads the ordinal and the daemon parses nothing — `Scrollback::tail` already holds it. **It does not fit the surface that exists.** A drop is one session's highest ordinal minus its own line count, and a maximum is not additive, so pool totals cannot produce it: the figure is per session, and a hundred sessions make a hundred lines per report where every other field is one number. The daemon computing the drop itself would need to know which token is an ordinal, which is [the benchmark's convention inside the daemon](workloads/README.md#the-contract).
-
-So the options are a surface that is not a report line — which is what [M2 derives backward from the calls a harness makes](#m2--harness-contract) — or the gate saying which conditions a daemon-hosted session count can be held to. Either way it is a decision rather than an implementation.
+**So all three conditions are measured, and the gate does not pass.** RSS holds with a third of the budget spare and dropped output is zero; work rate returns 2.301 against a 2 that needs about nineteen cores, and the hour is unreachable because the box stops dead at forty-one minutes of this load. **Both failures are the machine rather than the daemon**, so M1 is not waiting on code — it is waiting on a decision about what a gate should ask of the hardware it runs on.
 
 ## M2 · Harness Contract
 
