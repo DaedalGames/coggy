@@ -40,3 +40,13 @@ So the four numbers bound how far `η` moves with footprint on this machine, and
 ## Provenance
 
 Arithmetic over `docs/measurements/`, at commit `9ece615`. No run was made.
+
+## 2026-08-03: footprint and duty covaried, and the controlled test reverses the sign
+
+This record reads the four `η` values as two tight pairs split by footprint — 0.73–0.78 at 20 MiB and 0.84–0.93 at 80 — and offers a mechanism: a session already waiting on memory has less left to lose.
+
+**A hold that moves footprint alone gets the opposite sign.** [At a fixed duty of 0.27, a hundred sessions at 33 MiB give `η = 0.518` against 0.733 at 20 MiB](2026-08-03-000430-the-footprint-lever-runs-backwards.md) — below both anchors rather than between them.
+
+The split was never controlled. Its 80 MiB entry is a duty-1.00 run and its 20 MiB entries sit at 0.27 and at mixed duties, so footprint and duty moved together and the whole difference was assigned to one of them. The grouping is still the right question to ask of four numbers that spanned 26% as one quantity; the answer it gave is not supported.
+
+What stands unchanged is the narrower claim that a ceiling quoted without its workload is not quoted. What does not stand is *which way* the workload moves it.
