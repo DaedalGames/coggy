@@ -126,9 +126,15 @@ enum Command {
         ///
         /// The work-rate condition is per-session rate against the same
         /// workload held alone, so it needs a baseline. Two of them, on
-        /// either side: solo holds ten minutes apart differ by more than a
-        /// concurrent run's whole effect, so one taken beforehand is a
-        /// baseline from a machine that may have left.
+        /// either side: two solo triples ten minutes apart differ by 8.5%
+        /// where each spreads under 3.5%, so drift between runs is three
+        /// times the noise inside one and a baseline taken only beforehand
+        /// belongs to a machine that may have left.
+        ///
+        /// **Not "more than a concurrent run's whole effect"**, which this
+        /// said until it was read against the gate: a hundred sessions slow a
+        /// session by 130%, and 8.5% is nowhere near it. The comparison it
+        /// swamps is a narrow one — a duty pairing chasing 6.9%.
         ///
         /// Costs `2 × --solo-repeats` extra holds of `--solo-duration` each.
         #[arg(long)]
