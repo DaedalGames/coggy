@@ -137,10 +137,20 @@ enum Command {
         /// Solo holds per side, averaged into that side's baseline.
         ///
         /// **Three rather than one, because a single solo baseline is the
-        /// noisiest term in the whole comparison.** Twelve fresh one-session
+        /// loudest term in the whole comparison.** Twelve fresh one-session
         /// holds spanned 4.54% with nothing between them, against an allowance
         /// of 5% — so a bracket refuses itself on an unlucky pair often enough
-        /// to lose an hour-long run to it.
+        /// to lose an hour-long run to it. Four sets measured across one day
+        /// put a hold's own spread at 4–8%, which three repeats bring to a
+        /// standard error of 2.3–4.0% and inside the allowance.
+        ///
+        /// **Not nine, and the arithmetic that said nine came from one
+        /// afternoon.** A set spreading 28.5% implies a σ needing nine repeats
+        /// a side, which costs more baseline than the run it brackets — and
+        /// that set is [the only one whose background collapsed while it
+        /// ran](../../docs/measurements/2026-08-02-221853-the-noisy-baseline-was-one-noisy-afternoon.md),
+        /// from 28% to 9%. More repeats are the wrong answer to a machine that
+        /// is leaving; the bracket's two sides disagreeing is the right signal.
         ///
         /// **And a longer hold does not help**, which is the part worth knowing
         /// before reaching for `--solo-duration` instead. What moves a solo

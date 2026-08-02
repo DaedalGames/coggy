@@ -4,9 +4,12 @@
 # total across a hold is `eta*C / w` — the session count and the duty cancel, and
 # two holds run back to back share the machine's core count and its unit time.
 # Their totals are therefore equal exactly when their `eta` are. **No solo
-# baseline is involved**, which is the point: a solo hold is the noisiest number
-# this instrument makes, spreading 25% across six holds on one afternoon, and
-# every comparison that divided by one spent the day being refused.
+# baseline is involved**, which is the point: a solo hold is the loudest term in
+# a slowdown, spreading 4-8% across six holds where a hundred-session reference
+# holds to 0.94%, because one session takes a disturbance at full strength and a
+# hundred divide it. The 25% figure this comment used to quote is one afternoon
+# whose background collapsed from 28% to 9% mid-run; three other sets the same
+# day were quiet.
 #
 # WHY IT EXISTS AS A FILE. This shape was written inline four times in one day,
 # into bench-out/*.ps1, which is gitignored — so each run took its script with
