@@ -43,6 +43,8 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 **So the bottleneck is a decision, not an implementation.** Either the gate says what it asks of the hardware it runs on, or it runs on hardware that can answer it — roughly 15% more cores than this box has, and one that survives an hour of saturation. Writing more daemon does not move either number.
 
+**Nor does writing more instrument, and that is measured rather than assumed.** Six fixes landed in one day — a counted window, streamed samples, a failed-read counter, repeated baselines, an uncounted warm-up hold, and a standard error where a range had been. [The bracket's two refusals both turned out to be the run's opening hold](docs/measurements/2026-08-02-222324-the-instrument-is-done-arguing.md) rather than a noisy baseline or a moving machine, and the warm-up already answers that. Two attempts to escape the solo baseline altogether — comparing total throughputs, and reading a redline off a knee — ended one useful and one [closed by there being no knee](docs/measurements/2026-08-02-220514-there-is-no-knee.md). **After all of it the two failing numbers are unchanged.**
+
 ## Current Priority: M0 · Attribution
 
 **Closed on 2026-07-31.** [Gate G0 is frozen](docs/measurements/2026-07-31-150258-g0-frozen.md) and the work in flight is [M1](#m1--headless-daemon).
