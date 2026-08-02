@@ -127,6 +127,16 @@ budget                =  3.725 GiB
 spare                 =  67 MB  (1.7%)
 ```
 
-It fits, and only because `cpu-spin` writes 20-byte lines. [The same daemon holding `ping` at 47 bytes a line reached 625 MiB](2026-08-01-103225-an-hour-of-a-hundred-sessions.md), which at this footprint would break the budget by 300 MB. **The workload sets the daemon's size as well as `η`**, and a footprint chosen against the RSS ceiling has to be chosen against the daemon the same workload produces.
+It fits, and **the daemon's term is bounded by construction rather than by this workload's line length.** The scrollback carries [a byte budget beside its line count, holding a hundred sessions to about 43 MB whatever they write](2026-08-01-103225-an-hour-of-a-hundred-sessions.md). The 44.7 MiB measured above is that budget plus the daemon's own baseline, which is why it plateaued.
 
 **1.7% is not much margin for a run that takes an hour.** It is above the 0.9% the additive model already reproduced and below anything else quoted here, so the hour at `--resident 33` should be treated as expected-to-fit rather than known-to-fit — and the reason to run it is `η`, which the RSS side does not answer either way.
+
+### Correction, minutes later: 624.9 MiB was never the daemon
+
+The paragraph above first read *the same daemon holding `ping` at 47 bytes a line reached 625 MiB*, and built a third workload axis on it — line length, with a 14× multiplier on the daemon.
+
+**624.9 MiB is that record's "Peak *total* RSS"**, the whole job: a hundred `ping` sessions and the daemon together. The daemon's own cost there is stated two tables down as **363 KiB a session held**, which is 36.3 MiB at a hundred — near the 44.7 MiB measured here, not twenty-five times under it. The arithmetic is what caught it: 2000 lines × 100 sessions × 130 B is 26 MB and cannot reach 625.
+
+**And the axis does not exist in this daemon.** The same record's later note says the scrollback took a byte budget beside the line count, which bounds a hundred sessions to about 43 MB *whatever they write*. Line length moved the old buffer and cannot move this one, so there is no third term to add to duty and footprint — the design removed it before the measurement went looking.
+
+The conclusion is unchanged and better grounded: the hour at `--resident 33` fits because the daemon is capped by construction, not because `cpu-spin` happens to write short lines.
