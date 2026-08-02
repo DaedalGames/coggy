@@ -71,3 +71,31 @@ What survives, and is now stronger for resting on three runs rather than one: **
 | Inputs | `bench-out/1785586144-m1-daemon`, `1785687266-r33-rested-daemon`, `1785689778-r36-rested-daemon` |
 | Machine | not used |
 | Commit | `3f43e68` |
+
+## Same night: what the dips look like, and three things they are not
+
+The dips are not scattered. Dropping spin-up, they fall in two episodes:
+
+```
+447 - 574 s    11 samples
+915 - 1092 s   29 samples
+```
+
+Six to seven minutes of clean running between them, and the second runs to within 110 s of the window's end. Two bursts of two and three minutes, not a steady load and not a periodic one.
+
+**Three candidates are ruled out by the samples themselves.**
+
+| | dips (<14 cores) | clean (≥15) |
+|---|---|---|
+| job | 9.83 cores | 15.43 |
+| **Defender** | **0.04 cores** | **0.03** |
+| **processes in the job** | **101.0** | **101.0** |
+| **free memory** | **10.02 GiB** | **11.67 GiB** |
+
+- **Not Defender.** Flat across both, and small.
+- **Not sessions exiting.** Exactly 101 processes throughout — the daemon and its hundred.
+- **Not the sessions themselves growing.** Their RSS is bounded by the workload.
+
+**What correlates is 1.65 GiB of free memory going missing** at the same time. Something outside the job held it and used cores for two episodes, then gave both back.
+
+**This is as far as these artifacts go.** The sampler attributed only what was inside the job, so the thing that took the machine cannot be named from here — which is [why every sample now carries the whole machine's CPU](../../sessionbench/src/sampler.rs). The next run that dips will say how much of the machine was busy, and the difference will be a measurement instead of an inference.
