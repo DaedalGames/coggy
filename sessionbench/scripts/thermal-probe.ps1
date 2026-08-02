@@ -31,7 +31,7 @@ function Sample {
 }
 
 function Phase([string]$name) {
-    "=== $name ==="
+    Write-Host "=== $name ==="
     $log = "$root\bench-out\thermal-$name.log"
     $p = Start-Process -FilePath $bench -ArgumentList (@('hold','--label',"thermal-$name",'--sessions','1',
         '--duration','60','--interval','5','--daemon',"$root\target\release\coggyd.exe",'--') + @($spin) + $work) `
@@ -43,10 +43,10 @@ function Phase([string]$name) {
     $c    = ($rows | Where-Object { $_.C } | Measure-Object -Property C -Average).Average
     $perf = ($rows | Measure-Object -Property Perf -Average).Average
     $mhz  = ($rows | Measure-Object -Property MHz -Average).Average
-    "  solo rate        {0} units/s" -f $rate
-    "  thermal zone     {0:N1} C" -f $c
-    "  % proc perf      {0:N1}" -f $perf
-    "  frequency        {0:N0} MHz" -f $mhz
+    Write-Host ("  solo rate        {0} units/s" -f $rate)
+    Write-Host ("  thermal zone     {0:N1} C" -f $c)
+    Write-Host ("  % proc perf      {0:N1}" -f $perf)
+    Write-Host ("  frequency        {0:N0} MHz" -f $mhz)
     [pscustomobject]@{ Rate = [double]$rate; C = $c; Perf = $perf; MHz = $mhz }
 }
 

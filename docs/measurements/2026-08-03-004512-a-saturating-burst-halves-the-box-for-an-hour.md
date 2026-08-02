@@ -1,5 +1,7 @@
 # Three minutes of a hundred sessions halve this box, and it stays halved
 
+> **The cause in this title did not reproduce.** A deliberate burst of the same shape left the box in the fast state — 21.45 units/s before and 21.43 after — so what stands is two steady levels 2.2× apart and not the mechanism named for them. See the section at the foot of this record.
+
 A solo session at `--resident 33 --duty 0.27` ran at **20.0 units/s** at 23:17. Every solo since has run at **9.4**, including the ones inside [the gate bracket twelve minutes later](2026-08-03-000430-the-footprint-lever-runs-backwards.md) and a fresh pair ninety minutes after that.
 
 Between them: a three-minute hold of a hundred saturating sessions.
@@ -42,3 +44,24 @@ So the two holds sat in different machine states, and `η` falling from 0.733 to
 | Background | 24% at the last pair |
 | Harness | `sessionbench` 0.0.0 at `921af83`, release |
 | Artifacts | `bench-out/1785679068-rss-20-pipe`, `1785679095-rss-33-pipe`, `1785683930-pathA-observe-pipe`, `1785680927-eta-at-33-daemon` |
+
+## 2026-08-03, forty minutes later: the burst does not reproduce it
+
+This record's title asserts a cause. **A deliberate attempt to induce the state failed.**
+
+A solo hold, then the same three-minute hold of a hundred sessions at `--resident 20`, then a second solo hold — with the ACPI thermal zone and `% Processor Performance` sampled through both solos:
+
+| | before the burst | after |
+|---|---|---|
+| solo rate | 21.45 units/s | **21.43** |
+| thermal zone | 39.1 °C | 39.1 |
+| `% Processor Performance` | 173.1 | 173.3 |
+| frequency | 1591 MHz | 1595 |
+
+**Nothing moved.** The box stayed in the fast state through a burst matching the one this record blamed, so three minutes of a hundred sessions is not sufficient.
+
+**What survives is the state, not the cause.** Two steady levels 2.2× apart, each flat across its own samples, are measured and not in question — 20.04 units/s before, 9.4 for the following ninety minutes, and 21.45 tonight. What this record cannot support is *why*, and the title says otherwise.
+
+**And the counters could not be tested.** They were sampled to see whether either names the state; with both phases in the same state they agree to 0.1%, which says nothing either way. That question is still open and now needs the slow state to arrive on its own.
+
+The candidates left are the ones timing alone cannot separate: cumulative load across the evening rather than one burst, a scheduled background task, or something outside the box entirely. **Timing put the burst in the gap and the burst is what got named** — the same shape as reading a knob's name instead of measuring its effect, one pass after that was written down.
