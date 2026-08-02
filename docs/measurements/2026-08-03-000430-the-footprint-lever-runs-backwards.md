@@ -1,5 +1,7 @@
 # The footprint lever runs backwards: `η` falls from 0.733 to 0.518 between 20 and 33 MiB
 
+> **Withdrawn the same night.** The two holds compared here sat in different machine states, and [repeating the 20 MiB one inside the 33 MiB one's state reverses the sign](2026-08-03-003443-the-footprint-result-was-the-machine.md): 3.958 against 3.261, so `η` rises with footprint. What stands is the gate result at 33 MiB — RSS held at 3.648 GiB of 3.725, dropped output zero, work rate broke — and the reasoning that dismissed the solo rungs' 2.29× gap is what went wrong, since [the footprint moves a solo by 0.6%](2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md).
+
 [Six hours earlier](2026-08-02-225348-the-two-failing-conditions-are-not-independent.md) gate M1's two failures were shown to close on each other, and the way out was named: `η` rises with a session's footprint, the RSS budget allows 33 MiB a session, and `η` had never been measured between 20 and 80. One hold would settle whether M1 passes on this machine.
 
 **It settled it. `η` falls.** At the same duty, the same count and the same machine, a hundred sessions holding 33 MiB slow down **3.261×** where 20 MiB gave 2.301 — so the gate fails harder at the footprint that was supposed to save it.
