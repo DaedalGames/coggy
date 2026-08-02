@@ -369,6 +369,22 @@ fn main() -> anyhow::Result<()> {
                         .map(|i| Ok(take(&format!("solo-{side}-{i}"), 1, solo_duration)?.0))
                         .collect()
                 };
+                // **One hold that nobody counts, first.** The opening hold of a
+                // run has come back the outlier twice: a gate run's nine solos
+                // put its first 8% below the other eight, and an A·B·A control
+                // put its opening leg 6.3% under a repeat of itself while the
+                // two later legs agreed to 0.7%. A cold file cache, a
+                // background still settling from whatever built the binaries,
+                // and a page-fault storm across a hundred fresh processes all
+                // land on whichever hold goes first.
+                //
+                // **Averaging is the wrong tool for it.** More repeats dilute a
+                // systematic first-hold deficit rather than removing it, and
+                // they cost a hold each. One short throwaway costs less and
+                // removes it, so this runs at the requested session count —
+                // warming the same path the run will use — and its result is
+                // dropped on the floor.
+                let _ = take("warmup", sessions, solo_duration.min(30.0))?;
                 let before = solos("before")?;
                 let (middle, samples) = take("concurrent", sessions, duration)?;
                 let after = solos("after")?;
