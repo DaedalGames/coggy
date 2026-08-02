@@ -169,7 +169,7 @@ Step 3 is where a heavier session would change the answer: `η` belongs to the w
 
 ## Running gate M1 on a machine that can pass it
 
-[M1](../ROADMAP.md#m1--headless-daemon) asks for a hundred sessions held an hour, under 4 GB, within 2× of solo work rate, with nothing dropped. **This machine answers all three and fails two**, and both failures are arithmetic rather than daemon: a hundred sessions wanting `100 × d` cores from sixteen cannot come within 2× at the duty a real session has, and the box stops dead at forty-one minutes of that load.
+[M1](../ROADMAP.md#m1--headless-daemon) asks for a hundred sessions held an hour, under 4 GB, within 2× of solo work rate, with nothing dropped. **This machine can measure all four. Two pass, one fails, and one it cannot attempt** — and neither of the last two is the daemon: a hundred sessions wanting `100 × d` cores from sixteen cannot come within 2× at the duty a real session has, and the hour is out of reach because the box stops dead at forty-one minutes of sustained full-core load.
 
 So the gate needs a wider machine, and what travels is the sizing rather than the numbers.
 
