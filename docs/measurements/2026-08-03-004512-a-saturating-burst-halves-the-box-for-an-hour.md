@@ -75,3 +75,11 @@ This state was first seen tonight, and it was not. [The gate's twenty-minute rec
 **That is also where this machine stops dead**, which is why the test is not being run. Reproducing the state means running the load that ended in event 41, and a hard stop takes the session-scoped scheduler with it — so the experiment costs more than the answer until something else needs that hour anyway.
 
 The candidates that survive are unchanged in kind and narrower in scope: whatever it is, it takes tens of minutes of saturation to arrive and about ninety to leave.
+
+### The two loads differ in profile, not only in length
+
+The section above reads the failed inductions as a duration threshold: three minutes no, twenty no, forty-one yes. **The forty-one held a different kind of load.** It ran on `--wait-ms 67`, a fixed wall-clock sleep, so `duty = computed / (computed + 67)` climbs as the machine slows — [0.172 at a 13.9 ms unit and 0.271 at 24.9](2026-08-01-202112-gate-m1-at-twenty-minutes.md). The three- and twenty-minute attempts held `--duty 0.27`, which fixes the share of its own cycle a session computes whatever the machine does.
+
+So the crashing run was a **rising** load on a heating box, and the failed inductions were flat ones. Duration is still the obvious variable and it is no longer the only difference: a load that asks for more as it gets less is its own candidate, and it is the one this box has actually been stopped by.
+
+Which leaves the threshold bracketed the same way and the mechanism less settled than the section above implies.
