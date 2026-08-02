@@ -354,27 +354,6 @@ pub struct HeldRun {
     pub left_early: Option<String>,
 }
 
-/// How much of the machine the sessions held, and how steadily.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
-pub struct Occupancy {
-    pub median_cores: f64,
-    pub mean_cores: f64,
-    /// Mean cores below the median, summed over samples under it.
-    ///
-    /// **The one number that would have caught it**, and it has a floor rather
-    /// than a zero. Every sample under the median counts, so ordinary tick
-    /// noise contributes: applied to the three twenty-minute holds it gives
-    /// **1.173 cores against 0.061 and 0.052**, and to a clean eight-session
-    /// hold 0.014. As a share of each run's median that is 7.6% against
-    /// 0.2–0.4%, so **read it against the median, not against zero.**
-    ///
-    /// A version counting only samples more than 2% under the median gives
-    /// 1.096 against 0.014 and 0.004 — a wider separation for the cost of a
-    /// constant that would have to be right on every machine. The
-    /// thresholdless one separates by twenty times, which is enough.
-    pub lost_cores: f64,
-}
-
 impl HeldRun {
     /// Peak total RSS across the samples, which is the figure a memory budget
     /// has to fit.
@@ -382,55 +361,9 @@ impl HeldRun {
         self.samples.iter().map(|s| s.rss_bytes).max().unwrap_or(0)
     }
 
-    /// What the sessions held of the machine: the median, and how much of it
-    /// the run lost to intervals below that median.
-    ///
-    /// **A mean alone made three hours of wrong conclusions.** Three holds were
-    /// compared on mean occupancy and read as a footprint effect on `η` worth
-    /// 11.4%; their medians agreed to 0.7%, and the difference was one run
-    /// losing the machine in 18% of its samples to two multi-minute episodes.
-    /// The dips were real — output fell with them — but nothing in the report
-    /// said they had happened, so the mean carried them into a conclusion about
-    /// the workload.
-    ///
-    /// Lost is measured against this run's own median rather than a fixed
-    /// threshold, because a cut taken from one run only ever finds that run:
-    /// the 14-core line that made the episodes visible came from the run that
-    /// had them, and against their own medians the other two lose 0.014 and
-    /// 0.004 cores where that one loses 1.096.
-    ///
-    /// `None` when nothing was sampled.
-    pub fn occupancy(&self) -> Option<Occupancy> {
-        if self.samples.is_empty() {
-            return None;
-        }
-        let series: Vec<f64> = self
-            .samples
-            .iter()
-            .map(|s| f64::from(s.cpu_percent) / 100.0)
-            .collect();
-        // **Spin-up is not a disturbance**, and counting it as one makes every
-        // short hold look interrupted: a twenty-second hold at two-second
-        // ticks spends its first samples starting sessions, which dragged a
-        // mean of 7.97 to 6.48 and reported 1.50 cores lost. Dropping
-        // everything before the run first reaches its own median needs no
-        // constant and no window length.
-        let mut sorted = series.clone();
-        sorted.sort_by(f64::total_cmp);
-        let rough = sorted[sorted.len() / 2];
-        let from = series.iter().position(|c| *c >= rough).unwrap_or(0);
-        let mut cores: Vec<f64> = series[from..].to_vec();
-        if cores.is_empty() {
-            return None;
-        }
-        cores.sort_by(f64::total_cmp);
-        let median = cores[cores.len() / 2];
-        let lost = cores.iter().map(|c| (median - c).max(0.0)).sum::<f64>() / cores.len() as f64;
-        Some(Occupancy {
-            median_cores: median,
-            mean_cores: cores.iter().sum::<f64>() / cores.len() as f64,
-            lost_cores: lost,
-        })
+    /// What the sessions held of the machine, from this run's samples.
+    pub fn occupancy(&self) -> Option<crate::sampler::Occupancy> {
+        crate::sampler::Occupancy::of(&self.samples)
     }
 
     /// Why this run says nothing about the machine, when it does not.
@@ -1011,7 +944,7 @@ pub struct HoldReport {
     ///
     /// See [`HeldRun::occupancy`] for why a mean alone is not enough. `None`
     /// when nothing was sampled.
-    pub occupancy: Option<Occupancy>,
+    pub occupancy: Option<crate::sampler::Occupancy>,
     pub rss: Verdict,
     pub work_rate: Verdict,
     pub dropped_output: Verdict,

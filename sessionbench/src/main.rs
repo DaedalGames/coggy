@@ -1292,12 +1292,20 @@ fn print_ramp(report: &RampReport, out_dir: &std::path::Path) {
             format!("broke on {:?}", step.broken)
         };
         println!(
-            "  {:>3}  rss {:>10}  free {:>10}  {:.2} units/s/session  {:.1} cores  {:>2} replaced  {} dropped  {verdict}",
+            "  {:>3}  rss {:>10}  free {:>10}  {:.2} units/s/session  {:.1} cores{}  {:>2} replaced  {} dropped  {verdict}",
             step.sessions,
             human_bytes(step.total_rss_bytes),
             human_bytes(step.min_available_memory_bytes),
             step.units_per_session_per_sec,
             step.session_cores + step.defender_cores,
+            // **Only when the rung lost the machine**, because a column that is
+            // almost always blank is read, and one that is almost always 0.05
+            // is not. The threshold is a tenth of a core, well above the
+            // 0.052-0.061 an undisturbed twenty-minute hold shows and well
+            // below the 1.173 an interrupted one does.
+            step.occupancy
+                .filter(|o| o.lost_cores >= 0.1)
+                .map_or_else(String::new, |o| format!(" (−{:.2} lost)", o.lost_cores)),
             step.replacements,
             // A rung that could not look reads "— dropped", never "0 dropped".
             step.dropped_units

@@ -235,6 +235,15 @@ pub struct Step {
     /// The figure the work-rate condition compares against its solo value.
     pub units_per_session_per_sec: f64,
     pub session_cores: f64,
+    /// What this rung held of the machine, median first.
+    ///
+    /// **`session_cores` above is a mean, and a mean hides an interruption.**
+    /// A rung that lost the machine for part of its window reads as a rung that
+    /// was slower, which is what a ladder calls saturation — so a redline can
+    /// be set by something that was not the sessions. Three twenty-minute holds
+    /// showed the size of it: one lost 1.173 cores of 15.39 where two others
+    /// lost 0.061 and 0.052.
+    pub occupancy: Option<crate::sampler::Occupancy>,
     pub defender_cores: f64,
     pub processes: usize,
     pub pseudoconsoles: usize,
@@ -828,6 +837,7 @@ fn hold(
             .unwrap_or(0),
         units_per_session_per_sec,
         session_cores: mean(measured.iter().map(|s| f64::from(s.cpu_percent) / 100.0)),
+        occupancy: crate::sampler::Occupancy::of(&measured),
         defender_cores: mean(
             measured
                 .iter()
