@@ -944,7 +944,7 @@ fn doctor(strict: bool) -> anyhow::Result<()> {
     match (facts.thermal_c, facts.processor_performance) {
         (None, None) => {}
         (c, p) => println!(
-            "  thermal {} · cores clocking at {} of nominal — neither is known to name the slow state",
+            "  thermal {} · cores clocking at {} of nominal — the zone has read the same value all night, so it names nothing here",
             c.map(|c| format!("{c:.1} °C")).unwrap_or("—".into()),
             p.map(|p| format!("{p:.0}%")).unwrap_or("—".into()),
         ),

@@ -62,7 +62,7 @@ A solo hold, then the same three-minute hold of a hundred sessions at `--residen
 
 **What survives is the state, not the cause.** Two steady levels 2.2× apart, each flat across its own samples, are measured and not in question — 20.04 units/s before, 9.4 for the following ninety minutes, and 21.45 tonight. What this record cannot support is *why*, and the title says otherwise.
 
-**And the counters could not be tested.** They were sampled to see whether either names the state; with both phases in the same state they agree to 0.1%, which says nothing either way. That question is still open and now needs the slow state to arrive on its own.
+**And the counters could not be tested.** They were sampled to see whether either names the state; with both phases in the same state they agree to 0.1%, which says nothing either way. That question is still open and now needs the slow state to arrive on its own — **with one of the two already ruled out**: the ACPI thermal zone reads 39.1 °C in every artifact taken since, idle and at the end of twenty minutes of a hundred saturating sessions alike, so it does not vary and cannot name anything here.
 
 The candidates left are the ones timing alone cannot separate: cumulative load across the evening rather than one burst, a scheduled background task, or something outside the box entirely. **Timing put the burst in the gap and the burst is what got named** — the same shape as reading a knob's name instead of measuring its effect, one pass after that was written down.
 

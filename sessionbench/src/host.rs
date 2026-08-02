@@ -94,11 +94,23 @@ pub struct HostFacts {
     /// flat across its own samples. A gate bracket ran entirely inside the
     /// slow one with nothing in its artifact to say so.
     ///
-    /// **Neither field has been shown to distinguish the two**, and the run
-    /// that tried could not: a deliberate saturating burst failed to induce
-    /// the slow state, so both of its phases sampled the fast one and agreed
-    /// to 0.1%. The state cannot be ordered, so it has to be caught — which
-    /// takes these travelling in every artifact until it next arrives.
+    /// **Neither field has been shown to distinguish the two, and on this box
+    /// one of them cannot.** `thermal_c` reads **39.1 °C in every artifact**
+    /// — idle, and at the end of twenty minutes of a hundred saturating
+    /// sessions. It does not vary, so it cannot name anything here; a zone
+    /// that tracks the package may exist under another instance, and this is
+    /// the first one `MSAcpi` returns.
+    ///
+    /// **And both are point samples rather than run characteristics.** This
+    /// struct is queried once — at the *end* of a hold, since `into_report`
+    /// builds it after the run, and at the *start* of a ramp or an observe.
+    /// Two twenty-minute holds of the same shape returned 144.3 and 182.1 for
+    /// `processor_performance`, which is teardown timing rather than a
+    /// difference between the runs. Sampling either per tick would cost a
+    /// PowerShell process, which is why they are not.
+    ///
+    /// So they travel in every artifact as a cheap bet on the next
+    /// occurrence, not as an instrument anything has been shown to read.
     ///
     /// `None` where the counter is absent, which is ordinary: `MSAcpi` is not
     /// exposed by every firmware.
