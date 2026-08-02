@@ -514,6 +514,7 @@ mod tests {
             processes: 1,
             pseudoconsoles: 0,
             cpu_percent,
+            machine_cpu_percent: cpu_percent,
             defender_cpu_percent,
             defender_rss_bytes: None,
             available_memory_bytes: 0,

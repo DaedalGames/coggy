@@ -29,6 +29,17 @@ pub struct Sample {
     pub processes: usize,
     pub pseudoconsoles: usize,
     pub cpu_percent: f32,
+    /// The whole machine's CPU as a percentage of one core, on the same scale
+    /// as [`Sample::cpu_percent`] so the two subtract.
+    ///
+    /// **What is left is everything this instrument does not attribute**, and
+    /// until it was recorded that quantity was inferred from the core count.
+    /// One twenty-minute hold lost the machine in 18% of its samples, down to
+    /// 0.58 cores against a median of 15.37, and its mean carried the loss into
+    /// an `η` that was read as a fact about the session's footprint. The dips
+    /// were real — output fell with them — but nothing said what took the
+    /// cores, because nothing was counting outside the job.
+    pub machine_cpu_percent: f32,
     /// `None` when Defender is not running, which is itself worth recording.
     pub defender_cpu_percent: Option<f32>,
     pub defender_rss_bytes: Option<u64>,
@@ -85,6 +96,15 @@ impl Sampler {
     /// the parent-walk membership has no way to avoid.
     pub fn refresh(&mut self, tracked: Option<&[Pid]>) {
         self.sys.refresh_memory();
+        // **The whole machine, read from the CPU counters rather than by
+        // walking processes.** Everything below attributes only what is in the
+        // job, so what the rest of the machine was doing has never been
+        // recorded — and `16 - job` is an inference that once turned one run's
+        // interruptions into a three-hour conclusion about session footprints.
+        // Summing every process would answer it and is the one thing this
+        // method exists to avoid: the full table cost eighty seconds at
+        // twenty-five sessions. This is per core, not per process.
+        self.sys.refresh_cpu_usage();
         let kind = ProcessRefreshKind::nothing().with_cpu().with_memory();
 
         match (tracked, self.defender) {
@@ -128,6 +148,7 @@ impl Sampler {
                 .filter(|m| m.attribution == Attribution::Pseudoconsole)
                 .count(),
             cpu_percent: members.iter().map(|m| m.cpu_percent).sum(),
+            machine_cpu_percent: self.sys.global_cpu_usage(),
             defender_cpu_percent: defender.map(|p| p.cpu_usage()),
             defender_rss_bytes: defender.map(|p| p.memory()),
             available_memory_bytes: self.sys.available_memory(),
