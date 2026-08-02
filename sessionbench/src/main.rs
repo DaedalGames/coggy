@@ -475,7 +475,7 @@ fn main() -> anyhow::Result<()> {
                 println!("\nINCONCLUSIVE: {why}");
             }
             println!(
-                "\n  sessions   {} (fewest alive {:?})\n  window     {} ms counted of {} ms held\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?} ({} failed reads)\n  replaced   {:?}",
+                "\n  sessions   {} (fewest alive {:?})\n  window     {} ms counted of {} ms held\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  occupancy  {}\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?} ({} failed reads)\n  replaced   {:?}",
                 report.sessions,
                 report.fewest_running,
                 // The rate's real denominator beside the one people assume it
@@ -498,6 +498,19 @@ fn main() -> anyhow::Result<()> {
                 report
                     .units_per_session_per_sec
                     .map_or_else(|| "—".to_string(), |r| format!("{r:.3}")),
+                // **Median first, and the loss beside it.** A mean alone read
+                // three holds as a footprint effect on the workload when one of
+                // them had simply lost the machine for two multi-minute
+                // episodes; their medians agreed to 0.7%.
+                report.occupancy.map_or_else(
+                    || "—".to_string(),
+                    |o| {
+                        format!(
+                            "{:.2} cores median, {:.2} mean, {:.3} lost",
+                            o.median_cores, o.mean_cores, o.lost_cores
+                        )
+                    },
+                ),
                 report.rss,
                 report.work_rate,
                 report.dropped_output,
