@@ -50,3 +50,11 @@ This record reads the four `η` values as two tight pairs split by footprint —
 The split was never controlled. Its 80 MiB entry is a duty-1.00 run and its 20 MiB entries sit at 0.27 and at mixed duties, so footprint and duty moved together and the whole difference was assigned to one of them. The grouping is still the right question to ask of four numbers that spanned 26% as one quantity; the answer it gave is not supported.
 
 What stands unchanged is the narrower claim that a ceiling quoted without its workload is not quoted. What does not stand is *which way* the workload moves it.
+
+## 2026-08-03, later: the reversal above was itself reversed, and this record's direction holds
+
+The section immediately above says a hold moving footprint alone got the opposite sign. **Those two holds sat in different machine states.** Repeating the 20 MiB one inside the state the 33 MiB one ran in gives `η` **0.426 against 0.518** — [the heavier session keeping more, which is what this record proposed](2026-08-03-003443-the-footprint-result-was-the-machine.md).
+
+So the direction stands and the confidence in it should not. It has now been claimed three times: from these four values, which also varied duty; against them, from a pair straddling a machine state; and for them again, from the one pair measured inside a single state. **Only the third is a controlled comparison**, and it is one pair on one machine in the slower of its two states.
+
+What this record got wrong is not the direction but the evidence offered for it. Four numbers grouped by footprint, when two of them also differ in duty and one is a redline fitted from a ladder, cannot establish a direction — and the fact that a later controlled test agreed does not make the grouping the reason.
