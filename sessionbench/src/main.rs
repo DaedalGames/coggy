@@ -3,6 +3,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::path::PathBuf;
+
+/// How long the uncounted first hold runs.
+///
+/// Long enough to spawn the run's full session count and let their pages fault
+/// in, short enough that it is not worth skipping. Not derived from
+/// `--solo-duration`, which a run without `--with-solo` never sets.
+const WARMUP_SECONDS: f64 = 30.0;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Context as _;
@@ -361,6 +368,28 @@ fn main() -> anyhow::Result<()> {
                 Ok((report, samples))
             };
 
+            // **One hold that nobody counts, first, whatever else this run
+            // does.** The opening hold has come back the outlier twice: a gate
+            // run's nine solos put its first 8% below the other eight, and an
+            // A·B·A control put its opening leg 6.3% under a repeat of itself
+            // while the two later legs agreed to 0.7%. A cold file cache, a
+            // background still settling from whatever built the binaries, and
+            // a page-fault storm across a hundred fresh processes all land on
+            // whichever hold goes first.
+            //
+            // **Averaging is the wrong tool for it.** More repeats dilute a
+            // systematic first-hold deficit rather than removing it, and they
+            // cost a hold each. One short throwaway costs less and removes it,
+            // so this runs at the requested session count — warming the same
+            // path the run will use — and its result is dropped on the floor.
+            //
+            // **Outside the bracket, because a plain hold has the same first.**
+            // It sat inside the `--with-solo` arm for one commit, which would
+            // have left the run that exists to test it running without one:
+            // comparing two bare holds is exactly the shape that found the
+            // problem, and exactly the shape that would have skipped the fix.
+            let _ = take("warmup", sessions, WARMUP_SECONDS)?;
+
             let (report, samples) = if with_solo {
                 // Named by index so a side of three leaves three artifacts
                 // rather than three writes to one path.
@@ -369,22 +398,6 @@ fn main() -> anyhow::Result<()> {
                         .map(|i| Ok(take(&format!("solo-{side}-{i}"), 1, solo_duration)?.0))
                         .collect()
                 };
-                // **One hold that nobody counts, first.** The opening hold of a
-                // run has come back the outlier twice: a gate run's nine solos
-                // put its first 8% below the other eight, and an A·B·A control
-                // put its opening leg 6.3% under a repeat of itself while the
-                // two later legs agreed to 0.7%. A cold file cache, a
-                // background still settling from whatever built the binaries,
-                // and a page-fault storm across a hundred fresh processes all
-                // land on whichever hold goes first.
-                //
-                // **Averaging is the wrong tool for it.** More repeats dilute a
-                // systematic first-hold deficit rather than removing it, and
-                // they cost a hold each. One short throwaway costs less and
-                // removes it, so this runs at the requested session count —
-                // warming the same path the run will use — and its result is
-                // dropped on the floor.
-                let _ = take("warmup", sessions, solo_duration.min(30.0))?;
                 let before = solos("before")?;
                 let (middle, samples) = take("concurrent", sessions, duration)?;
                 let after = solos("after")?;
