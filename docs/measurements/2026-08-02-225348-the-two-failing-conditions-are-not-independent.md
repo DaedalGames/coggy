@@ -32,7 +32,7 @@ Today's split of the four recorded `η` values [by workload rather than by run](
 
 **Every `η` that clears 0.844 was measured on a workload that cannot fit the RSS budget, and every workload that fits was measured below 0.844.** That is stated from the four measurements alone, with nothing interpolated.
 
-The mechanism is the one already recorded: a session that is already waiting on memory has less left to lose to the sessions beside it. So the same property that makes a heavy session efficient under contention is what makes it too heavy to hold a hundred of.
+The mechanism offered is that a session already waiting on memory has less left to lose to the sessions beside it, so the same property that makes a heavy session efficient under contention is what makes it too heavy to hold a hundred of. **The hold this record asked for reversed it** — [`η` at 33 MiB came back at 0.518, below both anchors](2026-08-03-000430-the-footprint-lever-runs-backwards.md) — so everything below rests on a direction that the measurement did not support. The inequality still holds; the escape route it described does not exist.
 
 ## What this changes
 
