@@ -134,6 +134,32 @@ if ($Sweep -eq 'sessions') {
     }
 }
 
+# --- clean up after itself, in the order that works: `sessionbench` owns the
+# job, so stopping it reaps the tree, while stopping the shell above it only
+# orphans a hundred sessions.
+#
+# **It covers Ctrl-C and a throw, and not a killed host** — which is the case it
+# was written for, and it does not cover it. Tested by force-killing the shell
+# mid-sweep: forty-one processes survived, because `Stop-Process -Force` gives
+# the host no chance to run anything. Nothing inside a script can defend against
+# its own process disappearing. What covers that is the survivor check at the
+# top of the next run, and knowing to stop `sessionbench` rather than the shell.
+trap {
+    "`nSWEEP INTERRUPTED — reaping"
+    Get-Process sessionbench -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 4
+    $left = Get-Process coggyd, cpu-spin -ErrorAction SilentlyContinue
+    if ($left) {
+        "  the job did not take them; killing {0} directly" -f $left.Count
+        $left | Stop-Process -Force
+        Start-Sleep -Seconds 2
+    }
+    $final = Get-Process coggyd, cpu-spin, sessionbench -ErrorAction SilentlyContinue
+    if ($final) { "  STILL STRAY: {0} — kill by hand" -f $final.Count }
+    else { "  no survivors" }
+    break
+}
+
 "`nsweeping $Sweep over $($Values -join ', ') against $Reference — $($plan.Count) holds of ${HoldSeconds}s"
 $totals = @{}
 foreach ($step in $plan) {
