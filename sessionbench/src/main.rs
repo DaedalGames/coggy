@@ -512,8 +512,8 @@ fn main() -> anyhow::Result<()> {
                     || "—".to_string(),
                     |o| {
                         format!(
-                            "{:.2} cores median, {:.2} mean, {:.3} lost",
-                            o.median_cores, o.mean_cores, o.lost_cores
+                            "{:.2} cores median, {:.2} mean, {:.3} lost · {:.2} cores held outside the job",
+                            o.median_cores, o.mean_cores, o.lost_cores, o.rest_cores_median
                         )
                     },
                 ),
