@@ -105,3 +105,28 @@ The additive model predicted 3.662 GiB for a hundred sessions at `--resident 33`
 **So the kill-check passes and the gate question survives.** Had a hundred sessions at 33 MiB broken the RSS budget, `η` would not have mattered — the footprint that could clear the work rate would not exist. It does exist, with 2.5% of the budget to spare.
 
 **One number does not reconcile.** Per-session RSS above solo is +0.130 MiB here and +0.44 MiB in the resident-20 gate hold, both peaks of a hundred sessions. The daemon's own cost is [254 KiB a session](2026-08-01-163935-what-the-harness-says-about-itself.md), which sits between them and explains neither. Two peaks taken minutes apart on a machine whose background moved 30% is the obvious suspect and is not evidence. It is recorded because it is the kind of small disagreement that gets rounded away and then quoted.
+
+## 2026-08-02, last: the number that would not reconcile was the daemon, and it decides the hour
+
+Per-session RSS above solo came out at +0.130 MiB in the 33 MiB hold and +0.447 in the 20 MiB one. Both peaks were sampled at **101 processes**, so the denominator is not the difference. Separating the daemon from the sessions — `total − 100 × solo` — closes it:
+
+| hold | held | output | total | `100 × solo` | **daemon** |
+|---|---|---|---|---|---|
+| `--resident 20` | 1204 s | 23.58 MB | 2450.7 MiB | 2406.0 | **44.7 MiB** |
+| `--resident 33` | 183 s | 2.02 MB | 3719.1 MiB | 3706.0 | **13.1 MiB** |
+
+**The daemon's term is the scrollback, and it grows with lines read rather than with what the sessions hold.** The [hour-long hold measured the same thing directly](2026-08-01-103225-an-hour-of-a-hundred-sessions.md) — 11.8 MiB at the start of filling, rising through it, and a per-line cost of 130–134 B by two routes. Neither of these two holds is a third route to that constant; they agree with it in sign and size and are two points.
+
+**And 44.7 MiB is a plateau, not a slope.** At 19.9 bytes a line the 20-minute hold emitted about 11 800 lines a session against a scrollback capped at 2000, so it had been at capacity for most of the run. That is the figure at the cap, measured rather than extrapolated.
+
+**Which answers the question the three-minute kill-check could not.** The gate asks for an hour, and the check ran for three minutes with the daemon at a fifth of its eventual size — a pass that could have been bought entirely by the short window:
+
+```
+100 × 37.06  +  44.7  =  3750.7 MiB  =  3.663 GiB
+budget                =  3.725 GiB
+spare                 =  67 MB  (1.7%)
+```
+
+It fits, and only because `cpu-spin` writes 20-byte lines. [The same daemon holding `ping` at 47 bytes a line reached 625 MiB](2026-08-01-103225-an-hour-of-a-hundred-sessions.md), which at this footprint would break the budget by 300 MB. **The workload sets the daemon's size as well as `η`**, and a footprint chosen against the RSS ceiling has to be chosen against the daemon the same workload produces.
+
+**1.7% is not much margin for a run that takes an hour.** It is above the 0.9% the additive model already reproduced and below anything else quoted here, so the hour at `--resident 33` should be treated as expected-to-fit rather than known-to-fit — and the reason to run it is `η`, which the RSS side does not answer either way.
