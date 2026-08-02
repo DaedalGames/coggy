@@ -475,7 +475,7 @@ fn main() -> anyhow::Result<()> {
                 println!("\nINCONCLUSIVE: {why}");
             }
             println!(
-                "\n  sessions   {} (fewest alive {:?})\n  window     {} ms counted of {} ms held\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  occupancy  {}\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?} ({} failed reads)\n  replaced   {:?}",
+                "\n  sessions   {} (fewest alive {:?})\n  window     {} ms counted of {} ms held\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  occupancy  {}{}\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?} ({} failed reads)\n  replaced   {:?}",
                 report.sessions,
                 report.fewest_running,
                 // The rate's real denominator beside the one people assume it
@@ -511,6 +511,19 @@ fn main() -> anyhow::Result<()> {
                         )
                     },
                 ),
+                // **Only when the sampler cost a tenth of its own interval.**
+                // A ramp has carried this per rung since it existed; a hold did
+                // not, and the gate runs on holds. Silent below the threshold,
+                // because a column that always reads 0 is a column nobody
+                // checks — the same reason the occupancy loss beside it is.
+                {
+                    let worst = report.worst_tick.total_ms();
+                    if worst * 10 >= report.interval_ms {
+                        format!("  (worst tick {worst} ms of {} )", report.interval_ms)
+                    } else {
+                        String::new()
+                    }
+                },
                 report.rss,
                 report.work_rate,
                 report.dropped_output,

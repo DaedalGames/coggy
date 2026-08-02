@@ -332,6 +332,13 @@ pub struct HeldRun {
     /// and nothing here restarts one — so the caller refuses the run rather
     /// than dividing by either number.
     pub fewest_running: Option<u64>,
+    /// The most expensive tick of the hold, broken down.
+    ///
+    /// **Rule 5 of keeping the benchmark honest**, which a ramp has recorded
+    /// per rung since it existed and a hold did not: the observer becoming the
+    /// bottleneck is the one failure that gives no other sign. The gate runs on
+    /// holds, so the guard belonged here first.
+    pub worst_tick: crate::ramp::TickCost,
     pub elapsed: std::time::Duration,
     /// How much of `elapsed` the last report's counter actually covers.
     ///
@@ -413,6 +420,7 @@ pub fn hold(
 
     let mut sampler = crate::sampler::Sampler::new();
     let mut samples = Vec::new();
+    let mut worst_tick = crate::ramp::TickCost::default();
     let mut left_early = None;
 
     // **Written as they are taken, not collected and saved at the end.** An
@@ -465,11 +473,32 @@ pub fn hold(
             seen.latest().map_or(0, |r| r.read_bytes),
             seen.units().unwrap_or(0),
         );
-        let sample = sampler.take(&mut tree, &output, started.elapsed());
+        // **The one failure that does not announce itself**, which a ramp has
+        // recorded per rung since it existed and a hold never did — so the
+        // gate, which runs on holds, had no guard against the sampler becoming
+        // the thing it measures. Measured by hand from `t_ms` gaps once, which
+        // is the tell that it belonged in the artifact.
+        // Split rather than `Sampler::take`, so both halves are measured. A
+        // `refresh_ms` of zero would otherwise mean *folded into the next
+        // field* while reading as *cost nothing*, which is the silent zero this
+        // file refuses everywhere else.
+        let at = std::time::Instant::now();
+        let tracked = tree.known_pids();
+        sampler.refresh(tracked.as_deref());
+        let mut cost = crate::ramp::TickCost {
+            refresh_ms: at.elapsed().as_millis() as u64,
+            ..Default::default()
+        };
+        let at = std::time::Instant::now();
+        let sample = sampler.sample(&mut tree, &output, started.elapsed());
+        cost.sample_ms = at.elapsed().as_millis() as u64;
+        let at = std::time::Instant::now();
         if let Some(sink) = sink.as_mut() {
             writeln!(sink, "{}", serde_json::to_string(&sample)?)?;
             sink.flush()?;
         }
+        cost.write_ms = at.elapsed().as_millis() as u64;
+        worst_tick.keep_worse(cost);
         samples.push(sample);
 
         // **A liveness line, and quote nothing from it.** Between the phase
@@ -506,6 +535,7 @@ pub fn hold(
 
     Ok(HeldRun {
         sessions,
+        worst_tick,
         samples,
         last: seen.latest(),
         fewest_running: seen.fewest_running(),
@@ -606,6 +636,7 @@ impl HeldRun {
             truncated: last.map(|r| r.truncated),
             failed_reads: last.map(|r| r.failed_reads),
             occupancy,
+            worst_tick: self.worst_tick,
             rss,
             // **Not measured here, and not because it is hard.** The condition
             // is a ratio against the same workload run alone, and a solo
@@ -945,6 +976,8 @@ pub struct HoldReport {
     /// See [`HeldRun::occupancy`] for why a mean alone is not enough. `None`
     /// when nothing was sampled.
     pub occupancy: Option<crate::sampler::Occupancy>,
+    /// The most expensive tick of the hold — see [`HeldRun::worst_tick`].
+    pub worst_tick: crate::ramp::TickCost,
     pub rss: Verdict,
     pub work_rate: Verdict,
     pub dropped_output: Verdict,
@@ -1106,6 +1139,7 @@ mod tests {
     fn run_of(sessions: u32, fewest: Option<u64>, samples: usize) -> HeldRun {
         HeldRun {
             sessions,
+            worst_tick: crate::ramp::TickCost::default(),
             // Built by hand rather than by deriving Default on Sample, which
             // would add a convenience to the real type that only a test wants.
             samples: (0..samples)

@@ -156,7 +156,12 @@ impl TickCost {
         self.refresh_ms + self.replace_ms + self.sample_ms + self.write_ms
     }
 
-    fn keep_worse(&mut self, other: TickCost) {
+    /// Keeps whichever tick cost more in total.
+    ///
+    /// `pub(crate)` because a hold accumulates the same way — the guard is
+    /// against the sampler becoming the bottleneck, which is not a property
+    /// of ladders.
+    pub(crate) fn keep_worse(&mut self, other: TickCost) {
         if other.total_ms() > self.total_ms() {
             *self = other;
         }
