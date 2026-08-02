@@ -39,6 +39,16 @@ pub struct Occupancy {
     /// 1.096 against 0.014 and 0.004 — a wider separation for the cost of a
     /// constant that would have to be right on every machine. The
     /// thresholdless one separates by twenty times, which is enough.
+    ///
+    /// **It is not worth reporting for a single session, and that is measured.**
+    /// `observe` holds one session on a machine with fifteen spare cores, so a
+    /// disturbance elsewhere barely touches it — but its own floor is higher,
+    /// because one session's CPU sits near a whole core and tick noise is a
+    /// larger share of it. Seven one-session runs lose **0.7–4.1% of their
+    /// median** where an undisturbed hundred-session hold loses 0.2–0.4% and a
+    /// disturbed one 7.6%. At one session the floor and the signal are under
+    /// two-fold apart, so the number could not tell them apart and is left out
+    /// rather than shipped as a column nobody can read.
     pub lost_cores: f64,
 }
 
