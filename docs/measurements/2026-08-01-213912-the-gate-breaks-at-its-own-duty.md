@@ -96,3 +96,24 @@ logical processors. Sixteen is what this box has. Gate M1 is therefore not
 mis-specified — a nineteen-core machine clears it at the same duty — and the
 figure is a floor for the same reason as above: `η` on a wider machine is
 unmeasured, and more cores can mean more claimants on the same memory system.
+
+## 2026-08-02: the section above overstated it, and the constant survives
+
+*η degrades as instantaneous concurrency rises* rests on three numbers each obtained
+by dividing by a solo baseline, and a later afternoon put that baseline's spread at
+25% across six holds. [Measured without one](2026-08-02-194155-eta-is-flat-where-it-was-said-to-fall.md),
+between twenty-seven sessions awake and forty-five, total throughput moves 1.10%
+against 0.69% of drift — flat, and if anything in the wrong direction for a term
+that worsens with load.
+
+The 0.172 rows are the weakest of the three for a second reason: `N·d ÷ C` is 1.07
+there, a tenth above saturation, where the algebra behind these figures assumes every
+core is claimed for the whole hold. Comparing a saturated point against a boundary
+one is what produced the slope.
+
+**So the consequence drawn here — that `2ηC/d` cannot carry a constant — does not
+follow.** It carries one above saturation. What is genuinely uncertain is the
+boundary, and that is the region a governor works in.
+
+The rest of this record stands: the gate's work-rate condition breaks at 2.301, the
+crossing measures at 87 sessions, and neither depends on `η` varying.
