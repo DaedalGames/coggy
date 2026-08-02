@@ -49,6 +49,19 @@ Each run's undisturbed output against its own six solo holds:
 
 So the figure of record, 2.301 at 20 MiB, carries 10.2% of that afternoon's disturbances. The two runs taken tonight are barely touched, because nothing interrupted them.
 
+## What the ceiling becomes
+
+`2ηC/d` turns each undisturbed slowdown into the count a governor would admit:
+
+| | `η` | ceiling at `d = 0.27` |
+|---|---|---|
+| 20 MiB rested | 0.817 | **97** |
+| 33 MiB rested | 0.820 | **97** |
+| 36 MiB rested | 0.808 | **96** |
+| 20 MiB slowed | 0.426 | **51** |
+
+**The three rested weights agree to a session**, and the machine's own state is worth 51 against 97 — which is the whole of what moves this number on this box.
+
 ## What this retracts
 
 - **That the footprint lever bought 11.4% and then ran out.** It buys about 2% and the plateau is real but small.
