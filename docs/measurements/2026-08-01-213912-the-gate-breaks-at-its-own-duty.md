@@ -143,3 +143,16 @@ curve stops rising gives `η·C` with no solo, no slowdown and no division by
 either. A sweep to find it was started and discarded — [the machine was on
 battery](2026-08-02-195840-the-same-command-on-battery.md) — and it is worth
 rerunning on mains for this reason rather than for the curve's shape.
+
+## 2026-08-02: and the 87-to-93 range is one formula, not two methods
+
+The section above calls 87 measured and 93 projected. Both are `2ηC/d`. At
+`η = 0.785`, the value fitted from earlier ramps, it gives 93; at the 0.733 this
+run implies, 87. **The range is the uncertainty in `η` wearing a second name**,
+so a better `η` collapses it rather than tightening it from one side, and quoting
+the two ceilings beside the two `η` values counts one disagreement twice.
+
+The argument for the crossing sitting above 87 still holds — fewer sessions awake
+should cost each other less — but [that effect measured flat between twenty-seven
+awake and forty-five](2026-08-02-194155-eta-is-flat-where-it-was-said-to-fall.md),
+so there is less room in the range than this section assumed.
