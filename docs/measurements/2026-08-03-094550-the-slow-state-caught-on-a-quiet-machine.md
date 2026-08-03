@@ -317,3 +317,13 @@ Every pair in the last two hours was read on its own and each said only *stable 
 
 **This is the reading a pair cannot produce.** Four times in this record two holds were declared unable to say something, and each time that was true. Fourteen holds, taken two at a time over two hours for other reasons, say it between them — which is an argument for keeping cheap artifacts rather than for taking more of them: [nothing here was run to answer this question](../../CLAUDE.md).
 
+## The sixteenth point broke the level the fifteen had established
+
+One more pair, taken to extend the series rather than to ask anything: **9.802 then 12.638**, both quiet at 1.15 and 1.57 cores held. **25.3% apart** — in the top tail of the 26 adjacent pairs measured today, beside 25.5 and 30.4 — and the window mean of 11.22 is outside the 9.6–10.6 band the previous eight windows held for an hour.
+
+**That is the third time today a level died on the reading after it was written up.** Twenty holds over 340 minutes, flat, then 15.216. Three holds at 10.5 inside 2%, then 9.7–10.1 half an hour later. Eight windows inside 1.0 units/s for an hour, then this.
+
+So the most durable thing measured on this box today is not a level but its absence: **whatever window you look through, the next one is somewhere else.** Each of those three write-ups was correct about its own window and wrong the moment it was read as a property, and the pattern only became visible because the next reading was cheap enough to take.
+
+**What the next session inherits** is therefore a rule rather than a number: the box was between 9.6 and 12.6 in the last two hours, it is not rested — 18.9 — and any figure taken from it describes the ten minutes it was taken in. The check before a run is the series, not a pair, and the series says this machine has not been still since its excursion.
+
