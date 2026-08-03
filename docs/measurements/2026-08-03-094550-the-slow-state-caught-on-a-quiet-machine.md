@@ -219,3 +219,20 @@ Four holds inside about ten minutes, the machine quiet throughout and getting qu
 
 **What it does settle is a procedure.** A single 120-second hold names a band, and that band is what several checks here now key on. This sequence shows a single hold landing 58% away from where the next one lands. **The check is cheap enough to repeat, so repeat it** — one reading opens a window, two agreeing ones justify spending fifteen minutes in it. **And *agreeing* means against the allowance this project already uses, not by eye**: the closing pair here, 9.299 and 9.874, look tight and sit **6.0% apart**, past the 5% `SOLO_AGREEMENT_PERCENT` a bracket refuses on. The verdict is unchanged — both are inside the slow band, so the window is shut either way — but the pair does not license a run on its own.
 
+## Eight points after the excursion, and a settling rule that passes when it should not
+
+The pair rule written above — *one reading opens a window, two agreeing ones justify a run* — was applied. Two holds, launched detached after a first attempt died at a tool timeout that its own arithmetic predicted:
+
+| | rate | rest |
+|---|---|---|
+| pair 1 | 11.022 | 1.39 |
+| pair 2 | 10.074 | 1.19 |
+
+Both land under 11.5 and so read as the same band, which the rule calls settled. **It is not.** Taken with the four before them the sequence is **15.216 · 12.636 · 9.299 · 9.874 · 11.022 · 10.074** across about half an hour, quiet throughout, crossing band boundaries three times. These two agree only in the sense that a wandering series will sometimes put two adjacent points on the same side of a line.
+
+**And 9.0% apart is not agreement here.** Twenty holds spanning 340 minutes of the settled state covered 9.6% in total. A pair separated by nearly that much is not evidence of a level; it is one draw from a distribution as wide as the whole earlier series.
+
+So the rule needs its second half: **same band is necessary and not sufficient, and the pair's gap has to be small against the band's own width** — which for this box's slow band is 9.6%, so 9.0% clears nothing. What passes is a pair inside a few percent, in the same band, with both rest figures low.
+
+That is the fourth correction this record has made to a rule stated in it, and every one came from the next two readings rather than from an argument. **The window did not open in this session.** Six points after the excursion say the box is somewhere between its slow state and its rested one, moving, and no pair taken two minutes at a time has caught it still.
+

@@ -704,10 +704,15 @@ impl HeldRun {
 /// 3. **Note the order.** A crowded rested box outruns a quiet slow one, so a
 ///    middling rate is not a middling machine, and only the pair of numbers
 ///    names the state.
-/// 4. **One hold is not a window.** A box that had held 8.6–9.4 for five and a
-///    half hours returned 15.216 for a single two-minute hold and 9.299 eight
-///    minutes later, quiet throughout. A reading opens a window; two agreeing
-///    ones justify spending a run in it.
+/// 4. **One hold is not a window, and the same band is not agreement.** A box
+///    that had held 8.6–9.4 for five and a half hours returned 15.216 for a
+///    single two-minute hold and 9.299 eight minutes later, quiet throughout.
+///    A later pair read 11.022 and 10.074 — both under the slow band's
+///    ceiling, so nominally the same state, and **9.0% apart against a band
+///    whose whole width over 340 minutes was 9.6%**. Two readings on one side
+///    of a boundary is what a wandering series does. A pair licenses a run
+///    when it is in one band **and** inside a few percent, with both rest
+///    figures low.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BracketedReport {
     pub before: Vec<HoldReport>,
