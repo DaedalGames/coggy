@@ -344,3 +344,20 @@ Two more rested holds exist — 17.561 and 21.405 — from before the column shi
 
 **What made the tally possible is the same thing that made it late.** The rest column arrived this morning, so two of the three rested holds this box produced sit outside the count. A classification is only as old as the field it classifies on.
 
+## Three of those holds were recoverable, and the tally moves to 4.4%
+
+The section above counted holds whose `hold.json` carried `rest_cores_median` and set two rested holds aside as unclassifiable. **One of them was not.** `fingerprint-2` predates the field but not the fix behind it: its samples carry `machine_cpu_percent` at the corrected scale — a machine median of 326.3, which is 3.26 cores — so its rest of 2.99 is real and it classifies as rested.
+
+`clockpair-idle` genuinely cannot be recovered. Its machine median is **24.1**, and a box with a session running cannot have its whole machine under a quarter of one core, so that figure is on the pre-fix 0–100 scale and the 0.03 cores it implies is meaningless. **The discriminator is arithmetic rather than a timestamp**: on this hardware the corrected column cannot read below about 100 while a session runs.
+
+Recomputed over every hold whose rest is either stored or recoverable:
+
+| | n | share |
+|---|---|---|
+| slow | 33 | 73.3% |
+| tenanted | 7 | 15.6% |
+| between the bands | 3 | 6.7% |
+| **rested** | **2** | **4.4%** |
+
+**45 holds, and the conclusion is unchanged in shape while the number moved by 80%.** Rested was 1 of 42; it is 2 of 45. Gate M1 still needs sixty consecutive minutes of a state this box offered twice in a day — but *2.4%* was wrong, and it was wrong because a field's absence was read as a measurement's absence when the measurement was one directory away.
+
