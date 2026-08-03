@@ -36,7 +36,7 @@
 #
 # THE PROBE CHECKS TWO THINGS AND ONLY ONE OF THEM IS A GAP. Two fresh solo
 # holds agreeing says the machine is steady; it does not say which machine.
-# This box runs ~21.5 units/s solo at this workload rested and ~9.7 after a
+# This box runs about 18.9 units/s solo at this workload rested and ~9.0 after a
 # saturating burst, and two probes taken inside the slow state agree with each
 # other to 0.3% while the run they precede reports a slowdown 72% higher. The
 # script now prints a NOTE when the level says post-saturation, and does not
@@ -195,7 +195,7 @@ $gap = [Math]::Abs($probe[0] - $probe[1]) / (($probe[0] + $probe[1]) / 2) * 100
 "probe baselines: {0} and {1} units/s · gap {2:N1}%" -f $probe[0], $probe[1], $gap
 
 # --- and which machine state they agree in, which the gap cannot tell you.
-# This box gives ~21.5 units/s solo at this workload when rested -- measured
+# This box gives about 18.9 units/s solo at this workload when rested -- measured
 # twice, two days apart, 0.15% apart. Three minutes of a hundred saturating
 # sessions halves that for about ninety minutes, and two probes taken inside
 # that state agree with each other to under a percent while the run they
