@@ -296,7 +296,10 @@ mod tests {
         );
 
         pool.clear();
-        std::thread::sleep(std::time::Duration::from_millis(1500));
+        assert!(
+            wait_until(|| waitfors() == waiting_before - BATCH),
+            "clearing never took the processes"
+        );
         assert!(pool.is_empty());
         assert_eq!(
             waitfors(),

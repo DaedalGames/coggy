@@ -495,6 +495,33 @@ mod tests {
             .count()
     }
 
+    /// Wait for something to become true, rather than for a fixed span.
+    ///
+    /// **A fixed sleep asserts something about the machine, not about the
+    /// code**, and every assertion in this module about a process having
+    /// started, died, or finished being read was reached through one.
+    /// `pool.rs` failed exactly this way at 95% background — 900 ms was not
+    /// enough for a `cmd /c exit 0` to exit — and the failure had gone nine
+    /// days without a name because the run that showed it was filtered.
+    ///
+    /// The direction that bites is whichever one takes *work*: a child
+    /// starting, a tree being reclaimed, four lines being drained. Asserting
+    /// a process is *still* alive after a wait is safe under load, so those
+    /// sleeps stay where they only guard that.
+    ///
+    /// Ten seconds is a ceiling rather than a budget — the condition is
+    /// checked before the first sleep, so an idle box pays a poll and a
+    /// genuinely wedged process still fails.
+    fn wait_until(mut done: impl FnMut() -> bool) -> bool {
+        for _ in 0..100 {
+            if done() {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        done()
+    }
+
     #[test]
     fn dropping_a_session_takes_the_tree_and_not_only_the_root() {
         let _serial = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
@@ -509,27 +536,20 @@ mod tests {
         // The kernel is being asked, so the kernel's number is what it wants.
         let root = session.pid();
 
-        // Give the shell time to start its child, or the test proves nothing:
-        // an empty tree is trivially reclaimed.
-        std::thread::sleep(std::time::Duration::from_millis(900));
-        assert!(alive(root), "the session should still be running");
-        assert_eq!(
-            pings(),
-            before + 1,
-            "the shell should have started a child for the job to have to reach"
+        // Wait for the shell to start its child, or the test proves nothing:
+        // an empty tree is trivially reclaimed. Starting is work, so a busy
+        // box takes longer at it than a fixed sleep allows.
+        assert!(
+            wait_until(|| pings() == before + 1),
+            "the shell never started a child for the job to have to reach"
         );
+        assert!(alive(root), "the session should still be running");
 
         drop(session);
-        std::thread::sleep(std::time::Duration::from_millis(500));
-
         assert!(
-            !alive(root),
-            "dropping the job should have taken the shell with it"
-        );
-        assert_eq!(
-            pings(),
-            before,
-            "and the child it spawned — this is the assertion the root cannot make"
+            wait_until(|| !alive(root) && pings() == before),
+            "dropping the job should have taken the shell and the child it \
+             spawned — this is the assertion the root cannot make"
         );
     }
 
@@ -548,22 +568,25 @@ mod tests {
             .args(["/c", "ping -n 30 127.0.0.1 >nul"])
             .spawn()
             .expect("spawn");
-        std::thread::sleep(std::time::Duration::from_millis(900));
-        assert_eq!(pings(), before + 1, "the child should be running");
+        assert!(
+            wait_until(|| pings() == before + 1),
+            "the child never started"
+        );
 
         // The branch `spawn` takes when a job cannot take the session.
         let killed = child.kill().is_ok();
         let _ = child.wait();
         assert!(killed);
-        std::thread::sleep(std::time::Duration::from_millis(500));
 
         // The root is gone; the grandchild is not, and that is exactly why the
         // job has to be created before the spawn rather than after a failure.
         let _ = Command::new("taskkill")
             .args(["/F", "/IM", "ping.exe"])
             .output();
-        std::thread::sleep(std::time::Duration::from_millis(300));
-        assert_eq!(pings(), before, "nothing of this test may outlive it");
+        assert!(
+            wait_until(|| pings() == before),
+            "nothing of this test may outlive it"
+        );
     }
 
     #[test]
@@ -577,7 +600,10 @@ mod tests {
 
         let session = Session::spawn_with_scrollback(&mut command, 2, DEFAULT_SCROLLBACK_BYTES)
             .expect("spawn");
-        std::thread::sleep(std::time::Duration::from_millis(900));
+        assert!(
+            wait_until(|| session.scrollback().read() == 4),
+            "the session's four lines were never all drained"
+        );
 
         let back = session.scrollback();
         assert_eq!(back.read(), 4, "every line the session emitted was read");
@@ -597,11 +623,14 @@ mod tests {
         command.args(["/c", "start /b ping -n 30 127.0.0.1"]);
         let mut session = Session::spawn(&mut command).expect("spawn");
 
-        std::thread::sleep(std::time::Duration::from_millis(1200));
-        assert_eq!(pings(), before + 1, "the grandchild should be running");
+        // Both halves are work the box has to get to: the grandchild starting
+        // and the root exiting. A fixed wait asserts the machine did both in
+        // 1200 ms, which at 95% background it does not.
+        let root = session.pid();
         assert!(
-            !alive(session.pid()),
-            "and the root should already have exited, or this proves nothing"
+            wait_until(|| pings() == before + 1 && !alive(root)),
+            "the grandchild should be running and the root already exited, or \
+             this proves nothing"
         );
         assert_eq!(
             session.status(),
@@ -610,8 +639,10 @@ mod tests {
         );
 
         drop(session);
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        assert_eq!(pings(), before, "and dropping still takes the tree");
+        assert!(
+            wait_until(|| pings() == before),
+            "and dropping still takes the tree"
+        );
     }
 
     #[test]
@@ -621,7 +652,10 @@ mod tests {
         command.args(["/c", "echo %COGGY_SESSION_ID%"]);
         let session = Session::spawn(&mut command).expect("spawn");
         let id = session.id();
-        std::thread::sleep(std::time::Duration::from_millis(900));
+        assert!(
+            wait_until(|| session.scrollback().read() == 1),
+            "the child never said where it lives"
+        );
 
         let back = session.scrollback();
         assert_eq!(
@@ -655,7 +689,10 @@ mod tests {
         let mut command = Command::new("cmd");
         command.args(["/c", "exit 3"]);
         let mut session = Session::spawn(&mut command).expect("spawn");
-        std::thread::sleep(std::time::Duration::from_millis(900));
+        assert!(
+            wait_until(|| session.status() != Status::Running),
+            "the session never finished"
+        );
         assert_eq!(session.status(), Status::Exited { code: Some(3) });
     }
 
@@ -705,16 +742,24 @@ mod tests {
         let mut command = Command::new("cmd");
         command.args(["/c", "ping -n 30 127.0.0.1"]);
         let session = Session::spawn(&mut command).expect("spawn");
-        std::thread::sleep(std::time::Duration::from_millis(900));
+        assert!(
+            wait_until(|| pings() == before + 1),
+            "the child never started, so the drop below would prove nothing"
+        );
 
+        // The one timed assertion here, and it stays timed: what it claims is
+        // that `drop` returns rather than blocking on a reader, so a wait for
+        // it to finish would measure exactly what is under test.
         let at = std::time::Instant::now();
         drop(session);
         assert!(
             at.elapsed() < std::time::Duration::from_secs(5),
             "drop waited on a reader it had not yet unblocked"
         );
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        assert_eq!(pings(), before, "and the tree went with it");
+        assert!(
+            wait_until(|| pings() == before),
+            "and the tree went with it"
+        );
     }
 
     /// The negative control: the same tree, killed the way a supervisor
@@ -732,11 +777,20 @@ mod tests {
             .spawn()
             .expect("spawn");
 
-        std::thread::sleep(std::time::Duration::from_millis(900));
-        assert_eq!(pings(), before + 1, "the child should be running");
+        assert!(
+            wait_until(|| pings() == before + 1),
+            "the child should be running"
+        );
 
         root.kill().expect("kill");
         let _ = root.wait();
+
+        // **The one sleep in this module that has to stay fixed.** Every other
+        // wait here is for something to happen, so polling ends it early and
+        // a busy box only takes longer. This one waits to see that something
+        // *does not* happen — the child outliving its killed root — and its
+        // condition is already true on entry, so a poll would return at once
+        // and assert nothing. A slow box makes this safer, not flakier.
         std::thread::sleep(std::time::Duration::from_millis(500));
 
         assert_eq!(
