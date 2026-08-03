@@ -127,11 +127,29 @@ The thirteen holds all sat in what today's other record calls the quiet band, bu
 
 Three objections, and two die on the same artifacts:
 
-- **Time and tenancy might be entangled**, with later probes happening to be busier. They are not: time against rest is **+0.109**, and time against rate only −0.207. What predicts the rate is the neighbour, not the clock.
+- **Time and tenancy might be entangled**, with later probes happening to be busier. They are not: time against rest is **+0.109**, and time against rate only −0.207. What predicts the rate is the neighbour, not the clock. **Withdrawn two probes later; see the end of this record.**
 - **One point at 2.86 cores might be carrying it.** Dropped, the correlation is still **−0.675** over the remaining twelve.
 - **It was measured in the slow state**, and this record spent a section arguing that a spread measured in one state does not carry to another. That objection stands and is not answerable from here.
 
 So: a neighbour of one to three cores moves a one-session hold, downward, by about three percent per core-and-a-half — **on a slowed machine**. Whether the rested machine has the same slope is what [the twelve-hold repeat](2026-08-03-081500-a-neighbour-costs-the-solo-baseline-twenty-seven-percent.md) still wants, and it now has a number to test against rather than an open question.
 
 **Why it matters at that size.** The gate misses its work-rate condition by 3–4%. `slowdown = solo ÷ concurrent`, so a neighbour suppressing the baseline by 3.2% moves the verdict by about as much as the verdict misses by, in the direction that flatters it. The exclusion earlier today cleared the gate's baselines of a *large* tenant and explicitly could not clear a small one; this is the first measurement of what a small one is worth.
+
+## Two more probes withdrew the causal half of that, and kept the useful half
+
+The section above dismissed one objection with a number: time and tenancy are not entangled, **+0.109** over thirteen points. Two probes later — rest 3.58 and 3.81 cores, the highest of the series and the latest — the same correlation is **+0.668** over fifteen.
+
+| | n=13 | n=15 |
+|---|---|---|
+| rest vs rate | −0.761 | **−0.859** |
+| time vs rest | +0.109 | **+0.668** |
+| time vs rate | −0.207 | **−0.604** |
+
+**So the confound that was tested and cleared came back when the sample grew.** The clearing was true of those thirteen points and did not survive two more; a neighbour that arrives late is indistinguishable, in this series, from a machine that slows late. **The attribution to the neighbour is withdrawn.** What stands is the correlation and the fact that something moved together with tenancy.
+
+**What survives is the part that matters, and it is arithmetic rather than a fit.** Least squares over the fifteen gives −0.396 units/s per core held. At the least-tenanted point in the whole series, 1.07 cores, the fit reads **9.24** against a rested band of **18.9**. So even extrapolating the neighbour term to zero leaves the machine at half speed: **a neighbour explains none of the halving.** The state is not tenancy, whatever the slope inside it turns out to be.
+
+That was the question the series was launched to answer, and it is answered in the direction that makes the slow state a real thing rather than a mislabelled crowd.
+
+**Read the previous section knowing this one exists.** It is left standing because it is what the thirteen points said, and because a dismissal that expires after two more readings is worth seeing whole.
 
