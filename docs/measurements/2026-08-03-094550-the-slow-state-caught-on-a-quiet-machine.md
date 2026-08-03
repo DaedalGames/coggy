@@ -417,3 +417,9 @@ The adjacent row explains why that allowance is what it is: two single holds tak
 
 **What this does not say.** The pairs overlap, so they are not independent, and the hour-gap set spans the two settled windows this record describes elsewhere — both push the figure up. It is an upper-ish estimate from one box on one day, and the direction it points is what matters rather than the second digit. It also says nothing about whether the slow state distorts the ratio the condition is stated in, only about whether the bracket will accept the run at all.
 
+## Appended 2026-08-03: the slow band above is two bands
+
+[Three bands, and the middle one is the trap](#three-bands-and-the-middle-one-is-the-trap) reads the slow band as one state, and the whole of this record treats a low solo rate as naming it. **A later run splits it.** Two runs whose solo holds agree to half a percent, 9.752 and 9.801, held a hundred sessions at 246.4 and 902.8 units/s -- one machine crippled under load, one within 0.5% of its rested reference with only the lone session down. [They push gate M1's slowdown in opposite directions](2026-08-03-173452-the-slow-state-flatters-the-gate.md), 3.958 against a 1.54 that passes a condition asking for 2.
+
+Nothing above is withdrawn: the bands are real, the ordering trap is real, and the rest column still separates a tenant from a slow box. What is superseded is the sufficiency of a solo hold. Every reading in this record is a solo one, so **this record cannot say which of the two slow states any of its 36 quiet holds were taken in** -- the question did not exist while they were being taken, and the figure that answers it comes only from a hundred sessions.
+
