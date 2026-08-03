@@ -30,6 +30,36 @@
 pub mod pool;
 pub mod scrollback;
 
+/// One way of waiting, for every test in this crate.
+///
+/// **A fixed sleep asserts something about the machine, not about the
+/// code.** Both test modules here reached their assertions through one, and
+/// `pool.rs` failed on it at 95% background: 900 ms was not enough for a
+/// `cmd /c exit 0` to exit. That failure went nine days without a name
+/// because the run that showed it was read through a filter.
+///
+/// The direction that bites is whichever one takes *work* — a child
+/// starting, a tree being reclaimed, lines being drained. Waiting to see
+/// that something has *not* happened is the opposite case and a poll cannot
+/// serve it, since the condition is already true on entry — which is why
+/// `killing_the_root_alone_leaves_the_child_behind` keeps a fixed sleep on
+/// purpose, and why converting it would leave a test that passes
+/// unconditionally.
+///
+/// Ten seconds is a ceiling rather than a budget: the condition is checked
+/// before the first sleep, so an idle box pays one poll and a genuinely
+/// wedged process still fails.
+#[cfg(test)]
+pub(crate) fn wait_until(mut done: impl FnMut() -> bool) -> bool {
+    for _ in 0..100 {
+        if done() {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    done()
+}
+
 use std::io::{BufRead, BufReader};
 use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -493,33 +523,6 @@ mod tests {
             .lines()
             .filter(|l| l.to_ascii_lowercase().contains("ping.exe"))
             .count()
-    }
-
-    /// Wait for something to become true, rather than for a fixed span.
-    ///
-    /// **A fixed sleep asserts something about the machine, not about the
-    /// code**, and every assertion in this module about a process having
-    /// started, died, or finished being read was reached through one.
-    /// `pool.rs` failed exactly this way at 95% background — 900 ms was not
-    /// enough for a `cmd /c exit 0` to exit — and the failure had gone nine
-    /// days without a name because the run that showed it was filtered.
-    ///
-    /// The direction that bites is whichever one takes *work*: a child
-    /// starting, a tree being reclaimed, four lines being drained. Asserting
-    /// a process is *still* alive after a wait is safe under load, so those
-    /// sleeps stay where they only guard that.
-    ///
-    /// Ten seconds is a ceiling rather than a budget — the condition is
-    /// checked before the first sleep, so an idle box pays a poll and a
-    /// genuinely wedged process still fails.
-    fn wait_until(mut done: impl FnMut() -> bool) -> bool {
-        for _ in 0..100 {
-            if done() {
-                return true;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
-        done()
     }
 
     #[test]

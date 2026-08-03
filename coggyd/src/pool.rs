@@ -167,6 +167,8 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::*;
+    // `super` is this module, so the crate-root helper needs naming.
+    use crate::wait_until;
 
     /// How many `waitfor` processes the machine is holding.
     ///
@@ -213,34 +215,6 @@ mod tests {
         // never ran rather than as a bad argument.
         c.args(["/t".to_string(), "30".to_string(), format!("coggydpool{n}")]);
         c
-    }
-
-    /// Wait for something to become true, rather than for a fixed span.
-    ///
-    /// **A fixed sleep asserts something about the machine, not about the
-    /// code.** `a_finished_session_is_held_until_it_is_reaped` slept 900 ms
-    /// for a `cmd /c exit 0` and then asserted it had finished; at 95%
-    /// background it had not, and the test failed. That is the whole of the
-    /// intermittent failure this suite showed for days without ever recording
-    /// which test it was — the name was lost to a filter, so nine days of
-    /// hypotheses were built on a symptom nobody could read.
-    ///
-    /// Polling asserts the same thing, costs the same on an idle box because
-    /// the condition is checked before the first sleep, and is the pattern
-    /// [the output test below](#method.a_pools_output_survives_its_sessions)
-    /// already used — this only makes it the file's one way of waiting.
-    ///
-    /// Ten seconds is a ceiling for a machine under load, not a budget: a
-    /// process that has genuinely wedged still fails, one that is merely
-    /// starved does not.
-    fn wait_until(mut done: impl FnMut() -> bool) -> bool {
-        for _ in 0..100 {
-            if done() {
-                return true;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
-        done()
     }
 
     #[test]
