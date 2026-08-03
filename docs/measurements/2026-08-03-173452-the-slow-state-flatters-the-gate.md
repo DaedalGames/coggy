@@ -68,3 +68,30 @@ The slowdown is solo divided by concurrent, so a state that cuts the numerator h
 - **No mechanism.** Turbo availability is the obvious candidate -- one session can boost, a hundred cannot -- and `processor_performance` does not support it here: it read 175.6, 111.8 and 95.4 across the three before-solos, moving opposite to their rates. That counter has [already failed to identify this state once](2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md).
 - **One bracket.** The 16.7% refusal is a single trial against an estimate that half of hour-apart pairs would exceed the allowance. It is consistent with that and it is n=1.
 - **The concurrent hold reports 72067 units evicted of 272067**, where every solo hold reports zero. `dropped_output` still reads held, so no gate condition is affected, but nothing here explains what eviction at a quarter of the units means and no other record mentions it.
+
+## There are two slow states, and a solo hold cannot tell them apart
+
+The section above says the slow state flatters the ratio. [A record from the same day says a slow box gives 3.958 against a rested 2.0654 -- 72% worse](2026-08-03-003443-the-footprint-result-was-the-machine.md). Both cannot be a fact about one state, so the two runs were set side by side:
+
+| | this run | the 3.958 run |
+|---|---:|---:|
+| solo, units/s/session | 13.891 *(holds spanned 9.801-15.271)* | 9.752 |
+| concurrent, units/s/session | 9.028 | 2.4636 |
+| **concurrent, units/s total** | **902.8** | **246.4** |
+| slowdown | 1.54, refused | 3.958, refused |
+
+**This run's hundred sessions produced 902.8 units/s against [the reference run's 907.1](2026-08-02-194155-eta-is-flat-where-it-was-said-to-fall.md) -- 0.5% apart.** Under load this machine was entirely normal, and only its lone session was depressed. The other run's hundred sessions produced a quarter of that.
+
+So there are two conditions wearing one name:
+
+- **Solo-slow.** A lone session runs about a third under, a hundred sessions run normally. The slowdown is solo over concurrent, so it reads **low** -- 1.54 here -- and the gate passes for the wrong reason.
+- **Machine-slow.** Everything is down, aggregate throughput to a quarter. The slowdown reads **high** -- 3.958 -- and the gate fails much harder than it should.
+
+**And the fingerprint does not separate them.** The other run's solo was 9.752; this run's own second after-hold was **9.801**, half a percent away. Two holds that agree to half a percent, taken in states whose effects on gate M1 point in opposite directions and differ by a factor of 2.6 in the ratio they produce.
+
+That is a correction to a rule this repository relies on. [The measurement index says what identifies the state is the workload's own rate](README.md), and the bracket's own reading procedure is built on comparing a side's rate against a rested figure. **A solo hold says that something is slow. It does not say what**, and the two answers move the gate in opposite directions.
+
+**What separates them is already recorded and was not being read**: the concurrent hold's own total throughput. 902.8 and 246.4 are not close to anything, where 13.891 and 9.752 sit in the same band. A run that takes both figures can tell which state it is in; a solo triple cannot, however many holds it averages.
+
+**What this does not establish.** Two runs, one of each state. Nothing here says how often either occurs, whether they share a cause, or whether a box can be in both at once -- and this run's solos spanning 9.801 to 15.271 inside eight minutes means a single solo triple may straddle more than one condition. The two-state reading is what two runs support; a third could make it three.
+
