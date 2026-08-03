@@ -680,6 +680,30 @@ impl HeldRun {
 /// apart where within either the spread was 2.8%. One solo pass before the run
 /// would be a baseline from a machine that may not still be there; two bracket
 /// it, and their gap is the control.
+///
+/// **The gap is a control and not a verdict on which machine you got.** Two
+/// baselines can agree because nothing moved, because the same tenant sat
+/// through both, or because the box was in a slower state for the whole run —
+/// [three under a tenant agreed to
+/// 2.7%](../../docs/measurements/2026-08-03-073401-three-baselines-agreed-to-under-three-percent-and-were-all-wrong.md)
+/// and [six inside a slow state to
+/// 5.0%](../../docs/measurements/2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md).
+/// Everything needed to tell those apart is in this artifact and no constant
+/// for it is stored, because the boundaries are one machine's:
+///
+/// 1. `before_rest_cores` and `after_rest_cores` say what else held the
+///    machine. Low on both sides is the only case where the rest of this
+///    report is about the sessions.
+/// 2. Each side's holds carry their own `units_per_session_per_sec`. Compare
+///    that to what one session does on **your** rested box, measured once and
+///    written down. On the box these were taken on, one session at
+///    `--duty 0.27 --resident 20` runs about 18.9 rested, 13.8 with ten or
+///    more cores held elsewhere, and 9.1 in a slow state that has lasted
+///    [over two and a half
+///    hours](../../docs/measurements/2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md).
+/// 3. **Note the order.** A crowded rested box outruns a quiet slow one, so a
+///    middling rate is not a middling machine, and only the pair of numbers
+///    names the state.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BracketedReport {
     pub before: Vec<HoldReport>,

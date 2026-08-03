@@ -153,3 +153,21 @@ That was the question the series was launched to answer, and it is answered in t
 
 **Read the previous section knowing this one exists.** It is left standing because it is what the thirteen points said, and because a dismissal that expires after two more readings is worth seeing whole.
 
+## Seventeen points, 214 minutes, and two series that behave differently
+
+Two more probes at forty-minute spacing, both still slow. The correlations recomputed at each sample size:
+
+| n | rest vs rate | time vs rest | time vs rate |
+|---|---|---|---|
+| 13 | −0.761 | +0.109 | −0.207 |
+| 15 | −0.859 | **+0.668** | −0.604 |
+| 17 | **−0.875** | **+0.433** | −0.318 |
+
+**One of these converges and the other wanders.** Rest against rate tightens monotonically as points arrive. The time confound went from nothing to strong to half of strong, moved each way by two readings — probe 10 came back at the lowest tenancy of the whole series, 1.06 cores, and the highest rate, 9.467.
+
+So the withdrawal two sections up was right for a reason slightly different from the one given there. It is not that the confound is real and the slope is not; it is that **a correlation over fifteen points is not a quantity you can act on**, and the one that moved 0.56 on two readings is exactly the one that was used to clear an objection.
+
+What survives is unchanged and does not depend on any of this: at 1.06 cores held — the quietest reading in 214 minutes — the machine still runs 9.467 against a rested band of 18.9. **A neighbour explains none of the halving.**
+
+**And the floor is now 214 minutes**, with the state present at the first reading and the last. Seventeen holds, rate 7.862 to 9.467, mean 8.950, and nothing anywhere has yet watched this state end. The *about ninety minutes* this project quoted is not a duration; it is the gap between one observation and the next one that happened to be normal.
+
