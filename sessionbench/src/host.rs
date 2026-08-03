@@ -90,7 +90,7 @@ pub struct HostFacts {
     ///
     /// **Recorded because the state they might name is worth 72% and nothing
     /// reports it.** This box runs a solo session in the high teens to about
-    /// 21 units/s rested and at **9.144, spread 5.0% over six holds**, in a
+    /// 21 units/s rested and at **8.997 over twenty holds spanning 340 minutes**, in a
     /// slower state — each state flat across its own samples, and the slow
     /// one steadier than the fast. A gate bracket ran entirely inside it with
     /// nothing in its artifact to say so.

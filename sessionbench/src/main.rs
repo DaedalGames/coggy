@@ -953,8 +953,8 @@ fn doctor(strict: bool) -> anyhow::Result<()> {
     }
 
     // **The other state, which nothing names.** A solo session runs in the
-    // high teens to about 21 units/s on this box rested and at 9.144 in a
-    // slower one, measured over six holds spreading 5.0%, and a gate bracket
+    // high teens to about 21 units/s on this box rested and at 8.997 in a
+    // slower one, measured over twenty holds across 340 minutes, and a bracket
     // ran entirely inside the slow one with nothing in its artifact to say so.
     // A tenant lands between the two at 13.8, so the order is the trap: a
     // crowded rested box outruns a quiet slow one. Whether either of these two figures distinguishes
