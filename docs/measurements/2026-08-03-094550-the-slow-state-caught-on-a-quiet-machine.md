@@ -303,3 +303,17 @@ So the rule's verdict means *stable across these ten minutes* and not *this is t
 
 **The session ends here.** The window `#56` needs — quiet *and* rested — never opened: every one of the twenty-nine holds taken today after the state appeared came back under 15.3, and rested on this box is 18.9.
 
+## Fourteen points say what no pair could: it did not go back
+
+Every pair in the last two hours was read on its own and each said only *stable across these ten minutes*. Read as a series — sliding two-hold means, in order — the same readings say more:
+
+```
+8.92 → 13.93 → 10.97 → 9.59 → 10.45 → 10.55 → 10.07 → 10.34 → 10.61 → 10.49 → 9.89
+```
+
+**The excursion is two windows wide and everything after it sits between 9.6 and 10.6.** What was written up as half an hour of wandering was the tail of one jump; the eight windows since span **1.0 units/s**, about 10% of themselves, which is the same relative width as the twenty-hold band that preceded all of this.
+
+**So the box did not return.** The original band ceiling is 9.435 and these eight sit above it — closer to it than to the excursion, and not on it. Rested is 18.9, so this is not recovery either. Whatever the machine is doing, it moved once and settled somewhere else.
+
+**This is the reading a pair cannot produce.** Four times in this record two holds were declared unable to say something, and each time that was true. Fourteen holds, taken two at a time over two hours for other reasons, say it between them — which is an argument for keeping cheap artifacts rather than for taking more of them: [nothing here was run to answer this question](../../CLAUDE.md).
+
