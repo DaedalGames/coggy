@@ -26,6 +26,8 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 **10 of 31**, and the bottleneck is not code — M1's work-rate condition is 3–4% short at every session weight, the sizing that follows is half a core, and the hour has never been attempted at the duty the gate is stated in.
 
+**The third obstacle is the measuring window itself, and it is newly measured rather than newly true.** A run whose verdict is a ratio needs a machine that is both quiet and rested, and those are different things: this box spends hours [quiet and running at half speed](docs/measurements/2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md), and hours quiet-looking while a third party takes eleven to thirteen cores. One session at the gate's own workload runs about 18.9 units/s rested, 13.8 under a tenant and 9.1 in the slow state — **so a crowded rested box outruns a quiet slow one and no single reading names the state.** Every hold now prints the cores held outside the job beside its rate, which is what makes the pair readable; `doctor` answers only the first half and answered it wrongly in both directions on the day this was found.
+
 | | done | |
 |---|---|---|
 | [M0 · attribution](#current-priority-m0--attribution) | **5 / 6** | gate G0 frozen |

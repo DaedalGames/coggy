@@ -171,3 +171,22 @@ What survives is unchanged and does not depend on any of this: at 1.06 cores hel
 
 **And the floor is now 214 minutes**, with the state present at the first reading and the last. Seventeen holds, rate 7.862 to 9.467, mean 8.950, and nothing anywhere has yet watched this state end. The *about ninety minutes* this project quoted is not a duration; it is the gap between one observation and the next one that happened to be normal.
 
+## Closing the series: nineteen points, 275 minutes, and the confound that was never there
+
+Two final probes fifty minutes apart, both still slow. The whole series:
+
+| n | rest vs rate | time vs rest | time vs rate |
+|---|---|---|---|
+| 13 | −0.761 | +0.109 | −0.207 |
+| 15 | −0.859 | +0.668 | −0.604 |
+| 17 | −0.875 | +0.433 | −0.318 |
+| **19** | **−0.875** | **+0.170** | **−0.010** |
+
+**Time explains nothing and tenancy explains what there is to explain.** The confound peaked at +0.668 on two readings and decayed to +0.170; time against rate ends at −0.010, which is no relationship at all. Rest against rate sat at −0.875 from seventeen points on and did not move.
+
+So the withdrawal three sections up was right and its stated reason was wrong. It said the confound is real and unseparable. It is not real — **it was two points**. What was right is the other half of that paragraph: a correlation over fifteen points is not a quantity to act on, and the thing used to clear an objection was the thing least able to bear the weight. Four snapshots of the same number, taken as it grew, span 0.56.
+
+**The neighbour slope survives as a correlation, still measured only in this state**, and the arithmetic that never depended on it is unchanged: at 1.03 cores held the machine runs 9.608 against a rested band of 18.9.
+
+**Final floor: 275 minutes**, nineteen holds, rate 7.862 to 9.608, mean 8.997, and the state present at the first reading and at the last. Nothing has ever watched it end. Tracking stops here because five hours of two-minute probes have said all a probe can say; what would settle the duration is a machine that is left alone and asked once an hour, which is not this session.
+
