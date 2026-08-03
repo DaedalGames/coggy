@@ -327,3 +327,20 @@ So the most durable thing measured on this box today is not a level but its abse
 
 **What the next session inherits** is therefore a rule rather than a number: the box was between 9.6 and 12.6 in the last two hours, it is not rested — 18.9 — and any figure taken from it describes the ten minutes it was taken in. The check before a run is the series, not a pair, and the series says this machine has not been still since its excursion.
 
+## Forty-two holds over 9.3 hours, and one of them was rested
+
+The session's last pair — 11.402 then 10.405, quiet at 1.26 and 1.18 — closes the series. Every one-session hold carrying the rest column, classified by its own two numbers:
+
+| | n | share |
+|---|---|---|
+| slow | 33 | 78.6% |
+| tenanted | 5 | 11.9% |
+| between the bands | 3 | 7.1% |
+| **rested** | **1** | **2.4%** |
+
+Two more rested holds exist — 17.561 and 21.405 — from before the column shipped, so they cannot be classified by the same rule and are excluded rather than counted twice. Either way the shape holds: **across 9.3 hours this box offered a rested two-minute window about as often as it offered anything else three times over.**
+
+**That is the number [gate M1's hour](../../ROADMAP.md#m1--headless-daemon) has to survive.** The run needs a rested machine for sixty consecutive minutes; the machine supplied one rested two-minute hold in a day of measuring. This was two observations at breakfast and is forty-two now, and it did not take a single run of its own — every hold was taken to answer something else and classified itself on the way past.
+
+**What made the tally possible is the same thing that made it late.** The rest column arrived this morning, so two of the three rested holds this box produced sit outside the count. A classification is only as old as the field it classifies on.
+
