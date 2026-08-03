@@ -115,3 +115,23 @@ Six holds over 13 minutes spread 5.0%; twelve over 88 spread 9.1%. So the width 
 
 **And the answer does not carry to a rested box.** Reading 9.1% as "the hold's noise floor" and applying it to the rested band was written down here and withdrawn a few minutes later: the rested figure of record is **4.54% over six minutes**, less than half of it, from twelve holds on a machine that was not in this state. A noise floor measured in one machine state is a fact about that state. It is the third instance of a rule this repository already carries in two forms — a conclusion drawn from a stand-in workload, then from a stand-in window, and now from a stand-in *state*.
 
+## A one-to-three-core neighbour is worth 3.2%, in this state
+
+The thirteen holds all sat in what today's other record calls the quiet band, but *quiet* there spans 1.07 to 2.86 cores held elsewhere. Sorted by that column, the rate follows it:
+
+| rest under 1.5 cores | rest 1.5 and over |
+|---|---|
+| n = 8, mean **9.176** | n = 5, mean **8.883** |
+
+**−3.2%**, correlation **−0.761** across the range.
+
+Three objections, and two die on the same artifacts:
+
+- **Time and tenancy might be entangled**, with later probes happening to be busier. They are not: time against rest is **+0.109**, and time against rate only −0.207. What predicts the rate is the neighbour, not the clock.
+- **One point at 2.86 cores might be carrying it.** Dropped, the correlation is still **−0.675** over the remaining twelve.
+- **It was measured in the slow state**, and this record spent a section arguing that a spread measured in one state does not carry to another. That objection stands and is not answerable from here.
+
+So: a neighbour of one to three cores moves a one-session hold, downward, by about three percent per core-and-a-half — **on a slowed machine**. Whether the rested machine has the same slope is what [the twelve-hold repeat](2026-08-03-081500-a-neighbour-costs-the-solo-baseline-twenty-seven-percent.md) still wants, and it now has a number to test against rather than an open question.
+
+**Why it matters at that size.** The gate misses its work-rate condition by 3–4%. `slowdown = solo ÷ concurrent`, so a neighbour suppressing the baseline by 3.2% moves the verdict by about as much as the verdict misses by, in the direction that flatters it. The exclusion earlier today cleared the gate's baselines of a *large* tenant and explicitly could not clear a small one; this is the first measurement of what a small one is worth.
+
