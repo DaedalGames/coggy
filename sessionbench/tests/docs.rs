@@ -105,8 +105,15 @@ fn anchors(body: &str) -> HashSet<String> {
 /// *"[four readings give 1.865 GiB](record.md)"* asserts a figure, and the
 /// assertion is checkable against the file it points at.
 fn links(body: &str) -> Vec<(String, String)> {
+    // **Fences are decided per line; links are not.** A label whose opening
+    // bracket sits on one line and whose target sits on the next was found by
+    // its target and handed the figure check an empty label, so the target got
+    // verified while the claim beside it did not. 38 of 725 links here wrap and
+    // 12 of those carry a figure. Doing both passes at once broke the fence
+    // state, which cost this test three of the links it had: strip fenced
+    // blocks line by line first, then scan the remainder as one string.
     let mut fenced = false;
-    let mut found = Vec::new();
+    let mut prose = String::new();
     for line in body.lines() {
         if line.trim_start().starts_with("```") {
             fenced = !fenced;
@@ -115,26 +122,36 @@ fn links(body: &str) -> Vec<(String, String)> {
         if fenced {
             continue;
         }
-        let chars: Vec<char> = line.chars().collect();
-        let mut i = 0;
-        while i + 1 < chars.len() {
-            let opens_link = chars[i] == ']' && chars[i + 1] == '(';
-            let close = chars[i + 2..].iter().position(|c| *c == ')');
-            if let (true, Some(end)) = (opens_link, close) {
-                let target: String = chars[i + 2..i + 2 + end].iter().collect();
-                // The label is whatever sits inside the nearest `[` before
-                // this `]`; nested brackets are rare enough in these
-                // documents that the nearest one is the right one.
-                let label = chars[..i]
-                    .iter()
-                    .rposition(|c| *c == '[')
-                    .map(|open| chars[open + 1..i].iter().collect())
-                    .unwrap_or_default();
-                found.push((label, target));
-                i += end + 2;
-            }
-            i += 1;
+        let t = line.trim_start();
+        // A doc comment's marker is not part of the prose it carries.
+        let t = t
+            .strip_prefix("///")
+            .or_else(|| t.strip_prefix("//!"))
+            .unwrap_or(t);
+        prose.push_str(t);
+        prose.push(' ');
+    }
+
+    let chars: Vec<char> = prose.chars().collect();
+    let mut found = Vec::new();
+    let mut i = 0;
+    while i + 1 < chars.len() {
+        let opens_link = chars[i] == ']' && chars[i + 1] == '(';
+        let close = chars[i + 2..].iter().position(|c| *c == ')');
+        if let (true, Some(end)) = (opens_link, close) {
+            let target: String = chars[i + 2..i + 2 + end].iter().collect();
+            // The label is whatever sits inside the nearest `[` before this
+            // `]`; nested brackets are rare enough here that the nearest one
+            // is the right one.
+            let label = chars[..i]
+                .iter()
+                .rposition(|c| *c == '[')
+                .map(|open| chars[open + 1..i].iter().collect())
+                .unwrap_or_default();
+            found.push((label, target.trim().to_string()));
+            i += end + 2;
         }
+        i += 1;
     }
     found
 }

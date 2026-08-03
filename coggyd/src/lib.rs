@@ -90,9 +90,13 @@ fn expand(argv: &[String], id: u64) -> Result<Vec<String>> {
 /// 13.1 GB across a hundred sessions, against [a gate written for
 /// four](../../ROADMAP.md#m1--headless-daemon). [`DEFAULT_SCROLLBACK_BYTES`]
 /// is what bounds the content; this bounds the fixed cost of holding it, which
-/// [an hour-long hold put at roughly 90 bytes a
+/// [an hour-long hold of `ping` put at about 130 B a
 /// line](../../docs/measurements/2026-08-01-103225-an-hour-of-a-hundred-sessions.md)
-/// on top of whatever the line itself carries.
+/// on top of whatever the line itself carries — **and it is not a constant**,
+/// since [the same subtraction against `cpu-spin` gives 21.06 B a
+/// line](../../docs/measurements/2026-08-01-202112-gate-m1-at-twenty-minutes.md).
+/// This said 90 until a widened link checker read it: a figure that is in
+/// neither record, cited to the one whose own two routes agree on 130.
 ///
 /// What neither may do is grow with the session's lifetime, which is how a
 /// supervisor of long-lived sessions runs out of memory without anything
