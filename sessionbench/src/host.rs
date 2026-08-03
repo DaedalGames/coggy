@@ -102,6 +102,19 @@ pub struct HostFacts {
     /// instant](../../docs/measurements/2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md)
     /// rather than inferred from a rate alone.
     ///
+    /// **And the slow state is two states, which no field here separates and
+    /// no solo hold can.** Two runs whose solo holds agree to half a percent,
+    /// 9.752 and 9.801, held a hundred sessions at 246.4 and 902.8 units/s —
+    /// one machine crippled under load, one within 0.5% of its rested
+    /// reference with only the lone session down. They move gate M1's
+    /// slowdown in opposite directions, 3.958 against a 1.54 that *passes* a
+    /// condition asking for 2, so the 72% above belongs to the crippled one
+    /// rather than to "the slow state". What separates them is a concurrent
+    /// hold's own total throughput, [bimodal across all nine on disk with
+    /// nothing in the 3.1× gap](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md)
+    /// — a figure this struct cannot carry, because it is a property of a run
+    /// rather than of a host.
+    ///
     /// **Neither field has been shown to distinguish the two, and on this box
     /// one of them cannot.** `thermal_c` reads **39.1 °C in every artifact**
     /// — idle, and at the end of twenty minutes of a hundred saturating
