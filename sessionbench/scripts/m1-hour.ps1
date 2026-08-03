@@ -202,6 +202,15 @@ $gap = [Math]::Abs($probe[0] - $probe[1]) / (($probe[0] + $probe[1]) / 2) * 100
 # precede reports a slowdown 72% higher. So the agreement is necessary and
 # says nothing about the state; the level does.
 $mean = ($probe[0] + $probe[1]) / 2
+# **A mean of two that disagree names nothing**, and this block used to run
+# before the agreement check below. On 2026-08-03 a quiet box gave 15.216 then
+# 12.636 in consecutive holds -- 18.6% apart, mean 13.9, which points at the
+# tenanted band while neither reading was tenanted. Say the pair, and let the
+# refusal below have the last word on whether the mean was worth forming.
+"probes: {0:N3} and {1:N3} units/s, {2:N1}% apart" -f $probe[0], $probe[1], $gap
+if ($gap -gt 5) {
+    "  they disagree, so the level below names a band the machine may not be in"
+}
 if ($mean -lt 15) {
     "NOTE: {0:N1} units/s is not the rested state (~19-21). Three bands were" -f $mean
     "      measured on this box on 2026-08-03, all at this workload:"
