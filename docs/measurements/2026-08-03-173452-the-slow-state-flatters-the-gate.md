@@ -95,3 +95,27 @@ That is a correction to a rule this repository relies on. [The measurement index
 
 **What this does not establish.** Two runs, one of each state. Nothing here says how often either occurs, whether they share a cause, or whether a box can be in both at once -- and this run's solos spanning 9.801 to 15.271 inside eight minutes means a single solo triple may straddle more than one condition. The two-state reading is what two runs support; a third could make it three.
 
+## Nine hundred-session holds, two clusters, nothing between them
+
+The section above rests on two runs. Every hundred-session hold on disk was then read the same way -- `units_per_session_per_sec` times `sessions`, from `hold.json` and from each `bracket.json`'s concurrent phase:
+
+| run | per session | **total units/s** |
+|---|---:|---:|
+| `r33-rested` | 10.548 | 1054.8 |
+| `r36-rested` | 10.499 | 1049.9 |
+| `tickpair` | 10.498 | 1049.8 |
+| `clockpair-load` | 10.283 | 1028.3 |
+| `m1` | 9.336 | 933.6 |
+| `slowstate-ratio` (this run) | 9.028 | 902.8 |
+| `eta-at-33` | 2.875 | 287.5 |
+| `r20-slow-regime` | 2.464 | 246.4 |
+| `loadgen` | 2.165 | 216.5 |
+
+**Six between 903 and 1055, three between 217 and 288, and nothing in the 3.1x gap between.** Nine runs taken across days for unrelated purposes, and not one lands in the middle. So machine-slow is a state with a boundary rather than a bad afternoon, and it is legible in any hundred-session hold without a baseline, a bracket or a comparison.
+
+**Three of nine were taken in it**, and two of those three are where [3.958 and 3.261](2026-08-03-003443-the-footprint-result-was-the-machine.md) come from -- the figures quoted for what the state costs the gate. They are that, and they are also slowdowns measured on a machine running at a quarter of its throughput, which is not the machine gate M1 is asked about.
+
+**And the concurrent hold is the quiet instrument.** `r33-rested`, `r36-rested` and `tickpair` agree to **0.5%** across three separate runs -- tighter than any solo agreement recorded here, where a single bracket's own triple spread 21.5% and 36.8% on the same afternoon. A hundred sessions average over the placement noise that dominates one. The project has been naming the machine's state with the noisier of the two numbers it already collects.
+
+**What this does not establish.** Nine runs is a distribution, not a mechanism, and the labels are workloads run for other reasons -- `loadgen` is not this record's workload, so its 216.5 is in the low cluster without being comparable to the others in the same way. The clean gap is what nine points support; where the boundary sits, and whether a run can cross it mid-hold as [one already did](2026-08-03-003443-the-footprint-result-was-the-machine.md), they do not.
+
