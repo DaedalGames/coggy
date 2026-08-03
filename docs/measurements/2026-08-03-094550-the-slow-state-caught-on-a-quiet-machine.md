@@ -236,3 +236,24 @@ So the rule needs its second half: **same band is necessary and not sufficient, 
 
 That is the fourth correction this record has made to a rule stated in it, and every one came from the next two readings rather than from an argument. **The window did not open in this session.** Six points after the excursion say the box is somewhere between its slow state and its rested one, moving, and no pair taken two minutes at a time has caught it still.
 
+## Forty minutes of not settling, and a rule that earned its second half twice
+
+The tightened rule — one band **and** within a few percent — was applied again fifteen minutes later. Two more holds, detached:
+
+| | rate | rest |
+|---|---|---|
+| pair3 1 | 10.064 | 1.16 |
+| pair3 2 | 10.615 | 1.22 |
+
+**5.3% apart.** Same band, and refused. Under the rule as first written — same band is enough — this pair passes too, so the correction has now caught two pairs in two applications.
+
+The full sequence since the excursion, quiet throughout at 0.87 to 2.01 cores held:
+
+```
+15.216 · 12.636 · 9.299 · 9.874 · 11.022 · 10.074 · 10.064 · 10.615
+```
+
+**Forty minutes, eight readings, and no pair inside 5%.** The last four sit between 10.0 and 11.0, which is above the settled band's ceiling of 9.435 — but that band spans 9.6% of itself, so a tenth above its top is inside the noise it already carries. **Whether the level moved is open**; what is measured is that the box has not held still long enough for a pair to agree.
+
+**And that is the session's answer to its own question.** The window `#56` needs never opened. Twenty readings said the state was flat and unmoving; eight more, taken after one excursion, say it is neither. Both are the same box within six hours, and the only instrument that told them apart was two holds instead of one.
+
