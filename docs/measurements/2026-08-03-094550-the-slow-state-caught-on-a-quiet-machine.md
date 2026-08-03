@@ -39,7 +39,7 @@ The 9.4 this project has quoted for the slow state turns out to be the **top** o
 
 ## What put the box here
 
-Unmeasured, and the candidates are not exotic: this machine spent the afternoon under a hundred saturating sessions of our own, a third-party tenant at 99%, and repeated full test runs. The state is bracketed at somewhere between twenty and forty-one minutes of saturation to induce, and about ninety minutes to pass. Today cleared that bar several times over.
+Unmeasured, and the candidates are not exotic: this machine spent the afternoon under a hundred saturating sessions of our own, a third-party tenant at 99%, and repeated full test runs. The state is bracketed at somewhere between twenty and forty-one minutes of saturation to induce, and about ninety minutes to pass. Today cleared that bar several times over. **Narrowed at the end of this record**: the timeline puts this box rested nineteen minutes after our own saturating hold, so that load is excluded for this instance.
 
 ## What it costs the gate
 
@@ -62,3 +62,29 @@ It was the opportunistic first half of [the twelve-hold repeat](2026-08-03-08150
 ## The reading was fixed before the run, and named this outcome least likely
 
 Three branches were written down first: four or more quiet holds tight together gives the fingerprint; rates moving with the rest figure means a tenant; **rates moving while the rest stays quiet means suspect the box** — recorded at the time as "the most interesting and the least likely". It arrived, and the note is what makes it a prediction rather than a preference.
+
+## The timeline says our own saturation did not cause it
+
+Minutes are from the start of a deliberate hundred-session hold, which ran for 150 seconds.
+
+| | run | rate | rest |
+|---|---|---|---|
+| +0.0 | 100 sessions, saturating | 2.165 | 13.60 |
+| **+19.1** | 1 session | **20.295** | **1.24** |
+| +21.6 | 1 session | 15.709 | 13.40 |
+| +24.3 | 1 session | 13.418 | 10.47 |
+| +99.7 | 1 session | 8.994 | 1.92 |
+| … | four more | 8.95–9.41 | 1.07–1.56 |
+| +113.0 | 1 session | 8.980 | 1.25 |
+| **+128.3** | 1 session | **8.606** | **2.86** |
+
+**Nineteen minutes after the saturating hold this box was rested**, at the top of the rested band with nothing else running. So the 150-second load did not induce the state — a third negative beside the three-minute and twenty-minute bursts that also failed.
+
+**What ran between +24 and +99 was not ours.** A third-party tenant held eleven to thirteen cores across that window, in bursts of minutes, alongside repeated compiles. The state was present by +99.7 and has held since.
+
+That is worth stating carefully. It does not show the tenant caused it; nothing was controlled and compiles ran too. What it does show is that **the inducing load need not be a hundred sessions of our own**, which is how every earlier attempt was framed, and that a machine can arrive in this state while nobody is running a benchmark on it.
+
+**Duration gets a floor from inside a single observation for the first time.** Slow at +99.7 and still slow at +128.3 is **at least 28.6 minutes**, ongoing. The *about ninety minutes* this project quotes came from one earlier observation; this one is not finished and cannot yet confirm or refute it.
+
+**And 8.606 sits below the six-hold band.** One point, 3.9% under the band's minimum, taken fifteen minutes after it. Whether the state deepens or that is a hold's own noise needs more than one reading — the band's own spread is 5.0%, so it does not clear it.
+
