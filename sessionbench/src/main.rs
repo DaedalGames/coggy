@@ -481,7 +481,7 @@ fn main() -> anyhow::Result<()> {
                 println!("\nINCONCLUSIVE: {why}");
             }
             println!(
-                "\n  sessions   {} (fewest alive {:?})\n  window     {} ms counted of {} ms held\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  occupancy  {}{}\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?} ({} failed reads)\n  replaced   {:?}",
+                "\n  sessions   {} (fewest alive {:?})\n  window     {} ms counted of {} ms held\n  peak rss   {} of {}\n  units      {:?} in {} bytes\n  rate       {} units/s/session\n  total      {} units/s across all sessions\n  occupancy  {}{}\n  rss        {:?}\n  work rate  {:?}\n  dropped    {:?} ({} failed reads)\n  replaced   {:?}",
                 report.sessions,
                 report.fewest_running,
                 // The rate's real denominator beside the one people assume it
@@ -504,6 +504,24 @@ fn main() -> anyhow::Result<()> {
                 report
                     .units_per_session_per_sec
                     .map_or_else(|| "—".to_string(), |r| format!("{r:.3}")),
+                // **The state fingerprint, which was on disk in nine runs
+                // before anything printed it.** Read across every
+                // hundred-session hold here this figure is bimodal — six
+                // between 903 and 1055 units/s, three between 217 and 288,
+                // nothing in the 3.1× gap — so a machine running at a quarter
+                // speed is legible from one hold, with no baseline and no
+                // bracket. The per-session rate above cannot do that: two
+                // solos agreeing to half a percent sat on boxes 3.7× apart
+                // [here](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md).
+                //
+                // Printed rather than judged. The clusters are one laptop's,
+                // and a threshold taken from them would travel to machines
+                // whose boundary is somewhere else entirely.
+                report
+                    .units_per_session_per_sec
+                    .map_or_else(|| "—".to_string(), |r| {
+                        format!("{:.1}", r * f64::from(report.sessions))
+                    }),
                 // **Median first, and the loss beside it.** A mean alone read
                 // three holds as a footprint effect on the workload when one of
                 // them had simply lost the machine for two multi-minute
