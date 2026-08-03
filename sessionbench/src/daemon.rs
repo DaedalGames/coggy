@@ -697,7 +697,8 @@ impl HeldRun {
 /// 2. Each side's holds carry their own `units_per_session_per_sec`. Compare
 ///    that to what one session does on **your** rested box, measured once and
 ///    written down. On the box these were taken on, one session at
-///    `--duty 0.27 --resident 20` runs about 18.9 rested, 13.8 with ten or
+///    `--duty 0.27 --resident 20` runs about 18.9 rested — **two holds, the
+///    thinnest of the three** — 13.8 with ten or
 ///    more cores held elsewhere, and 9.1 in a slow state that has lasted
 ///    [over two and a half
 ///    hours](../../docs/measurements/2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md).

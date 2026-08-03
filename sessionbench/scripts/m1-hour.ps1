@@ -214,7 +214,7 @@ if ($gap -gt 5) {
 if ($mean -lt 15) {
     "NOTE: {0:N1} units/s is not the rested state (~19-21). Three bands were" -f $mean
     "      measured on this box on 2026-08-03, all at this workload:"
-    "        rested          18.9   (quiet, 1-3 cores held elsewhere)"
+    "        rested          18.9   (quiet, 1-3 cores held; TWO HOLDS ONLY)"
     "        a tenant        13.8   (10-13 cores held elsewhere)"
     "        the slow state   9.1   (quiet, and half speed anyway)"
     "      So the level names the cause on its own here, and the background"
