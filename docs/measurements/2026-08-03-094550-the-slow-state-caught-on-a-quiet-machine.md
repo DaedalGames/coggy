@@ -55,9 +55,11 @@ It was the opportunistic first half of [the twelve-hold repeat](2026-08-03-08150
 
 | | |
 |---|---|
-| Inputs | `bench-out/*-q1-daemon` through `q6` |
+| Inputs | `bench-out/*-q1-daemon` through `q6` — **for the six holds above only.** This record grew thirteen sections past this point and now rests on more than forty one-session holds; the later inputs are named in the sections that use them. |
 | Machine | on mains; a watcher had passed two consecutive 30 s windows with no sample above 30%, judged on the worst sample rather than the mean |
-| Commit | `bee3133` |
+| Commit | `bee3133` — the state at the six holds. Later sections were written against later commits, each named in its own text where it matters. |
+
+**This block sits mid-document because the document outgrew it.** It is left where it was written rather than moved, because a log's shape is part of what it records — but a reader arriving at it should know that everything below is a different, larger measurement than the one it describes.
 
 ## The reading was fixed before the run, and named this outcome least likely
 
