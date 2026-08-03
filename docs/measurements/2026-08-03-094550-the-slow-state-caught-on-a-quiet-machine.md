@@ -395,3 +395,25 @@ So the hour is not a run that might fail its conditions. It is a run whose instr
 
 **What this does not establish**: how often the box moves. One refusal in a five-minute window is an existence proof, not a rate, and this record has three times today written up a level that the next reading broke. What follows from it is that the hour needs its transition risk measured before it is booked, not that it is impossible.
 
+## The hour is a coin flip, and the series on disk says so
+
+[The previous section](#the-hours-obstacle-is-exposure-not-induction) argued the hour would be invalidated by the box moving under it, on the strength of one 53% bracket refusal. **The series disagrees, and it was on disk the whole time.**
+
+Fifty-one one-session holds carry `started_unix` and a rate, spanning **12.42 hours**; 47 also carry the rest column. Read in order they show something no single hold can: from `q1` onward the box is quiet and slow **continuously, with no return to the rested band** — 36 quiet non-rested holds across **7.62 hours** and **not one state exit**. The 53% refusal came from a different run on a different day. So the slow state is the most persistent thing this box offers, and exposure to a state change is not what threatens the hour.
+
+**What threatens it is wander inside the state.** Taking every pair of quiet slow holds separated by roughly an hour:
+
+| Gap between holds | Pairs | Median disagreement | Worst | Over the 5% allowance |
+|---|---:|---:|---:|---:|
+| Adjacent, under 5 min | 17 | 6.2% | 35.9% | 59% |
+| About an hour, 50–70 min | 42 | 5.6% | 31.0% | 52% |
+| About two hours | 37 | 9.8% | 46.2% | 81% |
+
+The hour's bracket takes solo baselines before and after and refuses when they disagree past 5%. Over that hour, inside one state, on a quiet machine, **the median disagreement is already 5.6% and half of all such pairs exceed the allowance**. Nothing needs to go wrong.
+
+The adjacent row explains why that allowance is what it is: two single holds taken minutes apart already differ by 6.2% at the median, so 5% was never a claim about single holds — it is calibrated for sides that are each a **mean of three**, which averages the wander down without removing it.
+
+**So the hour is priced rather than blocked.** A single attempt has roughly even odds of being refused by its own bracket for reasons unrelated to what it is measuring, which makes the expected cost about two attempts — and on this box a failed attempt is not cheap. The lever is the baseline design rather than the calendar: more holds a side buys agreement that waiting for a better afternoon does not.
+
+**What this does not say.** The pairs overlap, so they are not independent, and the hour-gap set spans the two settled windows this record describes elsewhere — both push the figure up. It is an upper-ish estimate from one box on one day, and the direction it points is what matters rather than the second digit. It also says nothing about whether the slow state distorts the ratio the condition is stated in, only about whether the bracket will accept the run at all.
+
