@@ -190,3 +190,11 @@ So the withdrawal three sections up was right and its stated reason was wrong. I
 
 **Final floor: 275 minutes**, nineteen holds, rate 7.862 to 9.608, mean 8.997, and the state present at the first reading and at the last. Nothing has ever watched it end. Tracking stops here because five hours of two-minute probes have said all a probe can say; what would settle the duration is a machine that is left alone and asked once an hour, which is not this session.
 
+## A twentieth reading, and the decision to stop asking
+
+Forty-five minutes after the series closed, one more 120-second hold: **8.644 units/s at 2.60 cores held.** Still the slow state, now **at least 340 minutes** from the first reading.
+
+Twenty questions, twenty identical answers, no trend and no end. **Continuing is hope rather than measurement** — the state is flat, nothing in the series predicts its end, and each probe spends two minutes of the machine it is watching. What would settle the duration is a box left alone and asked once an hour, which is not a session that also wants to run holds.
+
+So the window this was waiting for does not open today, and that is a result: **a run whose verdict is a ratio can be blocked for the better part of a day on this hardware**, by a condition that reports nothing and that `doctor` cannot see. The check costs one hold, the answer arrives in two minutes, and on 2026-08-03 it was the same answer twenty times.
+
