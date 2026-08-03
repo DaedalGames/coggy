@@ -222,12 +222,21 @@ if ($mean -lt 15) {
     "      does not. Note the order -- a CROWDED RESTED box outruns a QUIET"
     "      SLOW one, so a middling figure is not a middling machine."
     if ($mean -lt 11.5) {
-        "      This one is the slow state. Waiting an hour fixes it; nothing else does."
+        "      This one is a slow state -- and there are TWO, which this level"
+        "      cannot tell apart. On 2026-08-03 solo holds of 9.752 and 9.801,"
+        "      half a percent apart, sat on boxes whose hundred sessions ran"
+        "      246.4 and 902.8 units/s: one crippled under load, one 0.5% from"
+        "      its rested reference with only the lone session down."
+        "      They push the slowdown OPPOSITE WAYS -- 3.958, and 1.54 which"
+        "      PASSES a gate asking for 2, for the wrong reason. So do not"
+        "      expect a high reading here, and do not read a low one as recovery."
+        "      Waiting an hour is still the only lever; the run's own total"
+        "      throughput is what says which state it was taken in."
     } elseif ($mean -lt 16.5) {
         "      This one is a tenant. Find it before spending the hour."
     }
-    "      The run will complete and its slowdown will read high. Let the box sit"
-    "      for an hour if the figure is meant to be compared with a rested one."
+    "      Let the box sit for an hour if the figure is meant to be compared"
+    "      with a rested one."
 }
 if ($gap -gt 5) {
     "REFUSING: two fresh solo holds sit {0:N1}% apart, past the 5% the run will be judged by." -f $gap

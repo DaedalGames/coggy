@@ -952,20 +952,27 @@ fn doctor(strict: bool) -> anyhow::Result<()> {
         None => println!("\n  power state unknown — see query errors"),
     }
 
-    // **The other state, which nothing names.** A solo session runs in the
-    // about 18.9 units/s on this box rested and at 8.997 in a
-    // slower one, measured over twenty holds across 340 minutes, and a bracket
-    // ran entirely inside the slow one with nothing in its artifact to say so.
-    // A tenant lands between the two at 13.8, so the order is the trap: a
-    // crowded rested box outruns a quiet slow one. Whether either of these two figures distinguishes
-    // them is unknown — the run that tried could not induce the slow state, so
-    // both its phases sampled the fast one. They print because the state has
-    // to be caught rather than ordered, and a number nobody is collecting
-    // cannot be checked against the next occurrence.
+    // **The other state, which nothing names.** A solo session runs about
+    // 18.9 units/s on this box rested and 8.997 in a slower one, measured over
+    // twenty holds across 340 minutes, and a bracket ran entirely inside the
+    // slow one with nothing in its artifact to say so. A tenant lands between
+    // the two at 13.8, so the order is the trap: a crowded rested box outruns
+    // a quiet slow one. Whether either of these two figures distinguishes them
+    // is unknown — the run that tried could not induce the slow state, so both
+    // its phases sampled the fast one. They print because the state has to be
+    // caught rather than ordered, and a number nobody is collecting cannot be
+    // checked against the next occurrence.
+    //
+    // **And a solo rate does not name it either**, which is why the line below
+    // no longer says it does. Two runs whose solo holds agree to half a
+    // percent, 9.752 and 9.801, held a hundred sessions at 246.4 and 902.8
+    // units/s — one machine crippled under load, one entirely normal with only
+    // its lone session down. Nothing `doctor` reads separates those, and only
+    // a concurrent hold does.
     match (facts.thermal_c, facts.processor_performance) {
         (None, None) => {}
         (c, p) => println!(
-            "  thermal {} · cores clocking at {} of nominal — neither names the slow state on this box; a solo hold's own rate does",
+            "  thermal {} · cores clocking at {} of nominal — neither names the slow state on this box, and nor does a solo rate: only a hundred-session hold's own throughput separates a slow machine from a slow solo",
             c.map(|c| format!("{c:.1} °C")).unwrap_or("—".into()),
             p.map(|p| format!("{p:.0}%")).unwrap_or("—".into()),
         ),

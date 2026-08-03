@@ -720,6 +720,17 @@ impl HeldRun {
 ///    Take the threshold from your own machine's adjacent-pair distribution —
 ///    here it would be about 6.5%, which separates a tight group reaching
 ///    0.1% from a tail at 9% and up.
+/// 5. **The solo holds say something is slow, never what — read
+///    `concurrent.units` against your own hundred-session reference.** Two runs
+///    on this box had solo holds agreeing to half a percent, 9.752 and 9.801,
+///    and hundred-session throughputs of **246.4 and 902.8 units/s**. The
+///    second is 0.5% from the rested reference, so that machine was entirely
+///    normal under load and only its lone session was depressed; the first was
+///    at a quarter. They move the slowdown in **opposite** directions — 3.958
+///    where a rested box gives 2.0654, and 1.54 the other way, which passes a
+///    gate asking for 2 for the wrong reason. No number of solo repeats
+///    separates them, because the ambiguity is not
+///    [noise](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BracketedReport {
     pub before: Vec<HoldReport>,
