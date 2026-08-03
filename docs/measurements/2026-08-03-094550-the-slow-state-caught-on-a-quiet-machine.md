@@ -286,3 +286,20 @@ Two more holds, and this time they agree: **10.599 and 10.389, 2.00% apart**, bo
 
 **The threshold change bought nothing here, which is the honest way to record it.** The pair rule's "few percent" was retuned from a borrowed 5% to about 6.5% on the measured distribution of adjacent pairs. This pair is 2.00% apart and passes either one. So the retune is derived from a measurement and has not yet reversed a verdict; what it is for is pairs like the 5.3% one refused an hour earlier, and none has arrived since.
 
+## Thirty minutes later the level had moved, and the pair rule passed anyway
+
+The three holds at 10.5 were left alone for half an hour and re-measured:
+
+| | rate | rest |
+|---|---|---|
+| pair5 1 | 9.682 | 0.93 |
+| pair5 2 | 10.099 | 0.95 |
+
+**4.2% apart, same band, quiet — so the pair rule calls this settled**, and it also called the 10.5 triple settled thirty minutes earlier. The two "settled" readings are **8.7% apart from each other**.
+
+So the rule's verdict means *stable across these ten minutes* and not *this is the level*. Two windows can each be internally tight and sit well apart, which is the same thing twenty holds over 340 minutes said before one reading hit 15.216 — **tightness is a property of the window you looked through.**
+
+**What the box actually did**, across the whole session: 8.6–9.4 for 340 minutes, an excursion to 15.2, half an hour of wandering, a quarter hour at 10.5, and now 9.7–10.1 — sitting just above the original band's ceiling of 9.435. It may be returning to where it started. Two readings cannot say, which is the same sentence this record has written four times, and the reason it keeps being true is that two readings is what a two-minute check buys.
+
+**The session ends here.** The window `#56` needs — quiet *and* rested — never opened: every one of the twenty-nine holds taken today after the state appeared came back under 15.3, and rested on this box is 18.9.
+
