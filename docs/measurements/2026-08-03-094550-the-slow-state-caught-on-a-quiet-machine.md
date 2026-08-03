@@ -88,3 +88,30 @@ That is worth stating carefully. It does not show the tenant caused it; nothing 
 
 **And 8.606 sits below the six-hold band.** One point, 3.9% under the band's minimum, taken fifteen minutes after it. Whether the state deepens or that is a hold's own noise needs more than one reading — the band's own spread is 5.0%, so it does not clear it.
 
+## Twelve points, 88.4 minutes, and the end was never seen
+
+Six back-to-back holds, then a probe every twelve minutes until the watch expired. Every one quiet — 1.07 to 2.86 cores held by anything else — and every one in the slow band.
+
+| minutes | rate | rest | | minutes | rate | rest |
+|---|---|---|---|---|---|---|
+| 0.0 | 8.994 | 1.92 | | 28.6 | 8.606 | 2.86 |
+| 2.7 | 8.954 | 1.39 | | 37.6 | 9.435 | 1.08 |
+| 5.4 | 9.253 | 1.07 | | 50.3 | 8.868 | 1.19 |
+| 8.0 | 9.275 | 1.56 | | 63.0 | 8.817 | 1.79 |
+| 10.7 | 9.412 | 1.07 | | 75.7 | 9.346 | 1.11 |
+| 13.3 | 8.980 | 1.25 | | 88.4 | 9.164 | 1.49 |
+
+**Mean 9.092, spread 9.1% over 88.4 minutes.**
+
+**This is a floor, not a duration.** The state was present at the first reading and at the last; nothing here saw it end. *About ninety minutes* has been quoted from one earlier instance where the next measurement happened to be normal — a gap, not a transition. **Neither observation has watched this state stop.**
+
+What the floor is worth is a decision rather than a description: a gate hour that fails and slows the box cannot be retried for at least an hour and a half, and that is now measured rather than assumed.
+
+**Flat across an hour and a half.** The series does not trend — 9.4 at 37 minutes, 8.8 at 63, 9.2 at 88. Whatever this is, it neither deepens nor lifts while it holds, which is what "two steady levels rather than a decay" has meant since the state was first described, now with twelve points instead of two.
+
+### The spread grew and then stopped, and it does not travel
+
+Six holds over 13 minutes spread 5.0%; twelve over 88 spread 9.1%. So the width belongs to the window, not to the machine — the same shape as [a solo rung reproducing to 0.37% inside one ladder against 8.5% between two triples ten minutes apart](2026-08-01-163935-what-the-harness-says-about-itself.md). It stopped growing after about an hour, which is either a bounded wander or this workload's own floor at that length.
+
+**And the answer does not carry to a rested box.** Reading 9.1% as "the hold's noise floor" and applying it to the rested band was written down here and withdrawn a few minutes later: the rested figure of record is **4.54% over six minutes**, less than half of it, from twelve holds on a machine that was not in this state. A noise floor measured in one machine state is a fact about that state. It is the third instance of a rule this repository already carries in two forms — a conclusion drawn from a stand-in workload, then from a stand-in window, and now from a stand-in *state*.
+
