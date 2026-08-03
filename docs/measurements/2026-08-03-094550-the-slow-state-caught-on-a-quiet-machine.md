@@ -198,3 +198,24 @@ Twenty questions, twenty identical answers, no trend and no end. **Continuing is
 
 So the window this was waiting for does not open today, and that is a result: **a run whose verdict is a ratio can be blocked for the better part of a day on this hardware**, by a condition that reports nothing and that `doctor` cannot see. The check costs one hold, the answer arrives in two minutes, and on 2026-08-03 it was the same answer twenty times.
 
+## An excursion, and the flatness that was a marker stops being one
+
+The section above stopped asking after twenty identical readings. One more was taken anyway — two minutes against a five-hour wait is a positive expectation whatever the odds — and it came back **outside every band this record had drawn**.
+
+| | rate | cores held elsewhere |
+|---|---|---|
+| window-check-2 | **15.216** | 2.01 |
+| transit 1 | 12.636 | 1.39 |
+| transit 2 | 9.299 | 0.87 |
+| transit 3 | 9.874 | 0.93 |
+
+Four holds inside about ten minutes, the machine quiet throughout and getting quieter. **15.216 is 58% above the slow band's ceiling of 9.608**, and by the fourth hold it is back inside it.
+
+**What this costs the earlier reading is the flatness.** Twenty holds over 340 minutes sat between 8.606 and 9.435 and did not trend; that steadiness was written up here as the state's own property — *steadier than the fast machine is*. It moved 39% in ten minutes. So flatness described 340 minutes of it and is not a marker of the state.
+
+**And the tenancy relation runs the other way here.** Across those four the machine gets quieter — 2.01, 1.39, 0.87, 0.93 cores held — while the rate falls. The nineteen-point series gave rest against rate at −0.875; these four are positive. Four points establish nothing, which is the same reason the −0.875 was not treated as a cause, but they do rule out reading this excursion as a neighbour leaving.
+
+**No mechanism is claimed.** What was measured is that a machine locked at half speed for five and a half hours reached 15.2 for at least one two-minute window with nothing else running, and returned. Whether that is the state ending and re-forming, a sampling artifact of something with a period longer than two minutes, or an excursion that means nothing, four holds cannot say.
+
+**What it does settle is a procedure.** A single 120-second hold names a band, and that band is what several checks here now key on. This sequence shows a single hold landing 58% away from where the next one lands. **The check is cheap enough to repeat, so repeat it** — one reading opens a window, two agreeing ones justify spending fifteen minutes in it.
+
