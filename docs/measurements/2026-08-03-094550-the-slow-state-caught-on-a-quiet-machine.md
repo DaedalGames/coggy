@@ -375,3 +375,23 @@ with two more in the excursion's own tail. **No pair has ever held the twelves.*
 
 **The session's last state**: quiet at 1.19 cores held, running 9.967, which is the slow band. Forty-seven one-session holds, 9.3 hours, two of them rested.
 
+## Three quiet holds descending, and what they say about the hour
+
+A batch of three: **11.779, 10.948, 10.098**, with 1.27, 1.23 and 1.16 cores held outside the job. Quiet throughout — no tenant — and **monotone descending**, adjacent gaps of 7.6% and 8.4%, 14.3% across the triple. None is a twelve, so [the observation above](#every-reading-above-twelve-was-followed-by-one-below-eleven) is not tested by this batch; roughly one hold in nine lands that case and a batch of three often misses it.
+
+**Keep the batch design anyway.** Launching a follow-up *because* the previous hold read in the twelves would make every twelve have a successor by construction, so a twelve that happened to be last would never enter the sample. The observation would then be unfalsifiable in the only direction that matters. Fixed batches cost more holds per question and are what makes this particular question answerable.
+
+## The hour's obstacle is exposure, not induction
+
+`#54` costs the gate's hour as a scheduling problem: wait for a rested box, accept that a failure cannot be retried for most of a day. That framing says the obstacle is patience. It is not.
+
+The work-rate condition is a **ratio**, its baseline is taken **before and after**, and the bracket refuses itself when the two sides disagree. So the hour needs the machine to hold still for sixty minutes — and this box does not.
+
+**The figure that says so was already on disk.** [The refused footprint bracket](2026-08-03-003443-the-footprint-result-was-the-machine.md) held 100 sessions for **five minutes** and its solos came back **9.752 and 16.805, 53.1% apart**. Nothing was driving that change; the box left the slow state partway through the hold. Five minutes, 53%, unprompted.
+
+An earlier reading of this proposed the opposite mechanism — that sixty minutes of saturation would *induce* the slow state and halve the after-side. That has no support here: the one observed refusal moved the other way, at a hold length below any candidate threshold, and the only positive induction case confounds duration with a climbing duty. **The mechanism was wrong and the conclusion is better without it**: the bracket refuses on change of either sign, and the hour is twelve times the exposure of the run that already produced a refusal.
+
+So the hour is not a run that might fail its conditions. It is a run whose instrument is likely to be invalidated by the machine underneath it, and waiting for a rested box does not address that — a rested box has the furthest to fall and no measured dwell time.
+
+**What this does not establish**: how often the box moves. One refusal in a five-minute window is an existence proof, not a rate, and this record has three times today written up a level that the next reading broke. What follows from it is that the hour needs its transition risk measured before it is booked, not that it is impossible.
+
