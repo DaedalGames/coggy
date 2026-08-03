@@ -952,10 +952,12 @@ fn doctor(strict: bool) -> anyhow::Result<()> {
         None => println!("\n  power state unknown — see query errors"),
     }
 
-    // **The other state, which nothing names.** A solo session runs at 21.5
-    // units/s on this box rested and 9.4 in a slower one seen three times, and
-    // a gate bracket ran entirely inside the slow one with nothing in its
-    // artifact to say so. Whether either of these two figures distinguishes
+    // **The other state, which nothing names.** A solo session runs in the
+    // high teens to about 21 units/s on this box rested and at 9.144 in a
+    // slower one, measured over six holds spreading 5.0%, and a gate bracket
+    // ran entirely inside the slow one with nothing in its artifact to say so.
+    // A tenant lands between the two at 13.8, so the order is the trap: a
+    // crowded rested box outruns a quiet slow one. Whether either of these two figures distinguishes
     // them is unknown — the run that tried could not induce the slow state, so
     // both its phases sampled the fast one. They print because the state has
     // to be caught rather than ordered, and a number nobody is collecting

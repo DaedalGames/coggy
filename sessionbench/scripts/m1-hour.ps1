@@ -203,10 +203,20 @@ $gap = [Math]::Abs($probe[0] - $probe[1]) / (($probe[0] + $probe[1]) / 2) * 100
 # says nothing about the state; the level does.
 $mean = ($probe[0] + $probe[1]) / 2
 if ($mean -lt 15) {
-    "NOTE: {0:N1} units/s is not the rested state (~21.5). Two causes reach here:" -f $mean
-    "      the post-saturation machine, and something else holding cores. The"
-    "      background line above separates them -- the slow state leaves the"
-    "      machine idle and a tenant does not."
+    "NOTE: {0:N1} units/s is not the rested state (~19-21). Three bands were" -f $mean
+    "      measured on this box on 2026-08-03, all at this workload:"
+    "        rested          18.9   (quiet, 1-3 cores held elsewhere)"
+    "        a tenant        13.8   (10-13 cores held elsewhere)"
+    "        the slow state   9.1   (quiet, and half speed anyway)"
+    "      So the level names the cause on its own here, and the background"
+    "      line above confirms it: a tenant leaves cores held, the slow state"
+    "      does not. Note the order -- a CROWDED RESTED box outruns a QUIET"
+    "      SLOW one, so a middling figure is not a middling machine."
+    if ($mean -lt 11.5) {
+        "      This one is the slow state. Waiting an hour fixes it; nothing else does."
+    } elseif ($mean -lt 16.5) {
+        "      This one is a tenant. Find it before spending the hour."
+    }
     "      The run will complete and its slowdown will read high. Let the box sit"
     "      for an hour if the figure is meant to be compared with a rested one."
 }

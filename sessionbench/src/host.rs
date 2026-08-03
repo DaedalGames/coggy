@@ -89,10 +89,18 @@ pub struct HostFacts {
     /// actually clocking as a percentage of their nominal rate.
     ///
     /// **Recorded because the state they might name is worth 72% and nothing
-    /// reports it.** This box runs a solo session at 21.5 units/s rested and
-    /// 9.4 in a slower state that has now been seen three times, each state
-    /// flat across its own samples. A gate bracket ran entirely inside the
-    /// slow one with nothing in its artifact to say so.
+    /// reports it.** This box runs a solo session in the high teens to about
+    /// 21 units/s rested and at **9.144, spread 5.0% over six holds**, in a
+    /// slower state — each state flat across its own samples, and the slow
+    /// one steadier than the fast. A gate bracket ran entirely inside it with
+    /// nothing in its artifact to say so.
+    ///
+    /// **The 9.4 this said until six holds replaced it was the top of that
+    /// band, not its centre.** What made the six readable is that each one
+    /// also reported 1.07 to 1.92 cores held by anything else, so the state
+    /// was [separated from a neighbour at the same
+    /// instant](../../docs/measurements/2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md)
+    /// rather than inferred from a rate alone.
     ///
     /// **Neither field has been shown to distinguish the two, and on this box
     /// one of them cannot.** `thermal_c` reads **39.1 °C in every artifact**
