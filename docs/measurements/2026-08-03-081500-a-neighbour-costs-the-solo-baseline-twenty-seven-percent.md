@@ -76,3 +76,17 @@ The bands answer it anyway:
 
 **It is an exclusion and not a measurement.** What it rules out is a large tenant. The quiet group's own two holds sit 14.4% apart at 1.24 and 2.99 cores held, so a neighbour of two or three cores is inside the noise and cannot be excluded for any of the three — which would move a slowdown by a few percent, in the direction that makes the gate look better.
 
+## The neighbour moves on a scale of seconds, which is what the medians were smoothing
+
+*A median smooths a burst* is listed above as a limit. Six consecutive five-second samples of the whole machine, taken in one thirty-second window while this record's own tenant was present:
+
+```
+78.4  52.3  30.9  31.8  30.0  31.1   %
+```
+
+**2.6× inside half a minute**, and the mean of them is 42.4%. Two readings taken four seconds apart in that window returned 28.8% and 81% — the same machine, described as nearly idle and as nearly saturated.
+
+So the tenant is not *present* or *absent* on the scale the nine holds report it at. It oscillates, and a 120-second median lands wherever the duty cycle averages out. That explains the one row that never fitted: `fp3-2` reads 13.40 cores held and **15.709 units/s**, faster than holds at ten cores, because a median of a square wave says nothing about which half the work landed in.
+
+**It also condemns a mean as the trigger for choosing a window.** A watcher set to launch a run when the average is low will fire between bursts. Judging on the *worst* sample of a window refuses that, and the two statistics differ by more here than the effect any of these runs is chasing — which is the same correction [a mean occupancy needed](2026-08-03-024222-the-footprint-never-mattered.md) when it absorbed one hold losing the machine for 18% of its samples.
+
