@@ -712,7 +712,13 @@ impl HeldRun {
 ///    whose whole width over 340 minutes was 9.6%**. Two readings on one side
 ///    of a boundary is what a wandering series does. A pair licenses a run
 ///    when it is in one band **and** inside a few percent, with both rest
-///    figures low.
+///    figures low. **"A few percent" is not `SOLO_AGREEMENT_PERCENT`.** That
+///    5% is calibrated for two sides that are each a mean of three holds; a
+///    raw pair is noisier, and on this box 26 adjacent one-session pairs have
+///    a **median gap of 4.8%**, so borrowing it refuses half of everything.
+///    Take the threshold from your own machine's adjacent-pair distribution —
+///    here it would be about 6.5%, which separates a tight group reaching
+///    0.1% from a tail at 9% and up.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BracketedReport {
     pub before: Vec<HoldReport>,

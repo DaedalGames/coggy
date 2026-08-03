@@ -257,3 +257,30 @@ The full sequence since the excursion, quiet throughout at 0.87 to 2.01 cores he
 
 **And that is the session's answer to its own question.** The window `#56` needs never opened. Twenty readings said the state was flat and unmoving; eight more, taken after one excursion, say it is neither. Both are the same box within six hours, and the only instrument that told them apart was two holds instead of one.
 
+## The 5% the pair rule borrowed refuses half of all adjacent pairs
+
+Two pairs were refused above and read as evidence that the box would not hold still. Twenty-six adjacent one-session pairs exist in today's artifacts — every consecutive pair less than twenty minutes apart — and their gaps are:
+
+```
+0.1  0.2  0.2  0.4  0.6  1.5  1.5  1.9  2.0  2.7  3.3  4.3  4.7  4.9
+5.3  5.8  6.0  6.2  6.2  9.0  9.2  11.0  15.7  18.5  25.5  30.4
+```
+
+**Median 4.8%.** So a 5% threshold passes 14 of 26 and refuses 12 — it cuts the distribution almost exactly in half.
+
+**That weakens the reading those two refusals were given.** 5.3% sits a whisker above the median and is close to a coin toss; 9.0% is in the top third and says more. Two refusals are not evidence of a wandering machine when the threshold refuses half of everything.
+
+**The distribution has two groups and 5% is not between them.** Fourteen gaps run 0.1 to 4.9, five run 5.3 to 6.2, and seven sit at 9.0 and above. The lower group reaches 0.1%, so this box does repeat tightly when it repeats. A cut around **6.5%** would take both lower groups and refuse the 9.0-and-up tail — 19 of 26 rather than 14 — and it is a figure from this machine on this workload, which is why it is written here and not compiled in.
+
+**The 5% was borrowed rather than derived.** It is `SOLO_AGREEMENT_PERCENT`, calibrated for a bracket's two *sides* — each a mean of three holds — against ramp-to-ramp gaps of 0.0 to 4.2%. A single pair of raw holds is a noisier object than a difference of means, and the pair rule took the constant without asking whether it fit. **A threshold for means does not transfer to individuals**, which is the same shape as taking a spread measured in one machine state into another.
+
+## It settled, at a level that is neither of the two known ones
+
+Two more holds, and this time they agree: **10.599 and 10.389, 2.00% apart**, both quiet at 1.16 and 1.32 cores held. With the 10.615 before them that is three readings inside 2% across about fifteen minutes.
+
+**The wandering ended.** The full run from the excursion: 15.216 · 12.636 · 9.299 · 9.874 · 11.022 · 10.074 · 10.064 · 10.615 · 10.599 · 10.389 — half an hour of no pair agreeing, then three that do.
+
+**And the level it settled at is not one this record knew.** 10.5 is **15% above** the twenty-hold slow band's mean of 8.997 and **44% below** rested. The slow band spans 9.6% of itself, so 10.5 is outside it rather than in its tail. Whether that is a third level of the same phenomenon, a partial recovery, or the beginning of one that stalled, three readings cannot say — but the box this session hands on is measurably not the box it spent five hours in.
+
+**The threshold change bought nothing here, which is the honest way to record it.** The pair rule's "few percent" was retuned from a borrowed 5% to about 6.5% on the measured distribution of adjacent pairs. This pair is 2.00% apart and passes either one. So the retune is derived from a measurement and has not yet reversed a verdict; what it is for is pairs like the 5.3% one refused an hour earlier, and none has arrived since.
+
