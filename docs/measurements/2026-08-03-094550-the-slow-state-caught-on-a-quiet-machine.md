@@ -361,3 +361,17 @@ Recomputed over every hold whose rest is either stored or recoverable:
 
 **45 holds, and the conclusion is unchanged in shape while the number moved by 80%.** Rested was 1 of 42; it is 2 of 45. Gate M1 still needs sixty consecutive minutes of a state this box offered twice in a day — but *2.4%* was wrong, and it was wrong because a field's absence was read as a measurement's absence when the measurement was one directory away.
 
+## Every reading above twelve was followed by one below eleven
+
+Two more holds close the session: **12.684 then 9.967**, quiet at 1.51 and 1.19, **24.0% apart**. That is the fifth time today a reading in the twelves was followed immediately by one in the nines or tens:
+
+```
+12.636 → 9.299      12.638 → 11.402      12.684 → 9.967
+```
+
+with two more in the excursion's own tail. **No pair has ever held the twelves.** Every one is a single hold with a lower one behind it, while the nines and tens pair with each other freely.
+
+**This is recorded as an observation and not as a finding.** Five is enough to notice and not enough to claim, no mechanism is proposed, and this record has three times today written up a pattern that the next reading broke. What makes it worth writing at all is that it is checkable: the next session's first pair either continues it or ends it, and the series is in `bench-out/` either way.
+
+**The session's last state**: quiet at 1.19 cores held, running 9.967, which is the slow band. Forty-seven one-session holds, 9.3 hours, two of them rested.
+
