@@ -185,10 +185,12 @@ if ([double]$busy -gt 4.0) {
 # --- the precondition: can two baselines agree today? --units 100000000
 # because cpu-spin's default is 60 and it EXITS after them.
 $work = @('--units', '100000000', '--duty', '0.27', '--resident', '20')
+$probeRest = @()
 $probe = foreach ($i in 1..2) {
     $out = & $bench hold --label "m1-probe-$i" --sessions 1 --interval 5 --duration 30 -- $spin @work 2>&1
     $r = Get-Capture $out 'rate       ([\d.]+)'
     if ($r -eq '') { $out | Select-Object -Last 20; throw "probe $i produced no rate" }
+    $script:probeRest += [double](Get-Capture $out '([\d.]+) cores held outside the job')
     [double]$r
 }
 $gap = [Math]::Abs($probe[0] - $probe[1]) / (($probe[0] + $probe[1]) / 2) * 100
@@ -201,7 +203,45 @@ $gap = [Math]::Abs($probe[0] - $probe[1]) / (($probe[0] + $probe[1]) / 2) * 100
 # that state agree with each other to under a percent while the run they
 # precede reports a slowdown 72% higher. So the agreement is necessary and
 # says nothing about the state; the level does.
+#
+# **And the level does not either, which is why one more probe runs below.**
+# Two runs whose solo holds agreed to half a percent, 9.752 and 9.801, held a
+# hundred sessions at 246.4 and 902.8 units/s -- one box crippled under load,
+# one 0.5% from its rested reference with only the lone session down. They move
+# the slowdown opposite ways: 3.958, and a 1.54 that PASSES a condition asking
+# for 2. Ninety seconds of a hundred sessions is what separates them, against
+# an hour that would otherwise be spent measuring the afternoon.
 $mean = ($probe[0] + $probe[1]) / 2
+
+$cout = & $bench hold --label 'm1-probe-load' --sessions 100 --interval 5 --duration 60 -- $spin @work 2>&1
+$ctotal = Get-Capture $cout 'total +([\d.]+)'
+if ($ctotal -eq '') { $cout | Select-Object -Last 20; throw 'the load probe produced no total' }
+$ctotal = [double]$ctotal
+$crest = [double](Get-Capture $cout '([\d.]+) cores held outside the job')
+$srest = ($probeRest | Measure-Object -Average).Average
+
+"load probe: {0:N1} units/s across a hundred · {1:N2} cores held outside the job" -f $ctotal, $crest
+"solo rest:  {0:N2} cores" -f $srest
+
+# The pair, read together. Neither number alone survives: a tenanted hundred
+# lands at 344.9 and 297.3, inside the 3.1x gap that quiet holds leave empty,
+# so a low total with cores held elsewhere is a crowd rather than a slow box.
+if ($crest -gt 2.5 -or $srest -gt 2.5) {
+    "STATE: a tenant is present ({0:N2} cores during the load probe). Nothing" -f $crest
+    "       below names the machine's own state while someone else holds it."
+    "       Find it with Get-Counter '\Process(*)\% Processor Time'."
+} elseif ($ctotal -lt 600) {
+    "STATE: machine-slow -- a hundred sessions produced {0:N1} against 903-1055" -f $ctotal
+    "       rested. The slowdown will read HIGH and the gate will fail by more"
+    "       than it should. Waiting is the only lever."
+} elseif ($mean -lt 15) {
+    "STATE: solo-slow -- the hundred ran {0:N1}, which is normal, while one" -f $ctotal
+    "       session runs {0:N1} against ~18.9 rested. The slowdown will read LOW" -f $mean
+    "       and CAN PASS THE GATE FOR THE WRONG REASON. Do not spend the hour."
+} else {
+    "STATE: rested -- solo {0:N1}, hundred {1:N1}. This is the state the hour" -f $mean, $ctotal
+    "       needs, and it has been the rare one."
+}
 # **A mean of two that disagree names nothing**, and this block used to run
 # before the agreement check below. On 2026-08-03 a quiet box gave 15.216 then
 # 12.636 in consecutive holds -- 18.6% apart, mean 13.9, which points at the
