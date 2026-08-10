@@ -309,3 +309,27 @@ Held to the same standard: the nearest-in-time 120-second holds, from the same h
 
 **What stands is the direction and the consequence, not the figure.** A short hold appears to read higher, and that is enough to say a 30-second probe should not be placed against a 120-second band — which is the [script change](../../sessionbench/scripts/m1-hour.ps1) the finding produced, and which needs only the sign. What would settle the size is a set alternating 30-second and 120-second holds inside one window, which nothing has run.
 
+## A hold's own first thirty seconds are the slow part, which kills the obvious explanation
+
+[The section above](#the-35-carries-the-same-confound-it-was-used-to-expose) leaves the duration effect as a direction with a doubtful size, and offers start-up amortised over a short window as the leading explanation. That one is testable with no new run: every 120-second hold samples `work_units` every five seconds, so a hold's own first thirty seconds can be compared with its remainder.
+
+Across **52 one-session holds**, the first thirty seconds run a median **19.3% slower** than the rest of the same hold.
+
+**That is the wrong sign.** If short windows were intrinsically fast, a hold's own opening should read high; it reads low. So nothing inside a hold explains why standalone 30-second holds averaged above 120-second ones, and the start-up explanation is refuted rather than merely unproven.
+
+**Which leaves the confound as the likeliest reading of the whole thing.** All ten standalone 30-second holds came from a single window; the 120-second holds span a day that included stretches at half speed. A difference that survives no mechanism and disappears under the nearest-in-time comparison is most simply the sitting, not the duration.
+
+**The per-hold spread is enormous** — +55.7% to −44.7% across the 52 — so the median is the finding and no single hold is evidence of anything. That spread is itself consistent with a wandering box rather than with a repeatable warm-up curve.
+
+**The script change stands and its justification narrows.** Labelling a 30-second probe's placement against a 120-second band as a hint is conservative and costs nothing if the effect is not real; what cannot be said is that the band is wrong *because a short hold reads high*. The controlled test is four alternating holds inside one window, which is five and a half minutes and has not been run.
+
+## The arithmetic predicts the opposite sign, which makes three
+
+A hold's reported rate is `units read / counted seconds / sessions` — [the counted window, untrimmed](../../sessionbench/src/daemon.rs). `Occupancy` drops everything before a run reaches its own median, so the *cores* figure excludes spin-up; the *rate* does not. And the warm-up is a separate throwaway hold, so the counted hold spawns its own sessions and carries its own opening inside the window it is divided by.
+
+Put together with the section above: the opening runs about 19% slow, and it fills a **quarter** of a 30-second window against a **sixteenth** of a 120-second one. **So the arithmetic predicts a short hold reads lower.** It reads higher.
+
+That is three independent arguments against the duration effect being real — the within-hold measurement, the nearest-in-time comparison, and now the way the number is computed — and no argument for it except a comparison whose two arms were gathered in different sittings.
+
+**It turns the pending test into a prediction rather than an exploration.** Four alternating holds inside one window should find no effect, or a small one favouring the *long* holds. A result the other way would mean something is going on that none of these three accounts for, and would be worth far more than confirming the confound.
+
