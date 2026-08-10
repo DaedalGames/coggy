@@ -321,10 +321,10 @@ if ($gap -gt 1.5 -and $gap -le 5) {
 }
 if ($gap -gt 5) {
     "REFUSING: two fresh solo holds sit {0:N1}% apart, past the 5% the run will be judged by." -f $gap
-    "THE SPREAD IS THE MACHINE, not the workload. A fit box here reproduces"
-    "a solo hold to 0.42% across six holds; on 2026-08-10 the same binary and"
-    "workload spread 5 to 37% for about ten hours, on an idle machine. Waiting"
-    "is the only lever and nothing here says how long."
+    "THE BASELINES DISAGREE WITH THEMSELVES, so no ratio drawn across them"
+    "means much. This box has reproduced a hold to 0.42% across six; on"
+    "2026-08-10 the same binary and workload spread 5 to 37% for ten hours. Note"
+    "that SPEED AND SPREAD ARE INDEPENDENT: a bracket at 9.4 units/s once spread 0.28%."
     throw "the baseline cannot support the judgement"
 }
 

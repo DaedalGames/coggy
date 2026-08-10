@@ -608,3 +608,24 @@ A range over six samples should exceed a range over three, so 0.42% across six a
 
 **So the fitness threshold rests on one day.** It separates 2026-08-03 from tonight cleanly, and it would call 2026-08-01 unfit — a day whose figures this project has used throughout. The check is still worth having, because a bracket that cannot reproduce itself cannot support a ratio whatever the cause. What it cannot yet claim is that 1.5% is the boundary between a healthy machine and a sick one, and the doc comment saying the number travels only as a method is doing more work than it looked like it was.
 
+## Slow and unreproducible are two axes, and this record kept treating them as one
+
+[#65's first step](#the-454-was-a-different-flag-and-the-fitness-threshold-rests-on-one-day) needed no run: every bracket ever taken at `--duty 0.27` with three or more baselines, in order.
+
+| when | hold | n | spread | without the first | rates |
+|---|---|---:|---:|---:|---|
+| 08-01 21:09 | 120 s | 3 | 8.96% | 8.05% | 21.825 · **20.030** · 21.643 |
+| 08-02 23:28 | 121 s | 3 | **0.28%** | 0.01% | 9.433 · 9.408 · 9.407 |
+| 08-03 01:14 | 120 s | 3 | 0.53% | 0.53% | 21.809 · 21.787 · 21.902 |
+| 08-03 01:56 | 120 s | 3 | 0.95% | 0.08% | 21.705 · 21.895 · 21.911 |
+| 08-03 17:19 | 60 s | 3 | 24.36% | 8.12% | 12.280 · 14.124 · 15.271 |
+| 08-11 07:08 | 20 s | 3 | 12.67% | 6.57% | 10.979 · 10.384 · 9.744 |
+
+**The cold-first-hold hypothesis fails.** 08-01's outlier is the *middle* hold — 20.030 sitting between two at 21.8 — so dropping the first leaves 8.05%. The throwaway warm-up added later does not explain that day, and the guess that it would was worth one query to kill.
+
+**And slow does not imply unreproducible.** 08-02 ran at **9.4 units/s**, deep in the slow band, with a spread of **0.28%** — the tightest bracket on record. A box can be half speed and perfectly repeatable.
+
+**So this record has been conflating two independent things.** Speed is one axis and reproducibility is another: 08-02 is slow-and-tight, 08-01 is fast-and-loose at 8.96%, 08-03 is fast-and-tight, tonight is slow-and-loose. Every sentence here that treats a wide spread *as* the slow state is wrong, including the framing that [the neighbour is excluded because an idle box still cannot reproduce a hold](#ten-hours-in-the-health-check-says-the-box-is-still-unfit) — the exclusion stands, the identification with slowness does not.
+
+**The fitness check survives untouched**, because it never depended on the link: a bracket whose baselines disagree cannot support a ratio whatever the box's speed. What it cannot do is name *why*, and calling it a slow-state detector was a story laid over a measurement that does not carry it.
+

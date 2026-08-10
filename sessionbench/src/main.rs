@@ -485,7 +485,7 @@ fn main() -> anyhow::Result<()> {
                 // say so.** Asking whether 12.4 units/s is slow needs a
                 // remembered 21.8; asking whether six holds agree needs
                 // nothing, so it reads on hardware nobody has characterised.
-                // Six holds span 0.42% on this box when it is well, the spread
+                // Six holds span 0.42% on this box at its tightest, the spread
                 // behind the gate's 2.0654, against 9 to 16% on the night a
                 // whole evening of arithmetic was built on the wrong premise.
                 // More repeats do not fix the second.
@@ -501,7 +501,7 @@ fn main() -> anyhow::Result<()> {
                 // in the gap.
                 let health = |v: Option<f64>| match v {
                     Some(x) if x <= 1.5 => "  <- fit to measure on",
-                    Some(_) => "  <- THE SPREAD IS THE MACHINE: unfit to measure on",
+                    Some(_) => "  <- baselines disagree with themselves: no ratio here means much",
                     None => "",
                 };
                 let worst = bracketed
