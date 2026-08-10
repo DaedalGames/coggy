@@ -115,12 +115,21 @@ pub struct HostFacts {
     /// — a figure this struct cannot carry, because it is a property of a run
     /// rather than of a host.
     ///
-    /// **Neither field has been shown to distinguish the two, and on this box
-    /// one of them cannot.** `thermal_c` reads **39.1 °C in every artifact**
-    /// — idle, and at the end of twenty minutes of a hundred saturating
-    /// sessions. It does not vary, so it cannot name anything here; a zone
-    /// that tracks the package may exist under another instance, and this is
-    /// the first one `MSAcpi` returns.
+    /// **Neither field distinguishes the two, and `thermal_c` is slow-moving
+    /// rather than constant — which took a week to see.** It read **39.1 °C
+    /// in every artifact** for the first week, idle and at the end of twenty
+    /// minutes of a hundred saturating sessions alike, which was recorded
+    /// here as *it does not vary*. On 2026-08-11 it reads **63.1 °C in every
+    /// artifact** — 24 degrees up, and again identical across every hold of
+    /// the day. So it moves between days and never within one.
+    ///
+    /// **It still names nothing.** Across 124 holds carrying both counters,
+    /// solo holds under 50 °C average **12.422** against **12.634** over it,
+    /// and the box was slow and loose at 39–40 °C too — one bracket spread
+    /// 24.36% at 40.1 °C with the cores boosting at 175.6%. A figure that
+    /// changes across days but never within one cannot separate conditions
+    /// that arrive and leave in minutes. A zone tracking the package may
+    /// exist under another instance; this is the first `MSAcpi` returns.
     ///
     /// **And both are point samples rather than run characteristics.** This
     /// struct is queried once — at the *end* of a hold, since `into_report`

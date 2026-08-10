@@ -629,3 +629,20 @@ A range over six samples should exceed a range over three, so 0.42% across six a
 
 **The fitness check survives untouched**, because it never depended on the link: a bracket whose baselines disagree cannot support a ratio whatever the box's speed. What it cannot do is name *why*, and calling it a slow-state detector was a story laid over a measurement that does not carry it.
 
+## The thermal zone does move, and it still explains nothing
+
+Across 124 holds that carry both host counters, tonight reads **63.1 °C in every artifact** where every earlier one reads **39.1 °C**. So [the standing claim that the zone reads 39.1 °C whatever the load](2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md) is false as stated — it does not vary within a day and it has moved 24 degrees across days.
+
+**It was briefly read as the mechanism and is not.** A single artifact showing 63.1 °C with `processor_performance` at 90.8% looked like a box below base clock with no turbo headroom, which would explain both the slowness and the scatter. Two checks kill it:
+
+| solo holds | n | mean rate |
+|---|---:|---:|
+| under 50 °C | 31 | **12.422** |
+| over 50 °C | 68 | **12.634** |
+
+**Temperature does not predict the rate** — 1.7% between the groups. And `processor_performance` tonight spans **91.9% to 181.5%** across holds minutes apart, so it is not pinned low; the 90.8% was one point sample read as a state, which is [the error this repository names about point samples](../../CLAUDE.md) appearing in the reading of a counter added to catch it.
+
+**Most decisively, the box was slow at 39–40 °C too.** The 08-03 17:19 bracket spread 24.36% at 40.1 °C with the cores boosting at 175.6%. Whatever produces the slow, loose state does not need heat.
+
+**So the record's conclusion stands and one sentence in it does not.** Neither counter discriminates the state; the zone is not constant, it is *slow-moving*, and a figure that changes across days but never within one cannot separate conditions that come and go in minutes.
+
