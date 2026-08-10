@@ -395,3 +395,21 @@ A third alternating set, fired after the waiter verified sixty seconds below one
 
 **So the question is not resolvable here, and no longer worth resolving.** Two holds an arm cannot separate a 1.6% difference when one arm's repeatability is 16.4%; it would take roughly a dozen holds an arm, which is thirty-plus minutes of sustained quiet on a box that has not produced five. The reason to stop is the instrument's noise rather than the tenant.
 
+## The two held conditions were checked against a starved machine, and survive it
+
+Every hundred-session run today gave the job **4.3 to 7.5 cores** because a browser held the rest, so both conditions this record calls held were measured on a machine producing a third of its work. A session starved to a third emits a third of the lines, which is exactly the pressure `failed_reads` exists to detect — so *zero failed reads* on a half-speed box says little about a full-speed one.
+
+**The answer was already on disk, across every hundred-session run ever taken here:**
+
+| total line rate | runs | failed reads |
+|---|---|---|
+| 1,028–1,055 units/s | `r33-rested`, `r36-rested`, `tickpair`, `clockpair-load` | **0** |
+| 903–934 | `m1`, `slowstate-ratio` | 0 |
+| 217–530 | seven tenanted or slow runs | 0 |
+
+Zero across a **five-fold span of line rates**, including runs at twice today's, which is a much stronger statement than zero at one rate. The objection dies and the condition is genuinely held.
+
+**RSS survives for the reason already recorded**: retention caps at 200,000 lines and both a five-minute and a twenty-minute hold *reached* the cap, evicting 72,067 and 438,077 lines. A starved run reaches it later and still reaches it, so the peak is unchanged.
+
+**But the same table says the memory margin is far thinner than today's runs suggest.** `r33-rested` and `r36-rested` peak at **3.651 and 3.944 GiB** where today's runs sit at 2.36 to 2.39, because they hold 33 and 36 MiB a session against 20. Against a 4 GB budget that is **1.4% of headroom at 36 MiB**, not the 40% a 20 MiB run implies. The condition holds at every weight measured and it holds *narrowly* at the weights [the budget actually permits](2026-08-03-024222-the-footprint-never-mattered.md) — which is worth carrying beside the word "held" wherever it appears.
+
