@@ -38,8 +38,22 @@ $stray = Get-Process coggyd, cpu-spin, sessionbench -ErrorAction SilentlyContinu
 if ($stray) { "REFUSING: {0} stray process(es)" -f $stray.Count; exit 1 }
 
 function Get-TenantCores {
+    # Retry once, because the query fails transiently and a failure costs a
+    # window: on 2026-08-10 it returned nothing twice in a minute, the second
+    # time after four consecutive quiet polls, and with a reset-on-unreadable
+    # rule an intermittently failing counter would keep the waiter from ever
+    # firing on a box that was in fact quiet.
     $c = Get-Counter '\Process(*)\% Processor Time' -ErrorAction SilentlyContinue
-    if ($null -eq $c) { return 99 }   # cannot see, so assume busy
+    if ($null -eq $c) {
+        Start-Sleep -Milliseconds 500
+        $c = Get-Counter '\Process(*)\% Processor Time' -ErrorAction SilentlyContinue
+    }
+    # -1 means the counter could not be read, which is NOT a busy machine and
+    # must not enter the transition log as one: this log is the record of how
+    # long this box's quiet stretches are, and a failed query recorded as a
+    # tenancy event would inflate the count of interruptions that never
+    # happened. It still refuses to fire, since not seeing is not quiet.
+    if ($null -eq $c) { return -1 }
     $busy = $c.CounterSamples |
         Where-Object { $_.InstanceName -notin @('_total', 'idle') -and $_.CookedValue -gt 50 } |
         Where-Object { $_.InstanceName -notlike 'sessionbench*' -and $_.InstanceName -notlike 'cpu-spin*' }
@@ -54,7 +68,14 @@ $deadline = (Get-Date).AddMinutes($GiveUpMinutes)
 $run = 0
 while ((Get-Date) -lt $deadline) {
     $t = Get-TenantCores
-    if ($t -lt $MaxTenantCores) {
+    # The sentinel is tested FIRST and this order is load-bearing: -1 is less
+    # than any sane MaxTenantCores, so checking quiet first would read an
+    # unreadable counter as the quietest possible machine and fire the set.
+    if ($t -lt 0) {
+        "{0:HH:mm:ss} COUNTER UNREADABLE — not a tenancy event, resetting" -f (Get-Date)
+        $run = 0
+    }
+    elseif ($t -lt $MaxTenantCores) {
         $run++
         "{0:HH:mm:ss} quiet {1}/{2} at {3:N2} cores" -f (Get-Date), $run, $ConsecutiveQuiet, $t
         if ($run -ge $ConsecutiveQuiet) {
