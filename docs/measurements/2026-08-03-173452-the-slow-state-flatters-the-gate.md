@@ -198,3 +198,22 @@ The tenanted holds above were taken against something unidentified. Named with `
 
 **And it explains readings that were attributed to the machine.** The box did not change state between 8% and 83%; a browser started. Any figure here taken while this was running is a figure about a four-core machine, which is why the rest column travels with every one of them.
 
+## The window closed in under five minutes, and the probe caught it
+
+The gate's twenty-minute run was launched the moment `chrome-headless-shell` read **0.0 cores** and `doctor` read 7% — the trigger this record argued for. It refused, and what it refused on is worth more than a pass would have been.
+
+| phase | figure | cores held elsewhere |
+|---|---:|---:|
+| two solo probes | 9.547 and 11.341, **17.2% apart** | **0.86** |
+| load probe | **431.9** units/s across a hundred | **8.53** |
+
+**The tenant returned between the solo probes and the load probe**, so the window that looked open at launch was gone within about five minutes. A run needing sixty consecutive minutes is not waiting for a rare machine state; it is waiting for a process whose absences are shorter than the measurement.
+
+**The state classifier's first real use was correct.** It read the load probe's 8.53 cores and printed *a tenant is present*, from a figure the script discarded until this morning — and 431.9 is a third tenanted total in the span the quiet clusters left empty, alongside 344.9 and 297.3.
+
+**The two things must not be conflated.** The solo probes were **quiet**, 0.86 cores held, and still disagreed by 17.2%. That gap is not the neighbour. It is either the machine wandering or the probes being **30 seconds** where [the 4.8% median adjacent gap the 5% threshold descends from](2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md) was measured on **120-second** holds. A quarter of the duration samples a quarter of the placement noise, so a shorter probe is systematically wider, and a threshold borrowed across that difference would refuse runs on its own sampling rather than on the machine.
+
+**That has a precedent in this script's own header**: an earlier precondition asking for four `doctor` readings within 10% refused its sibling nineteen times in one day without ever running. Same disease, different gauge. Unresolved here, and measurable — it needs the adjacent-pair spread of 30-second solo holds, which nothing has taken.
+
+**The refusal cost five minutes rather than forty**, which is the precondition earning its place even while its threshold is in question.
+
