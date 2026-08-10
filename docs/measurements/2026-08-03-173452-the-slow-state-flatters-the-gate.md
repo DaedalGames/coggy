@@ -350,3 +350,22 @@ The prediction test was armed as a waiter that polls for the neighbour to drop b
 
 **The backwards pattern shows a third time.** The quietest hold here, at 2.36 cores held, is the slowest at 14.168, where holds under twelve cores of tenancy return 15.4 to 16.5. The same inversion appeared in [the octet's quietest hold](#the-thirty-second-probe-is-not-the-problem-and-the-threshold-should-not-be-loosened) at 1.56 cores and 11.530. Three sightings, no mechanism, and it is now the most repeatable unexplained thing in this record.
 
+## Sixty seconds of verified quiet bought ninety seconds of actual quiet
+
+The waiter was fixed to require six consecutive polls below one core before firing, and [proved on purpose to refuse when nothing can meet the threshold](../../sessionbench/scripts/wait-for-quiet.ps1). It then rejected three windows — quiet broken at 10.32, 8.38 and 10.50 cores after two or three polls — before one held a full minute.
+
+| hold | rate | cores held elsewhere |
+|---|---:|---:|
+| 30 s | 15.815 | **2.92** |
+| 120 s | 15.130 | 13.52 |
+| 30 s | 15.441 | 12.27 |
+| 120 s | 13.245 | 7.72 |
+
+**Void again, and the rule stays at 2.5 cores.** The first hold's 2.92 raised the possibility that the threshold sits below this box's resting floor; the second hold's 13.52 answered it — 2.92 was a neighbour on the way up. Loosening a threshold after seeing the number is what [#58 proved wrong about the precondition](#the-thirty-second-probe-is-not-the-problem-and-the-threshold-should-not-be-loosened).
+
+**What both attempts establish together is about the machine, not the question.** Sixty seconds of *verified* quiet did not survive one 30-second hold plus one 120-second hold. Across roughly eight hours, five manual attempts and two instrumented ones, **no five-minute quiet window has occurred** — so gate M1's hour is not merely rare here, and the shortfall is three orders of magnitude rather than a matter of waiting for the afternoon.
+
+**Three things fall out of the void set anyway.** Pooling both sets where tenancy matches, at 12.20 to 13.71 cores, the 30-second holds average **15.774** against the 120-second holds' **15.632** — **0.9%** across five holds, where the comparison that opened this claimed 25 to 35%. That is a fifth account agreeing with the within-hold measurement, the arithmetic, the nearest-in-time comparison and the first void set. Second, the lone session returns 13.245 to 15.815 while the neighbour swings from 2.92 to 13.52 cores, which is the tenancy null again.
+
+**And the third is a retraction.** The quietest hold here is the **fastest**, 15.815 at 2.92 cores, where [the pattern recorded twice before](#the-controlled-set-fired-on-a-tenant-that-was-starting-not-gone) had the quietest hold slowest. Three sightings became a task; the fourth chance came back the other way, so what looked like the most repeatable unexplained thing in this record is more likely three draws from a wide distribution.
+
