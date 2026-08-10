@@ -91,6 +91,31 @@ The partial correlations say it in one line. Controlling for tenancy, **r(rate, 
 
 **And the mechanism is open again.** The 2×2 stands: same CPU, 36.3% less work, with ordinary contention pointing the wrong way by roughly two. What raises the value of a core-second on a busier box is once more unexplained.
 
+## Appended the same hour: it is a step at two cores, which is why an earlier set found nothing
+
+Banding the same 83 holds by the cores held elsewhere gives a shape rather than a slope:
+
+| rest cores | n | rate | clock |
+|---|---|---|---|
+| 0–1 | 10 | 10.059 | 124.3% |
+| 1–2 | 25 | 11.834 | 121.3% |
+| 2–4 | 5 | 14.868 | 143.9% |
+| 4–8 | 3 | 13.194 | 147.4% |
+| 11–12.5 | 25 | 15.039 | 174.0% |
+| 12.5–20 | 14 | 14.591 | 165.7% |
+
+**Under 2 cores held the rate is 11.327 across 35 holds; at 2 and above it is 14.741 across 48 — a 30% step with a flat shelf on either side.** From 2.5 cores to 13.2 the rate does not move outside its own scatter.
+
+**That reconciles this record with [the eight-hold set that varied tenancy inside five minutes and found nothing](2026-08-03-173452-the-slow-state-flatters-the-gate.md).** Its holds spanned **1.56 to 13.53 cores** — almost entirely on the shelf. It measured the flat region, correctly reported a slope of +0.151 units/s per core at r² 0.17, and could not have seen the step: 33 of the 83 holds now on disk sit below its floor. The two results were never in conflict, and this set's quiet holds at 0.75 and 0.99 cores are below anything it sampled.
+
+**It also disproves the clock more cleanly than the correlations did.** From the 2–4 band to the 11–12.5 band the clock climbs 143.9% → 174.0%, a 21% rise, while the rate moves 14.868 → 15.039 — **1.1%**. Between the two lowest bands the clock *falls*, 124.3% → 121.3%, while the rate rises 17.6%. A 21% clock rise buying 1.1% of work is not attenuation by a noisy predictor; it is the two quantities being different things. They coincide across the step and part company on both sides of it.
+
+**The time confound does not apply here.** Both tenancy groups span the same three days — 08-02, 08-03 and 08-10 — so the low-rest holds are not one bad afternoon, which is the failure that killed the pooled version of this comparison.
+
+**What would explain a step with flat shelves is something switching rather than something loading**, and core parking is the obvious candidate: Windows unparks cores once there is work to justify them, the lone session lands on a fully-awake core, and further load adds nothing. That is a hypothesis with no measurement behind it — precisely where the clock stood an hour ago — and the counter that would test it is the parked-core count, which nothing here records.
+
+Two limits on the table: the 2–4 and 4–8 bands hold 5 and 3 holds, so the step's exact position is bounded between about 1.3 and 2.5 cores rather than located; and quiet holds are *selected* by a waiter, so they cluster within a day even though the days overlap.
+
 ## Provenance
 
 | | |
