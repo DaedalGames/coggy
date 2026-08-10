@@ -584,3 +584,27 @@ Two things follow that a rate band could not give.
 
 **It has still never fired green**, which is its untested half. That is now a fact about this machine rather than about the threshold: no bracket taken tonight has had a healthy box to report on.
 
+## The 4.54% was a different flag, and the fitness threshold rests on one day
+
+The gate script's *placement noise alone is worth about 4.5% here* was removed as a sick-box figure. **That was wrong and the provenance says so.** [The record it comes from](2026-08-01-173927-the-baseline-is-the-noisy-term.md) puts three workloads side by side on one afternoon, same machine, same 120-second holds:
+
+| workload | spread |
+|---|---:|
+| `--duty 1.0` | 4.54% |
+| `--duty 0.27` | 3.95% |
+| `--wait-ms 67` | **0.47%** |
+
+So 4.54% is the **duty mechanism's** own scatter, not a degraded machine — a proportional wait carries core-speed differences into the rate where a fixed wall-clock wait dilutes them. The removal stands because the sentence claimed it as *placement noise* for the workload the gate actually runs, and it belongs to a flag that gate does not use. The reasoning in the commit that removed it does not.
+
+**And it exposes a harder problem with the 1.5% bar.** The 0.42% baselines are `--duty 0.27` at 120 seconds — the same workload as 2026-08-01's **3.95%** and the same as tonight's 5–37%. One workload, three days:
+
+| day | holds | spread |
+|---|---:|---:|
+| 2026-08-01 | 3 | 3.95% |
+| 2026-08-03 | 6 | **0.42%, 0.39%, 0.52%** |
+| 2026-08-10 | 2–6 | 5% – 37% |
+
+A range over six samples should exceed a range over three, so 0.42% across six against 3.95% across three is the wrong way round for a sampling explanation. Something differed between those days beyond the workload, and nothing recorded says what.
+
+**So the fitness threshold rests on one day.** It separates 2026-08-03 from tonight cleanly, and it would call 2026-08-01 unfit — a day whose figures this project has used throughout. The check is still worth having, because a bracket that cannot reproduce itself cannot support a ratio whatever the cause. What it cannot yet claim is that 1.5% is the boundary between a healthy machine and a sick one, and the doc comment saying the number travels only as a method is doing more work than it looked like it was.
+

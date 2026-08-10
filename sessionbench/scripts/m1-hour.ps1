@@ -303,11 +303,17 @@ if ($mean -lt 15) {
     "      with a rested one."
 }
 # TWO PROBES MAKE THIS A SPREAD, so it doubles as the fitness check the
-# bracket prints. A healthy box here reproduces a solo hold to 0.42% across
-# six of them -- the spread behind the gate 2.0654, with 0.39% and 0.52%
-# behind the others. Anything past about 1.5% is the machine rather than the
-# instrument, and no repeat count fixes it: more samples of a wandering box
-# is not what is missing.
+# bracket prints. The best this box has shown is 0.42% across six solo holds
+# -- the spread behind the gate 2.0654, with 0.39% and 0.52% behind the
+# others -- and no repeat count fixes a wide one, since more samples of a
+# wandering box is not what is missing.
+#
+# **1.5% IS ONE DAY, AND SAY SO.** The same workload gave 3.95% across three
+# holds on 2026-08-01, 0.42% across six on 08-03, and 5 to 37% on 08-10. A
+# range over six should exceed a range over three, so the middle day is the
+# wrong way round for a sampling explanation and nothing recorded says what
+# differed. The bar separates 08-03 from 08-10 cleanly and would call 08-01
+# unfit. Treat it as a prompt to look rather than a verdict.
 if ($gap -gt 1.5 -and $gap -le 5) {
     "NOTE: {0:N1}% between two fresh solo holds is above the ~1.5% a fit machine shows." -f $gap
     "      Healthy brackets here spread 0.42%. The run will proceed and its"
@@ -315,7 +321,7 @@ if ($gap -gt 1.5 -and $gap -le 5) {
 }
 if ($gap -gt 5) {
     "REFUSING: two fresh solo holds sit {0:N1}% apart, past the 5% the run will be judged by." -f $gap
-    "THE SPREAD IS THE MACHINE, not placement noise. A fit box here reproduces"
+    "THE SPREAD IS THE MACHINE, not the workload. A fit box here reproduces"
     "a solo hold to 0.42% across six holds; on 2026-08-10 the same binary and"
     "workload spread 5 to 37% for about ten hours, on an idle machine. Waiting"
     "is the only lever and nothing here says how long."
