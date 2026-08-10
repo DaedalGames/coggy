@@ -485,3 +485,24 @@ That makes the bracket's position worse than [#63 recorded](#three-more-holds-mo
 
 **And the duration comparison is unchanged by the extra holds**: 30 s at n=9 means 15.917 with sd 6.3%, 120 s at n=10 means 14.585 with sd 9.7%. Null, as at every previous pooling.
 
+## The first valid set, and the noise is worst when the machine is idle
+
+Seven attempts, and the corrected waiter finally caught a window that held: six consecutive polls at 0.00 cores with no floor breathing at all, then four holds every one under the 2.5-core rule.
+
+| | rate | cores held elsewhere |
+|---|---:|---:|
+| 30 s | 14.436 | 1.25 |
+| 120 s | 13.701 | 1.18 |
+| 30 s | **10.738** | 1.27 |
+| 120 s | 12.660 | 1.19 |
+
+**The duration question answers null with a tilt the wrong way for the original claim.** 30 s means **12.587**, 120 s means **13.181** — the long arm **4.7% faster**, where the observation that started this said short holds read 25 to 35% higher. That direction is what [the arithmetic predicted](#the-arithmetic-predicts-the-opposite-sign-which-makes-three): a short hold carries its slow opening in a quarter of its window against a sixteenth.
+
+**The important number is the other one.** The two 30-second holds are **34.4% apart** — 14.436 and 10.738 — at 1.25 and 1.27 cores held, minutes apart, on the quietest machine measured tonight. Nothing was competing. That is the widest matched-tenancy pair in the whole series.
+
+**And quiet holds are noisier than crowded ones.** Eight holds under 2.5 cores held scatter **11.31%**; nineteen at 12–13.8 cores scatter **9.08%**. More variance with *no* neighbour, which contention cannot explain and which fits a clock or core-residency account — an idle box parks cores and drops P-states, a loaded one keeps the package awake.
+
+**Which changes what [#63](#three-more-holds-moved-the-sigma-25-and-the-refusal-rates-with-it) is about.** The bracket's problem was framed as a browser interfering with baselines. It is not: **this machine cannot reproduce its own solo rate within a third on an idle box**, so no baseline-agreement threshold works here at any repeat count. The neighbour was never the obstacle to the work-rate condition — the machine's own solo variance is.
+
+**One set, and it is one set.** Four holds cannot establish a 4.7% difference against 11% scatter, and the 34.4% pair could be the tail rather than the rule. What it does establish is that the quiet window exists, that a valid set is obtainable, and that the earlier claim — five verified windows each spoiled inside the first hold, called *a rate rather than an anecdote* — was five of six and is withdrawn.
+
