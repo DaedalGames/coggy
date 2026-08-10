@@ -430,3 +430,22 @@ The wreckage is the result. Sixteen holds, thirteen of them between 12.12 and 13
 
 **What survives is the number every two-hold comparison here has been betting on: a solo hold is worth about 6%.** That is the per-hold standard deviation at matched tenancy, from thirteen holds. It validates [three repeats a side](../../sessionbench/src/daemon.rs) — 6% per hold gives a standard error near 3.5%, inside the 5% allowance — and it explains why three-in-a-row patterns kept appearing and dissolving all night. It also means a *single* pair of probes disagreeing by 17% is unremarkable, which is what the gate run saw.
 
+## At six percent a hold, the bracket refuses a third of stable runs
+
+[A solo hold is worth about 6%](#four-void-sets-pooled-the-duration-effect-is-null-and-a-hold-is-worth-about-6), which is the input the bracket's design was never able to check itself against. Putting it in:
+
+| holds a side | se of the difference | allowance in se | P(refuse) on a **stable** machine |
+|---:|---:|---:|---:|
+| 1 | 8.49% | 0.59 | 56% |
+| 3 — **current** | **4.90%** | **1.02** | **31%** |
+| 5 | 3.79% | 1.32 | 19% |
+| 9 | 2.83% | 1.77 | 8% |
+
+**The 5% allowance is one standard error of the bracket's own noise.** So roughly one run in three is refused before the machine does anything unusual, and that is paid on the measurement hardest to repeat — an hour-long hold whose window this box supplies about once a day.
+
+**It rehabilitates a rejected design.** *Nine repeats a side* was [dismissed as an artefact of one afternoon](2026-08-02-221853-the-noisy-baseline-was-one-noisy-afternoon.md) whose per-hold spread read 12.6%; the rejection was right about that evidence and wrong about the setting. At the measured 6% it is what brings false refusals to 8%, and five a side reaches 19% for four extra holds rather than twelve.
+
+**What it does not license is changing the allowance.** Widening 5% would trade false refusals for accepting a machine that really moved, which is the failure the bracket exists to prevent and which [#58 already refused once](#the-thirty-second-probe-is-not-the-problem-and-the-threshold-should-not-be-loosened). The lever with the right sign is repeats, because more holds shrink the noise rather than the standard.
+
+**And it is one box's number.** 6% is this laptop at this workload; the arithmetic transfers, the constant does not. What a machine's own per-hold spread is should be measured before its bracket's repeats are chosen — which is thirteen holds, and cheaper than one refused hour.
+
