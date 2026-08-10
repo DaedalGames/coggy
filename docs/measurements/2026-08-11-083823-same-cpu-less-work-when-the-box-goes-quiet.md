@@ -21,6 +21,8 @@ The classification was fixed before the last hold was seen: rest cores below 2.0
 
 ## Why this is not contention
 
+> The clock reading this section reaches for was checked against the whole archive an hour later and does not survive as a mechanism. Read the appended section at the end before quoting anything below on that point; the elimination of contention stands, the clock as its replacement does not.
+
 The obvious reading of "a lone session runs faster with a neighbour present" is that something is wrong with the measurement. The occupancy column is what rules that out. Across all four holds the session held 0.24 to 0.26 cores — flat to within 8% — and the two quiet holds took *more* CPU than the crowded ones while producing 30% less. The session was never starved, never descheduled, never waiting.
 
 So the quantity that moved is how much work a core-second buys, and sharing a machine cannot raise it. A busier box has worse cache residency and less memory bandwidth per session, both of which make a core-second worth less. Every contention mechanism points the wrong way by roughly a factor of two against this result.
@@ -71,6 +73,23 @@ The size is not yet known. This set says 36% between 12.5 cores of neighbour and
 This set varies tenancy inside ninety seconds, on the same machine, in the same run, with the same workload. It agrees with the pooled result and roughly doubles its size. That is the first evidence for #64 that does not have the confound.
 
 **It does not restore the generalisation that record withdrew.** The withdrawal was that idle boxes are worse measurement environments *as a property* — 2026-08-02 was slow and tight, 9.4 units/s at 0.28%, which a low clock does not describe. This set is the same box on the same morning as the pooled holds it agrees with, so it makes the effect real *here* and says nothing about elsewhere. What it adds is a mechanism, and a mechanism is what would let the question be asked of another machine without repeating the whole night.
+
+## Appended 2026-08-11, an hour later: the clock is a correlate, not the mechanism
+
+The sections above were written from four holds. Every `hold.json` ever produced here carries `host.processor_performance`, so the relation was checkable across the whole archive at no cost, and it was — **83 one-session holds on mains, with both a clock reading and a rest column**, spanning clocks from 80.7% to 203.7%.
+
+**The direction survives and generalises.** Rate against clock across all 83 is **r = +0.530**, so the morning's finding is not one set: busier box, higher clock, faster lone session, across days.
+
+**The mechanism does not.** Two tests, both failed:
+
+- **Normalising by clock makes the rate worse.** If the clock were what moved, dividing it out should collapse the spread. Rate alone has σ 17.8%; rate/clock has **σ 21.8%**. The clock over-predicts — across bands the rate rises 11.453 → 14.574, about 27%, while the clock rises from under 110% to over 170%, more than 60%.
+- **Within a band of tenancy the clock stops predicting anything.** At rest under 2 cores, r = 0.052 across 35 holds; at 12–14 cores, r = 0.208 across 37 — and the bands carry real clock spread (σ 21.8% in the first), so these are tests with power rather than empty ones.
+
+The partial correlations say it in one line. Controlling for tenancy, **r(rate, clock | rest) = +0.116**, down from +0.530. Controlling for clock, **r(rate, rest | clock) = +0.486**, barely down from +0.666. **The neighbour predicts the rate; the clock is a correlate of the neighbour.**
+
+**What this does not do is refute the clock**, and the reason is the same instrument defect named above: `processor_performance` is one point sample at hold start, and noise in a predictor attenuates exactly these correlations. A genuinely causal clock, read badly, produces this result too. So the honest position is that the clock is **unproven** — both tests that could have supported it failed, neither can convict it, and the per-tick sampling this record asked for is now necessary rather than merely tidy.
+
+**And the mechanism is open again.** The 2×2 stands: same CPU, 36.3% less work, with ordinary contention pointing the wrong way by roughly two. What raises the value of a core-second on a busier box is once more unexplained.
 
 ## Provenance
 
