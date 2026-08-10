@@ -217,3 +217,30 @@ The gate's twenty-minute run was launched the moment `chrome-headless-shell` rea
 
 **The refusal cost five minutes rather than forty**, which is the precondition earning its place even while its threshold is in question.
 
+## The thirty-second probe is not the problem, and the threshold should not be loosened
+
+[The refused run](#the-window-closed-in-under-five-minutes-and-the-probe-caught-it) raised the possibility that `m1-hour`'s precondition compares two **30-second** probes against a 5% threshold descended from **120-second** holds, and so refuses on its own sampling. Eight back-to-back 30-second holds, the exact shape the script runs, say otherwise.
+
+| # | rate | cores held elsewhere |
+|---|---:|---:|
+| 1 | 15.896 | 12.33 |
+| 2 | 16.382 | 12.34 |
+| 3 | 16.247 | 12.20 |
+| 4 | 14.386 | 7.67 |
+| 5 | 11.530 | **1.56** |
+| 6 | 16.844 | 2.97 |
+| 7 | 14.046 | 13.53 |
+| 8 | 15.434 | 12.93 |
+
+The tenant came and went during the series, which is what makes it readable. Splitting the seven adjacent gaps by whether the rest column moved by as much as one core:
+
+| tenancy held still | tenancy moved |
+|---|---|
+| **3.1%, 0.8%, 9.9%** | 12.9%, 24.8%, 46.1%, 19.9% |
+
+**Every gap above 12% coincides with tenancy moving at least 1.4 cores**, and holds 1-3 — constant at 12.33, 12.34 and 12.20 cores held — agree to 3.1% and 0.8%. An instrument too short to measure anything cannot produce 0.8%. **So the hypothesis is refuted and the fix it implied would have been the wrong one**: loosening the threshold would have let a moving machine through, which is the one thing the precondition exists to stop. The 17.2% that refused the gate run was the machine changing between two half-minutes, not the probe being brief.
+
+**It is not a clean pass for the threshold either.** One of the three stable pairs still reached 9.9%, so the precondition will sometimes refuse a machine whose *tenancy* is constant, and three stable pairs is a thin basis for saying how often. What the series does settle is the direction: the dominant term is the neighbour arriving and leaving, not the probe length.
+
+**One reading is unexplained and left standing.** Hold 5 is the quietest of the eight at 1.56 cores held and the **slowest**, 11.530, while holds under twelve cores of tenancy returned 15.9 to 16.8. That is backwards, it is a single hold, and nothing here accounts for it.
+
