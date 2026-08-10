@@ -663,3 +663,22 @@ That is a third reason [the sick-machine framing was too strong](#the-instrument
 
 **It also bounds what the health line may say.** Baselines disagreeing under twelve cores of neighbour could be the box or the browser, where the same disagreement on an idle machine — [11.9% and 5.1% at 1.29 cores held](#ten-hours-in-the-health-check-says-the-box-is-still-unfit) — is the box. The line now reports which of those it is looking at, because the spread alone names no cause, exactly as the solo rate and the concurrent throughput name none alone.
 
+## Eleventh set: the gap strengthens again and the sigma stops climbing
+
+A census run fired one more set. Void by the rule — its first hold caught the neighbour arriving at 2.28 cores and the rest sat at twelve — and it adds three crowded holds and one borderline-quiet.
+
+| | n | mean | sigma | range |
+|---|---:|---:|---:|---:|
+| crowded, 12–13.8 cores | 28 | 14.906 | 9.09% | 12.408–17.101 |
+| quiet, under 2.5 cores | 11 | 12.701 | **15.14%** | 9.246–15.815 |
+
+**17.4% apart at 3.5 standard errors**, after 1.6, 2.9 and 3.2 at the previous poolings. Strengthening at every one, which is what a real difference does as the sample grows and is exactly what the patterns that dissolved did not do.
+
+**And the sigma has stopped climbing**: 6.00 at thirteen holds, 7.48 at sixteen, 9.08 at nineteen, 8.48 at twenty-three, **9.09 at twenty-eight**. It wanders around 9% rather than rising, which retires [the reading that it was a distribution whose tails the early samples kept finding](#the-sigma-has-risen-at-every-pooling-which-is-the-finding) for the second time.
+
+**The set also caught an arrival mid-flight.** Its first hold read **2.28 cores** — between this box's idle floor and anything the neighbour does — and the next hold read 12.19. So 2.28 was the browser on its way in, sampled a few seconds early, rather than a third population. Naming it would have been a story; the next number was four minutes away.
+
+**Two crowded holds in it agree to 0.4%**, 14.534 and 14.481 at 12.19 and 12.20 cores, matching the tightest this box has ever produced — while the triple including the third spreads 4.8%. A pair is not a spread, which is the same lesson as reading the worst of a bracket's two sides rather than the best.
+
+**None of this reinstates the withdrawn generalisation.** [08-02 ran at 9.4 units/s and reproduced to 0.28%](#slow-and-unreproducible-are-two-axes-and-this-record-kept-treating-them-as-one), so *idle boxes are worse measurement environments* remains a statement about one night rather than about idleness.
+
