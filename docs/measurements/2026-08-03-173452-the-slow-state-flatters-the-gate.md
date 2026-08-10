@@ -506,3 +506,20 @@ Seven attempts, and the corrected waiter finally caught a window that held: six 
 
 **One set, and it is one set.** Four holds cannot establish a 4.7% difference against 11% scatter, and the 34.4% pair could be the tail rather than the rule. What it does establish is that the quiet window exists, that a valid set is obtainable, and that the earlier claim — five verified windows each spoiled inside the first hold, called *a rate rather than an anecdote* — was five of six and is withdrawn.
 
+## A loaded box runs a lone session faster and more repeatably than an idle one
+
+Four more crowded holds close the eighth waiter set, and two questions resolve together.
+
+| | n | mean | sigma | range |
+|---|---:|---:|---:|---:|
+| crowded, 12–13.8 cores held | 23 | **15.180** | **8.48%** | 12.668–17.101 |
+| quiet, under 2.5 cores held | 8 | **13.442** | **11.31%** | 10.738–15.815 |
+
+**Crowded is 12.9% faster at 2.9 standard errors.** That comparison was 1.6 SE on the previous pooling and has grown as the crowded sample filled in rather than shrinking, which is what a real difference does. A lone session on this box runs *faster* when a browser holds twelve of sixteen cores than when nothing is running at all — and it runs *more reproducibly*, 8.48% against 11.31%.
+
+**And the sigma turned down**, which corrects a reading made one pooling earlier. The history is 6.00% at thirteen holds, 7.48% at sixteen, 9.08% at nineteen, **8.48% at twenty-three**. [The monotone climb was called the signature of a distribution with tails the early samples missed](#the-sigma-has-risen-at-every-pooling-which-is-the-finding), with a prediction that it would rise again. It fell. So the climb was an estimate converging noisily, and three rises in a row were three points read as a law — the same error this record has made about the twelves, about a three-minute cadence, and about five windows spoiled in a row.
+
+**What survives is the comparison, not the constant.** Sigma is somewhere near 8–9% and still moving; the crowded-versus-quiet gap has strengthened across two poolings and is the thing worth acting on. The candidate mechanism is clock and core residency — a loaded package pinned at a stable frequency with cores unparked, against an idle one wandering across P-states between measurements — which is untested and is recorded as its own question rather than asserted here.
+
+**It inverts what the bracket assumes.** `sessionbench` takes its solo baselines in the quietest window it can find, and `m1-hour`'s precondition refuses a run when a neighbour is present. On this box the neighbour is what makes a solo hold reproducible, so the instrument is choosing its worst measurement conditions deliberately.
+
