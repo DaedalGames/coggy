@@ -369,3 +369,29 @@ The waiter was fixed to require six consecutive polls below one core before firi
 
 **And the third is a retraction.** The quietest hold here is the **fastest**, 15.815 at 2.92 cores, where [the pattern recorded twice before](#the-controlled-set-fired-on-a-tenant-that-was-starting-not-gone) had the quietest hold slowest. Three sightings became a task; the fourth chance came back the other way, so what looked like the most repeatable unexplained thing in this record is more likely three draws from a wide distribution.
 
+## A thirty-second hold is twice as noisy as a two-minute one, which ends the question
+
+A third alternating set, fired after the waiter verified sixty seconds below one core with no rejections. The neighbour was back above twelve cores before the first hold finished — **under ninety seconds from a verified-quiet start** — and then held remarkably still.
+
+| | rate | cores held elsewhere |
+|---|---:|---:|
+| 30 s | 16.693 | 12.56 |
+| 120 s | 15.821 | 12.92 |
+| 30 s | 14.337 | 12.94 |
+| 120 s | 14.716 | 12.24 |
+
+**Void by the rule, and the most informative of the three** — every hold sits between 12.24 and 12.94 cores held, a range of 5.7%, so the neighbour is as close to constant as this box has offered.
+
+| | mean | spread |
+|---|---:|---:|
+| 30 s arm | **15.515** | **16.4%** |
+| 120 s arm | **15.269** | **7.5%** |
+
+**The duration difference is 1.6%**, agreeing with the 0.9% from the pooled earlier sets and with the four other accounts, against the 25 to 35% that opened the question. **And the short arm's own scatter is ten times that difference.**
+
+**The new figure is the repeatability**: 16.4% against 7.5%, roughly halved for four times the duration, which is what averaging does. A 30-second hold is about twice as noisy as a 120-second one, so any effect it seemed to show is a fifth the size of its own noise.
+
+**That reconciles the earlier octet rather than contradicting it.** There, three 30-second holds at constant tenancy agreed to 3.1%; here two agree to 16.4%. Both are real — the instrument's repeatability is itself variable — which is exactly why [a precondition that refuses on disagreement is the right design](#the-thirty-second-probe-is-not-the-problem-and-the-threshold-should-not-be-loosened) and why widening its threshold would have been wrong. It also explains the gate run's 17.2% probes on a quiet box without needing the machine to have moved.
+
+**So the question is not resolvable here, and no longer worth resolving.** Two holds an arm cannot separate a 1.6% difference when one arm's repeatability is 16.4%; it would take roughly a dozen holds an arm, which is thirty-plus minutes of sustained quiet on a box that has not produced five. The reason to stop is the instrument's noise rather than the tenant.
+
