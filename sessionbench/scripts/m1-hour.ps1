@@ -253,7 +253,17 @@ if ($crest -gt 2.5 -or $srest -gt 2.5) {
 if ($gap -gt 5) {
     "  they disagree, so the level below names a band the machine may not be in"
 }
+# **A 30-second probe may not be placed against a 120-second band.** Eight
+# probes of this exact length averaged 15.10 units/s on an afternoon when
+# 120-second solo holds ran about 11.2 -- 35% apart, same box and workload,
+# so a short hold reads a different LEVEL rather than a noisier version of
+# the same one. The bands below were measured at 120 s. The comparison is
+# kept because it is the only reading available before the run, and it is
+# labelled rather than trusted; the precondition above is unaffected, since
+# it compares two probes of equal length with each other.
 if ($mean -lt 15) {
+    "NOTE: these probes are 30 s and the bands below were measured at 120 s,"
+    "      where the same box read about 35% lower. Treat the band as a hint."
     "NOTE: {0:N1} units/s is not the rested state (~19-21). Three bands were" -f $mean
     "      measured on this box on 2026-08-03, all at this workload:"
     "        rested          18.9   (quiet, 1-3 cores held; TWO HOLDS ONLY)"

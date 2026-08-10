@@ -280,3 +280,32 @@ So the level is not an observation that happened to hold across two exposures; i
 
 **It also says what would break it**, which an empirical reading could not: raising the line cap, raising the session count, or a workload whose lines are longer — since [`DEFAULT_SCROLLBACK_BYTES`](../../coggyd/src/lib.rs) bounds the content where the line count bounds only the per-line overhead. None of those is the hour, so the memory condition carries to sixty minutes for a reason rather than by extrapolation.
 
+## A thirty-second hold is not a short two-minute hold
+
+The eight probes above were taken to test the precondition, and they answer a second question they were not launched for. Their tenancy spans **1.56 to 13.53 cores held inside five minutes**, which is [the time-controlled condition a neighbour's cost has never had](2026-08-03-081500-a-neighbour-costs-the-solo-baseline-twenty-seven-percent.md) — every earlier comparison varied tenancy by waiting, so it varied time too.
+
+Regressed, the neighbour costs nothing detectable: **+0.151 units/s per core held, r² = 0.17**, and the sign is positive where the earlier reading implies negative. Four holds between 12.20 and 13.53 cores held span 14.046 to 16.382 — **17% at near-identical tenancy** — so tenancy explains almost none of the variation. **The 27% that a neighbour was said to cost may have been time rather than the neighbour**, and this is the first set that could tell them apart.
+
+**It cannot settle it either, because the instrument changed.** These are 30-second holds averaging **15.10 units/s**, where today's 120-second solo holds run about **11.2** — 35% apart, same box, same workload, same afternoon. A short hold reads a *different level*, not a noisier version of the same one, so the two sets are not comparable and neither is a clean answer about neighbours.
+
+**That difference is a live defect in the gate script.** `m1-hour` takes 30-second probes and prints a NOTE placing their mean against bands measured at 120 seconds — 18.9 rested, 13.8 tenanted, 9.0 slow. A probe systematically 35% high against a 120-second band will name the wrong band, and the branch that fires decides what an operator is told about spending the hour. The precondition itself is unaffected, since [it compares two probes of equal length with each other](#the-thirty-second-probe-is-not-the-problem-and-the-threshold-should-not-be-loosened) and that comparison was measured sound; what is wrong is comparing a probe to a band.
+
+**What this does not establish**: why a shorter hold reads higher. Start-up cost amortised over a quarter of the window, scheduling luck that has not averaged out, or the workload's own early behaviour are all candidates and none is tested. Eight holds, one afternoon, and the direction is what is solid rather than the 35%.
+
+## The 35% carries the same confound it was used to expose
+
+The section above doubts a neighbour's 27% because it varied tenancy by waiting, and then states a 35% difference between 30-second and 120-second holds **which was arrived at the same way**. Every solo hold on disk, by duration:
+
+| duration | n | mean | min | max |
+|---|---:|---:|---:|---:|
+| 20 s | 1 | 21.40 | 21.40 | 21.40 |
+| 30 s | 10 | **14.17** | 9.55 | 16.84 |
+| 120 s | 11 | 13.32 | 10.10 | 20.30 |
+| 121 s | 41 | **10.23** | 7.86 | 15.71 |
+
+**All ten 30-second holds were taken inside one five-minute window**; the fifty-two at two minutes span the whole day, including the stretches where this box ran at half speed. So the comparison varies duration and time together, which is the objection the previous section raises against the 27%, made again in the act of raising it.
+
+Held to the same standard: the nearest-in-time 120-second holds, from the same hour, read **10.7 to 12.0** against the 30-second mean of 14.17 — so the direction survives and the size drops to roughly a quarter, on a handful of points. The 20-second reading of 21.40 is from a different day on a rested box and is not evidence of a trend, however neatly it extends one.
+
+**What stands is the direction and the consequence, not the figure.** A short hold appears to read higher, and that is enough to say a 30-second probe should not be placed against a 120-second band — which is the [script change](../../sessionbench/scripts/m1-hour.ps1) the finding produced, and which needs only the sign. What would settle the size is a set alternating 30-second and 120-second holds inside one window, which nothing has run.
+
