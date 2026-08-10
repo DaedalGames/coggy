@@ -333,3 +333,20 @@ That is three independent arguments against the duration effect being real — t
 
 **It turns the pending test into a prediction rather than an exploration.** Four alternating holds inside one window should find no effect, or a small one favouring the *long* holds. A result the other way would mean something is going on that none of these three accounts for, and would be worth far more than confirming the confound.
 
+## The controlled set fired on a tenant that was starting, not gone
+
+The prediction test was armed as a waiter that polls for the neighbour to drop below one core and fires immediately, because [five windows were lost between observing quiet and issuing a command](../../sessionbench/scripts/wait-for-quiet.ps1). It fired at a reading of **0.00 cores held**. Its first hold recorded **12.20**.
+
+| hold | rate | cores held elsewhere |
+|---|---:|---:|
+| 30 s, first | 16.505 | 12.20 |
+| 120 s, first | 14.168 | **2.36** |
+| 30 s, second | 15.376 | 12.27 |
+| 120 s, second | 16.134 | 13.71 |
+
+**The set is void**, by the rule written into the task before any number existed: any hold above about 2.5 cores held disqualifies it, and three of four are. What went wrong is not the tenant's timing but the waiter's: a single `Get-Counter` reading of 0.00 means a process that is *starting* as readily as one that is gone, which is [the point-sample-is-not-a-window rule](../../CLAUDE.md) broken inside the instrument built to obey it. The waiter now needs consecutive quiet readings before firing.
+
+**Read opportunistically it corroborates the prediction without replacing it.** At matched tenancy — 12.20, 12.27 and 13.71 cores — the two 30-second holds average **15.94** against the 120-second hold's **16.134**, a difference of **1.2%** where the original comparison claimed 25 to 35%. That is a fourth thing pointing the same way as the within-hold measurement, the arithmetic, and the nearest-in-time comparison. It is not the controlled test and does not close the question.
+
+**The backwards pattern shows a third time.** The quietest hold here, at 2.36 cores held, is the slowest at 14.168, where holds under twelve cores of tenancy return 15.4 to 16.5. The same inversion appeared in [the octet's quietest hold](#the-thirty-second-probe-is-not-the-problem-and-the-threshold-should-not-be-loosened) at 1.56 cores and 11.530. Three sightings, no mechanism, and it is now the most repeatable unexplained thing in this record.
+

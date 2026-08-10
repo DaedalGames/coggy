@@ -13,9 +13,15 @@
 # LAUNCH DETACHED, like anything that outlives a tool call:
 #   Start-Process pwsh -ArgumentList '-NoProfile','-File','<this>' `
 #       -RedirectStandardOutput quiet.log -RedirectStandardError quiet.err
+# A SINGLE READING OF 0.00 MEANS STARTING AS READILY AS GONE. The first
+# attempt fired on exactly that and its first hold recorded 12.20 cores held,
+# voiding the set. `Get-Counter` is a point sample, and a process ramping up
+# reads zero on the way; requiring the quiet to persist for several polls is
+# what distinguishes an absence from an instant.
 param(
     [double]$MaxTenantCores = 1.0,
     [int]$PollSeconds = 10,
+    [int]$ConsecutiveQuiet = 6,
     [int]$GiveUpMinutes = 120
 )
 
@@ -42,17 +48,27 @@ function Get-TenantCores {
 }
 
 $deadline = (Get-Date).AddMinutes($GiveUpMinutes)
-"waiting for a window: tenant under {0:N1} cores, giving up at {1:HH:mm}" -f $MaxTenantCores, $deadline
+"waiting for a window: tenant under {0:N1} cores for {1} consecutive polls ({2}s apart), giving up at {3:HH:mm}" `
+    -f $MaxTenantCores, $ConsecutiveQuiet, $PollSeconds, $deadline
 
+$run = 0
 while ((Get-Date) -lt $deadline) {
     $t = Get-TenantCores
     if ($t -lt $MaxTenantCores) {
-        "{0:HH:mm:ss} WINDOW OPEN at {1:N2} cores held — starting" -f (Get-Date), $t
-        break
+        $run++
+        "{0:HH:mm:ss} quiet {1}/{2} at {3:N2} cores" -f (Get-Date), $run, $ConsecutiveQuiet, $t
+        if ($run -ge $ConsecutiveQuiet) {
+            "{0:HH:mm:ss} WINDOW OPEN — quiet held for {1}s, starting" -f (Get-Date), ($run * $PollSeconds)
+            break
+        }
+    }
+    elseif ($run -gt 0) {
+        "{0:HH:mm:ss} quiet broken at {1:N2} cores after {2} poll(s)" -f (Get-Date), $t, $run
+        $run = 0
     }
     Start-Sleep -Seconds $PollSeconds
 }
-if ((Get-Date) -ge $deadline) { "gave up without a window"; exit 2 }
+if ($run -lt $ConsecutiveQuiet) { "gave up without a window"; exit 2 }
 
 # The pre-registered set: two arms, alternating, both inside one window, so the
 # comparison varies duration and nothing else. Order alternates rather than
