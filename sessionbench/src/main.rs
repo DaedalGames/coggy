@@ -154,20 +154,49 @@ enum Command {
         /// put a hold's own spread at 4–8%, which three repeats bring to a
         /// standard error of 2.3–4.0% and inside the allowance.
         ///
-        /// **Not nine, and the arithmetic that said nine came from one
-        /// afternoon.** A set spreading 28.5% implies a σ needing nine repeats
-        /// a side, which costs more baseline than the run it brackets — and
-        /// that set is [the only one whose background collapsed while it
+        /// **Five, because three refuses a third of stable runs — and the
+        /// paragraph above stops one step short of saying so.** Checking that
+        /// the standard error fits under the allowance is not the question;
+        /// what decides a threshold is how often the noise crosses it. Pooled
+        /// over thirteen holds at matched tenancy a hold's own σ is **6%**, so
+        /// at `n` a side the difference of two means carries `6·√(2/n)`:
+        ///
+        /// | a side | se of the difference | 5% in se | refuses a *stable* run |
+        /// |---:|---:|---:|---:|
+        /// | 1 | 8.49% | 0.59 | 56% |
+        /// | 3 | 4.90% | 1.02 | **31%** |
+        /// | 5 | 3.79% | 1.32 | 19% |
+        /// | 9 | 2.83% | 1.77 | 8% |
+        ///
+        /// Three put the allowance at one standard error of the instrument's
+        /// own noise, which is a coin weighted 2:1 rather than a check — paid
+        /// on the run hardest to repeat. Five costs four extra holds; nine
+        /// costs twelve and reaches 8%, so it is the right default for an
+        /// hour-long run and too much baseline for a short
+        /// [one](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md).
+        ///
+        /// **The other lever has the wrong sign.** Widening the 5% trades
+        /// false refusals for accepting a machine that really moved, which is
+        /// the failure this exists to prevent. Repeats shrink the noise; the
+        /// allowance is the standard.
+        ///
+        /// **Nine was once rejected on evidence that was itself wrong.** A set
+        /// spreading 28.5% implied a σ needing nine, and that set is [the only
+        /// one whose background collapsed while it
         /// ran](../../docs/measurements/2026-08-02-221853-the-noisy-baseline-was-one-noisy-afternoon.md),
-        /// from 28% to 9%. More repeats are the wrong answer to a machine that
-        /// is leaving; the bracket's two sides disagreeing is the right signal.
+        /// from 28% to 9%. The rejection was right about the afternoon and
+        /// wrong about the setting.
+        ///
+        /// **6% is this laptop at this workload.** The arithmetic travels and
+        /// the constant does not: measure the local per-hold spread — thirteen
+        /// holds, against one refused hour — before choosing `n` elsewhere.
         ///
         /// **And a longer hold does not help**, which is the part worth knowing
         /// before reaching for `--solo-duration` instead. What moves a solo
         /// hold is fixed for that hold's whole length — same share of CPU,
         /// different work done with it — so stretching one averages nothing.
         /// Separate launches are what sample it.
-        #[arg(long, default_value_t = 3, value_name = "N")]
+        #[arg(long, default_value_t = 5, value_name = "N")]
         solo_repeats: usize,
 
         /// The workload each session runs, after `--`.

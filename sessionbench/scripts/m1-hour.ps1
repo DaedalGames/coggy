@@ -1,8 +1,20 @@
 # Gate M1's hour — see task #45.
 #
 # A hundred sessions under coggyd for an hour, with a baseline on either side.
-# Roughly seventy-six minutes end to end once the baselines are counted, and
-# the machine must be left alone for all of it: the observer is not free.
+# End to end that is the hold plus ten two-minute baselines and their
+# warm-ups -- about 48 minutes at the default twenty-minute hold, about 88
+# if the hold is given the full hour -- and the machine must be left alone
+# for all of it: the observer is not free.
+#
+# FIVE BASELINES A SIDE, NOT THREE, AND THE REASON IS ARITHMETIC RATHER THAN
+# CAUTION. A solo hold's own sigma is 6% here, pooled over thirteen holds at
+# matched tenancy, so three a side puts the standard error of the difference
+# at 4.90% and the 5% allowance at 1.02 of it -- a coin weighted 2:1 that
+# refuses roughly a third of runs on a machine that never moved, paid on the
+# measurement hardest to repeat. Five brings that to 19% for four extra
+# holds. Nine would reach 8% and costs eighteen baseline holds, which is
+# more baseline than the hold it brackets on a box whose quiet stretches do
+# not reach ninety seconds.
 #
 # Two of the gate's conditions come back out_of_reach whatever this does, and
 # the report says so rather than passing them. This run answers RSS against
@@ -314,7 +326,7 @@ if ($DurationSeconds -ge 3600) {
 "`nstarting — about {0:N0} minutes, leave the machine alone" -f (($DurationSeconds + 720) / 60)
 & $bench hold `
     --label $label --sessions 100 --interval 5 --duration $DurationSeconds `
-    --with-solo --solo-duration 120 --solo-repeats 3 `
+    --with-solo --solo-duration 120 --solo-repeats 5 `
     -- $spin @work
 
 "`nDO NOT PRUNE bench-out until the record is written."
