@@ -499,11 +499,25 @@ fn main() -> anyhow::Result<()> {
                 // — and it is one box, so the number travels only as a
                 // method: measure your own healthy spread and put the bar
                 // in the gap.
-                let health = |v: Option<f64>| match v {
+                // **A wide spread needs the rest column to be attributable.**
+                // Baselines disagreeing under twelve cores of neighbour could
+                // be the box or the browser; the same disagreement on an idle
+                // machine is the box. So the verdict says which question it
+                // can answer, rather than implying a cause it cannot see --
+                // the same pairing the solo rate and the throughput both need.
+                let health = |v: Option<f64>, crowded: bool| match v {
                     Some(x) if x <= 1.5 => "  <- fit to measure on",
+                    Some(_) if crowded => {
+                        "  <- baselines disagree, and a neighbour was here: cause unattributable"
+                    }
                     Some(_) => "  <- baselines disagree with themselves: no ratio here means much",
                     None => "",
                 };
+                let crowded = bracketed
+                    .before_rest_cores
+                    .into_iter()
+                    .chain(bracketed.after_rest_cores)
+                    .any(|c| c > 2.5);
                 let worst = bracketed
                     .before_spread_percent
                     .into_iter()
@@ -513,7 +527,7 @@ fn main() -> anyhow::Result<()> {
                     "\n  solo spread {} before · {} after{}\n  solo error  ±{} before · ±{} after\n  solo rest   {} before · {} after\n  solo gap    {}\n  slowdown    {}",
                     percent(bracketed.before_spread_percent),
                     percent(bracketed.after_spread_percent),
-                    health(worst),
+                    health(worst, crowded),
                     // The spread is what the holds did; the error is what the
                     // side's mean is worth. Only the second can be set against
                     // an allowance on a difference of means.

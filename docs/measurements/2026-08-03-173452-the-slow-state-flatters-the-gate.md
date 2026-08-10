@@ -646,3 +646,20 @@ Across 124 holds that carry both host counters, tonight reads **63.1 °C in ever
 
 **So the record's conclusion stands and one sentence in it does not.** Neither counter discriminates the state; the zone is not constant, it is *slow-moving*, and a figure that changes across days but never within one cannot separate conditions that come and go in minutes.
 
+## A tight triple under twelve cores of neighbour, and what the verdict may claim
+
+The spread reading now names when it cannot attribute a cause. A bracket taken to check that change came back with the two sides disagreeing about the machine:
+
+```
+solo spread 1.1% before · 6.4% after  <- baselines disagree, and a neighbour was here: cause unattributable
+solo rest   12.59 cores before · 12.66 cores after
+```
+
+**The before side spread 1.1% — inside the fit bar — with a browser holding 12.6 of 16 cores.** So this box can produce a tight triple while heavily crowded, and it did so within the same bracket whose other side spread 6.4% at the same tenancy. Tightness comes and goes inside four minutes.
+
+That is a third reason [the sick-machine framing was too strong](#the-instrument-reproduces-a-hold-to-half-a-percent-so-the-noise-was-the-machine), after [slow-and-tight at 9.4 units/s](#slow-and-unreproducible-are-two-axes-and-this-record-kept-treating-them-as-one) and [fast-and-loose at 8.96% on 08-01](#the-454-was-a-different-flag-and-the-fitness-threshold-rests-on-one-day). Whatever governs reproducibility here is not a state the box sits in for hours.
+
+**And it settles a design question the verdict had to answer.** Reading the *best* side would have called this bracket fit; reading the **worst** calls it unattributable and stops a ratio being drawn across sides that do not agree with themselves. The worst-of-both reading is the one that cannot be gamed by a lucky triple.
+
+**It also bounds what the health line may say.** Baselines disagreeing under twelve cores of neighbour could be the box or the browser, where the same disagreement on an idle machine — [11.9% and 5.1% at 1.29 cores held](#ten-hours-in-the-health-check-says-the-box-is-still-unfit) — is the box. The line now reports which of those it is looking at, because the spread alone names no cause, exactly as the solo rate and the concurrent throughput name none alone.
+
