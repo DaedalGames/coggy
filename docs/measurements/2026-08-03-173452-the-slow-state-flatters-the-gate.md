@@ -265,3 +265,18 @@ Run without a bracket, deliberately: **RSS and dropped output are absolute condi
 
 **What this does not claim.** Not the duration condition: twenty minutes is not sixty, and [this box hard-stopped at forty-one minutes of exactly this load](2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md), so the cap is a safety limit rather than a shortage of patience. Not the work rate, which needs a bracket and a quiet box. What it adds is that two of the four conditions now hold at a third of the gate's exposure, with the window counted at 99.7% rather than assumed.
 
+## Why it is a level: the scrollback cap, not the clock
+
+[The section above](#twenty-minutes-says-the-memory-cost-is-a-level-not-a-slope) reads 2.372 GiB at twenty minutes against 2.36 at two as evidence that memory does not accumulate. The obvious attack is that the twenty-minute hold ran on a half-machine and therefore did far less work than a quiet twenty minutes would — so if RSS tracks *work* rather than *time*, the result is about a slow box. The artifacts answer it, and the answer is a mechanism rather than a reassurance.
+
+| run | units | evicted | **retained** | peak RSS |
+|---|---:|---:|---:|---:|
+| five minutes | 272,067 | 72,067 | **200,000** | 2.375 GiB |
+| twenty minutes | 638,077 | 438,077 | **200,000** | 2.372 GiB |
+
+**Both retain exactly 200,000 lines** — [`DEFAULT_SCROLLBACK_LINES`](../../coggyd/src/lib.rs) at 2,000 a session, times a hundred sessions — while the work behind them differs by **134%**. Once the buffer fills, further output evicts rather than allocates, so memory stops tracking work and starts tracking the cap.
+
+So the level is not an observation that happened to hold across two exposures; it is what a bounded buffer does after it fills. **The two peaks agree to 0.13%** where the work differs 2.3×, which is a stronger statement than the 0.4% quoted above, and the attack is what produced it.
+
+**It also says what would break it**, which an empirical reading could not: raising the line cap, raising the session count, or a workload whose lines are longer — since [`DEFAULT_SCROLLBACK_BYTES`](../../coggyd/src/lib.rs) bounds the content where the line count bounds only the per-line overhead. None of those is the hour, so the memory condition carries to sixty minutes for a reason rather than by extrapolation.
+
