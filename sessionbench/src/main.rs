@@ -158,20 +158,22 @@ enum Command {
         /// paragraph above stops one step short of saying so.** Checking that
         /// the standard error fits under the allowance is not the question;
         /// what decides a threshold is how often the noise crosses it. Pooled
-        /// over sixteen holds at matched tenancy a hold's own σ is **7.48%**, so
-        /// at `n` a side the difference of two means carries `7.48·√(2/n)`:
+        /// a hold's own σ here is **at least 9%**, and that is a lower bound
+        /// rather than a measurement — three poolings of the same box and
+        /// workload gave 6.00% at thirteen holds, 7.48% at sixteen and 9.08%
+        /// at nineteen. **It rose every time.** An estimate converging wanders
+        /// both ways; one that only climbs is a distribution whose tails the
+        /// early samples missed, so the next pooling will probably raise it
+        /// again. At 9.08% the difference of two means carries `9.08·√(2/n)`:
         ///
         /// | a side | se of the difference | 5% in se | refuses a *stable* run |
         /// |---:|---:|---:|---:|
-        /// | 1 | 10.58% | 0.47 | 64% |
-        /// | 3 | 6.11% | 0.82 | **41%** |
-        /// | 5 | 4.73% | 1.06 | 29% |
-        /// | 9 | 3.53% | 1.42 | 16% |
+        /// | 3 | 7.41% | 0.67 | **50%** |
+        /// | 5 | 5.74% | 0.87 | 38% |
+        /// | 9 | 4.28% | 1.17 | 24% |
         ///
-        /// **An earlier version of this table said 31%, 19% and 8%, from a σ of
-        /// 6% over thirteen holds.** Three more holds moved it 25%, which is
-        /// what a σ from thirteen samples does — so treat these as provisional
-        /// too, and note that no repeat count makes this bracket quiet here:
+        /// So five a side is chosen against an unbounded σ rather than a known
+        /// one, and no repeat count rescues this bracket here:
         /// nine a side is eighteen baseline holds and still refuses one stable
         /// run in six. The allowance being finer than a single hold's noise is
         /// [its own open question](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md).

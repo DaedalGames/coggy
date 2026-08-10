@@ -467,3 +467,21 @@ Sixteen matched-tenancy holds now: 30 s at n=8, mean 15.769, sd 6.1%; 120 s at n
 
 **Nothing is changed on that here.** The right response is a threshold derived from the measured noise rather than inherited — 2 standard errors at the chosen repeat count, say — and that is a design decision with its own failure modes, not a number to nudge because tonight's runs kept refusing. It is recorded and left open.
 
+## The sigma has risen at every pooling, which is the finding
+
+Three estimates of the same quantity on the same box and workload, each adding holds to the one before:
+
+| holds | sigma | 3 a side refuses | 5 a side | 9 a side |
+|---:|---:|---:|---:|---:|
+| 13 | 6.00% | 31% | 19% | 8% |
+| 16 | 7.48% | 41% | 29% | 16% |
+| **19** | **9.08%** | **50%** | **38%** | **24%** |
+
+**It has gone up every time, by half in total.** An estimate converging on a value wanders both ways; one that only climbs as the sample grows is the signature of a distribution with tails the early samples missed. So **9.08% is not the figure either** — it is the third lower bound in a row, and the honest statement is that a solo hold's spread on this box is *at least* 9% and has not been bounded above.
+
+That makes the bracket's position worse than [#63 recorded](#three-more-holds-moved-the-sigma-25-and-the-refusal-rates-with-it). At 9.08% the current five-a-side refuses **38%** of runs on a machine that never moved, and nine a side — eighteen baseline holds, more baseline than the hold it brackets — still refuses **24%**. There is no repeat count that rescues a 5% allowance against this instrument.
+
+**The quiet-versus-slow question resolves the same way the closure predicted.** Four quiet holds (rest under 3 cores: 12.430, 13.586, 14.168, 15.815) average **14.000**; nineteen crowded holds average **15.216**. Crowded is **8.7% faster at 1.6 standard errors** — the direction six accidental sightings pointed, and still inside noise. Six anecdotes agreeing while the pooled test cannot confirm them is exactly what a wide distribution produces, and it is why [#60 stays closed](#four-void-sets-pooled-the-duration-effect-is-null-and-a-hold-is-worth-about-6): the quiet group's own spread is 10.1%, as wide as the difference being chased.
+
+**And the duration comparison is unchanged by the extra holds**: 30 s at n=9 means 15.917 with sd 6.3%, 120 s at n=10 means 14.585 with sd 9.7%. Null, as at every previous pooling.
+
