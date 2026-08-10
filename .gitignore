@@ -19,3 +19,7 @@ node_modules/
 *.local*
 *.log
 .DS_Store
+
+# wait-for-quiet's PID lock. Committing one would refuse a fresh clone's
+# first waiter until the stale pid happened to be dead.
+.wait-for-quiet.lock

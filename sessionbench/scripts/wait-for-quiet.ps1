@@ -18,10 +18,24 @@
 # voiding the set. `Get-Counter` is a point sample, and a process ramping up
 # reads zero on the way; requiring the quiet to persist for several polls is
 # what distinguishes an absence from an instant.
+# TWO BARS, BECAUSE FIRING AND COUNTING WANT DIFFERENT ONES. Firing is strict:
+# a set costs five and a half minutes and voids if any hold sees more than
+# ~2.5 cores held. Counting wants a bar above this box's idle floor, which
+# breathes between 1.0 and 2.0 — with one bar at 1.0 the transition log fills
+# with the floor crossing it and a genuinely quiet machine is unreadable.
+#
+# The gap is measured rather than guessed. Nine rejections on 2026-08-10 split
+# with nothing between 2.20 and 8.14:
+#   floor   1.02  1.04  1.30  1.51  1.60  1.94  2.20
+#   tenant  8.14 10.32 10.50 12.89
+# One of those floor rejections came after FIVE quiet polls, one short of
+# firing, refused by two hundredths of a core.
 param(
-    [double]$MaxTenantCores = 1.0,
+    [double]$FireBelow = 1.0,
+    [double]$CountBelow = 3.0,
     [int]$PollSeconds = 10,
     [int]$ConsecutiveQuiet = 6,
+    [int]$HeartbeatPolls = 30,
     [int]$GiveUpMinutes = 120
 )
 
@@ -36,6 +50,27 @@ $work = @('--units', '100000000', '--duty', '0.27', '--resident', '20')
 # would be counted as a neighbour and disqualify the set for the wrong reason.
 $stray = Get-Process coggyd, cpu-spin, sessionbench -ErrorAction SilentlyContinue
 if ($stray) { "REFUSING: {0} stray process(es)" -f $stray.Count; exit 1 }
+
+# AND REFUSE A SECOND WAITER, which the stray check above does not cover. Two
+# instances polling at once can fire sets seconds apart, and each set would
+# then measure the other's cpu-spin as tenancy at about 0.27 cores — far under
+# the 2.5 that disqualifies a set, so the rule would pass a contaminated run.
+# This happened on 2026-08-10; it was harmless only because the loser never
+# fired, which was luck rather than design.
+#
+# A PID lock file rather than matching command lines: the first attempt looked
+# for another `pwsh` whose command line mentions this script, and the PARENT
+# that launches it matches that too — so it refused itself. A lock is the
+# ordinary mechanism and does not need to tell a parent from a peer.
+$lock = Join-Path $root '.wait-for-quiet.lock'
+if (Test-Path $lock) {
+    $holder = (Get-Content $lock -ErrorAction SilentlyContinue | Select-Object -First 1)
+    $alive = $holder -and (Get-Process -Id $holder -ErrorAction SilentlyContinue)
+    if ($alive) { "REFUSING: another waiter holds the lock (pid $holder)"; exit 1 }
+    "stale lock from pid $holder, taking it"
+}
+Set-Content -Path $lock -Value $PID
+try {
 
 function Get-TenantCores {
     # Retry once, because the query fails transiently and a failure costs a
@@ -62,12 +97,21 @@ function Get-TenantCores {
 }
 
 $deadline = (Get-Date).AddMinutes($GiveUpMinutes)
-"waiting for a window: tenant under {0:N1} cores for {1} consecutive polls ({2}s apart), giving up at {3:HH:mm}" `
-    -f $MaxTenantCores, $ConsecutiveQuiet, $PollSeconds, $deadline
+"waiting: fire under {0:N1} cores for {1} consecutive polls ({2}s apart); count interruptions above {3:N1}; giving up at {4:HH:mm}" `
+    -f $FireBelow, $ConsecutiveQuiet, $PollSeconds, $CountBelow, $deadline
 
 $run = 0
+$polls = 0
 while ((Get-Date) -lt $deadline) {
     $t = Get-TenantCores
+    $polls++
+    # A heartbeat whatever happens, because the branches below only speak when
+    # the run counter moves — so an unbroken hour of load produced NO lines at
+    # all, and a census could not tell it from an hour of nothing happening.
+    if ($polls % $HeartbeatPolls -eq 0) {
+        "{0:HH:mm:ss} heartbeat — {1} polls, tenant now {2:N2} cores, quiet run {3}/{4}" `
+            -f (Get-Date), $polls, $t, $run, $ConsecutiveQuiet
+    }
     # The sentinel is tested FIRST and this order is load-bearing: -1 is less
     # than any sane MaxTenantCores, so checking quiet first would read an
     # unreadable counter as the quietest possible machine and fire the set.
@@ -75,7 +119,7 @@ while ((Get-Date) -lt $deadline) {
         "{0:HH:mm:ss} COUNTER UNREADABLE — not a tenancy event, resetting" -f (Get-Date)
         $run = 0
     }
-    elseif ($t -lt $MaxTenantCores) {
+    elseif ($t -lt $FireBelow) {
         $run++
         "{0:HH:mm:ss} quiet {1}/{2} at {3:N2} cores" -f (Get-Date), $run, $ConsecutiveQuiet, $t
         if ($run -ge $ConsecutiveQuiet) {
@@ -83,8 +127,16 @@ while ((Get-Date) -lt $deadline) {
             break
         }
     }
+    elseif ($t -ge $CountBelow) {
+        # A real interruption: above the floor's band, so this is the neighbour.
+        "{0:HH:mm:ss} INTERRUPTION at {1:N2} cores after {2} quiet poll(s)" -f (Get-Date), $t, $run
+        $run = 0
+    }
     elseif ($run -gt 0) {
-        "{0:HH:mm:ss} quiet broken at {1:N2} cores after {2} poll(s)" -f (Get-Date), $t, $run
+        # Between the bars: the idle floor breathing, not the neighbour. It
+        # still resets the run, because firing needs the strict bar — but it is
+        # labelled so a census does not count it as an interruption.
+        "{0:HH:mm:ss} floor {1:N2} cores after {2} quiet poll(s) — not an interruption" -f (Get-Date), $t, $run
         $run = 0
     }
     Start-Sleep -Seconds $PollSeconds
@@ -103,3 +155,5 @@ foreach ($pair in 1..2) {
     }
 }
 "set complete"
+}
+finally { Remove-Item $lock -ErrorAction SilentlyContinue }
