@@ -244,3 +244,24 @@ The tenant came and went during the series, which is what makes it readable. Spl
 
 **One reading is unexplained and left standing.** Hold 5 is the quietest of the eight at 1.56 cores held and the **slowest**, 11.530, while holds under twelve cores of tenancy returned 15.9 to 16.8. That is backwards, it is a single hold, and nothing here accounts for it.
 
+## Twenty minutes says the memory cost is a level, not a slope
+
+Every hold in this record is two to five minutes, so nothing here says whether a hundred sessions cost *more memory the longer they are held* — which is the question gate M1's hour actually poses, and the one an hour would answer at three times this exposure.
+
+Run without a bracket, deliberately: **RSS and dropped output are absolute conditions, so a neighbour cannot corrupt them.** It only slows the work. That makes them measurable in a window too short and too crowded for any ratio, which is what this box offers.
+
+| | |
+|---|---:|
+| window | **1,203,178 ms counted of 1,207,165 held — 99.7%**, 239 samples |
+| sessions | 100, fewest alive **100**, peak processes 101 |
+| **peak RSS** | **2.372 GiB** of a 3.73 GiB budget — **Held** |
+| dropped output | **0 failed reads**, 0 truncated — **Held** |
+| scrollback | 438,077 evicted, which is policy rather than loss |
+| throughput | 530.3 units/s total, **8.88 cores held outside the job** |
+
+**Peak RSS at twenty minutes is 2.372 GiB against 2.36 at two and at five — 0.4% apart.** Ten times the exposure adds four thousandths, so the footprint is a level the sessions reach and hold rather than something that accumulates. Nothing leaks per unit time at this session count, and the same argument carries the RSS condition to an hour without running one.
+
+**The throughput is discarded and the run is still good.** The tenant held 8.88 cores against the job's 7.12 median, so 530.3 is a figure about half a machine and belongs beside 344.9, 431.9 and 297.3 rather than beside 902.8. The occupancy line also catches it moving — a median of 7.12 against a mean of 8.90 only separates that far when the window is lopsided.
+
+**What this does not claim.** Not the duration condition: twenty minutes is not sixty, and [this box hard-stopped at forty-one minutes of exactly this load](2026-08-03-004512-a-saturating-burst-halves-the-box-for-an-hour.md), so the cap is a safety limit rather than a shortage of patience. Not the work rate, which needs a bracket and a quiet box. What it adds is that two of the four conditions now hold at a third of the gate's exposure, with the window counted at 99.7% rather than assumed.
+
