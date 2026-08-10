@@ -413,3 +413,20 @@ Zero across a **five-fold span of line rates**, including runs at twice today's,
 
 **But the same table says the memory margin is far thinner than today's runs suggest.** `r33-rested` and `r36-rested` peak at **3.651 and 3.944 GiB** where today's runs sit at 2.36 to 2.39, because they hold 33 and 36 MiB a session against 20. Against a 4 GB budget that is **1.4% of headroom at 36 MiB**, not the 40% a 20 MiB run implies. The condition holds at every weight measured and it holds *narrowly* at the weights [the budget actually permits](2026-08-03-024222-the-footprint-never-mattered.md) — which is worth carrying beside the word "held" wherever it appears.
 
+## Four void sets pooled: the duration effect is null and a hold is worth about 6%
+
+A fourth alternating set fired after a window that followed three *descending* rejections — 8.14, 2.20 then 1.51 cores — rather than after none. That was written up beforehand as the set with the best odds of surviving. Its first hold read **12.12 cores**, so the descent bought nothing and the two cases are indistinguishable: **four sets, four voids**, three of them fired after verified sustained quiet and all spoiled inside a single 30-second hold.
+
+The wreckage is the result. Sixteen holds, thirteen of them between 12.12 and 13.71 cores held — the closest to a controlled tenancy condition this box has offered, entirely by accident.
+
+| | n | mean | sd | se |
+|---|---:|---:|---:|---:|
+| 30 s | 7 | **15.927** | 0.914 (5.7%) | 2.2% |
+| 120 s | 6 | **15.270** | 1.020 (6.7%) | 2.7% |
+
+**The difference is +4.3% at 1.2 standard errors** — what noise produces. The duration effect is null, which is where six earlier accounts pointed, and this is the first version of the claim with enough holds to say so rather than infer it.
+
+**Two of this record's own figures fall.** [*A 30-second hold is twice as noisy as a two-minute one*](#a-thirty-second-hold-is-twice-as-noisy-as-a-two-minute-one-which-ends-the-question) was one set — 16.4% against 7.5% — and the next set reversed it at 3.9% against 19.7%. Pooled, the arms scatter **5.7% and 6.7%**, indistinguishable, so hold length changes neither the level nor the repeatability. And the *0.9%* quoted from an earlier pooling was under-powered; the honest figure is 4.3% and not significant.
+
+**What survives is the number every two-hold comparison here has been betting on: a solo hold is worth about 6%.** That is the per-hold standard deviation at matched tenancy, from thirteen holds. It validates [three repeats a side](../../sessionbench/src/daemon.rs) — 6% per hold gives a standard error near 3.5%, inside the 5% allowance — and it explains why three-in-a-row patterns kept appearing and dissolving all night. It also means a *single* pair of probes disagreeing by 17% is unremarkable, which is what the gate run saw.
+
