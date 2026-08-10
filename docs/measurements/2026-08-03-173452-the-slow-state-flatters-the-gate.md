@@ -570,3 +570,17 @@ Before writing a bias into the places that quote 2.0654, the baselines behind it
 
 **What this costs.** Three hours of arithmetic on a sigma that describes tonight only, a default changed from three repeats to five on that basis, and two tasks written around a mis-specified allowance. What it buys is the discriminator: **a bracket whose baselines spread more than about 1% is reporting a sick machine**, and that is a far sharper health check than any rate band, because it needs no reference figure at all.
 
+## Ten hours in, the health check says the box is still unfit
+
+The spread reading was added and then pointed at the machine that motivated it. On a quiet box — 1.29 and 1.37 cores held either side — a fresh bracket returns **11.9% before and 5.1% after**, against 0.42% when this machine is well.
+
+Two things follow that a rate band could not give.
+
+**The neighbour is definitively not the cause.** 1.29 cores held is an idle machine, and it still cannot reproduce its own solo hold. Every explanation involving `chrome-headless-shell` is now excluded for this quantity; the browser costs *speed* while it runs and has nothing to do with the *scatter*.
+
+**And the state has outlasted every prior instance.** It has held for about ten hours, where [the longest previously recorded was 340 minutes and was never seen to end](2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md). Nothing in the record says what starts it or what stops it.
+
+**The check earns its place by needing no memory.** Reaching this conclusion nine hours ago required recalling that a healthy solo hold reads 21.8 and comparing; now the run's own two sides answer it. That is the property worth carrying to any other machine — a bracket carries its own control, so the question *is this box fit to measure on* is answerable on hardware nobody has characterised.
+
+**It has still never fired green**, which is its untested half. That is now a fact about this machine rather than about the threshold: no bracket taken tonight has had a healthy box to report on.
+
