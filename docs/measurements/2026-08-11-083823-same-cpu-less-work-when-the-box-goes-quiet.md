@@ -116,6 +116,28 @@ Banding the same 83 holds by the cores held elsewhere gives a shape rather than 
 
 Two limits on the table: the 2–4 and 4–8 bands hold 5 and 3 holds, so the step's exact position is bounded between about 1.3 and 2.5 cores rather than located; and quiet holds are *selected* by a waiter, so they cluster within a day even though the days overlap.
 
+### The confound that should have killed this, and did not
+
+The low shelf runs from 9.246 to 14.436, and its bottom is [the slow state](2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md) — twenty holds at 8.997 units/s across 340 minutes, taken at **1.03 to 3.81 cores held**. Slow-state holds and low-tenancy holds are largely the same holds, because the slow state was observed on a quiet machine. A step banded only by tenancy could be the slow state wearing a tenancy label.
+
+Clustering the 83 into sittings — a gap over thirty minutes starts a new one — five contain both arms, and four reproduce the step **inside one window**:
+
+| sitting | low arm | high arm | step |
+|---|---|---|---|
+| 08-03 14:34 | 10.508 (n=9) | 15.216 (n=1) | +44.8% |
+| 08-11 02:07 | 10.789 (n=4) | 15.148 (n=8) | +40.4% |
+| 08-11 05:08 | 12.179 (n=8) | 14.647 (n=16) | +20.3% |
+| 08-11 08:00 | 10.736 (n=2) | 14.075 (n=6) | +31.1% |
+| 08-03 08:08 | 20.295 (n=1) | 14.563 (n=2) | −28.2% |
+
+**Mean of the four, about +34%.** A slow session cannot supply a high-tenancy arm, so if the pooled step were the slow state it would vanish under this constraint. It does not. The fifth row is a singleton whose low-rest hold is 20.295 — the rested outlier recorded elsewhere as appearing nineteen minutes after a burst — and is one hold at an anomalous level rather than a counter-example.
+
+The suspected session shows up exactly where predicted: 08-03 15:56 holds eleven low-rest observations at 10.864 and **no** high-rest ones, so it feeds only the pooled low arm. **That makes the within-sitting +34% the figure of record and the pooled +30% the softer one**, which is the opposite of the usual direction and worth saying plainly.
+
+### Core placement is ruled out
+
+If the step were the scheduler moving the session across this box's [2.1× core tiers](2026-07-31-145412-the-cores-are-not-interchangeable.md), the low shelf would be bimodal — a fast-tier cluster and a slow-tier one — rather than merely wide. Sorted, its 35 rates run 9.246, 9.299, 9.547 … 13.586, 13.701, 14.436, 20.295: a smooth continuum whose largest interior gap is **0.901**, against the ~9.7 separation two tiers would need. Not bimodal, so placement is not what switches.
+
 ## Provenance
 
 | | |
