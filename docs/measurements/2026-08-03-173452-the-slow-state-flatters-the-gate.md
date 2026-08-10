@@ -449,3 +449,21 @@ The wreckage is the result. Sixteen holds, thirteen of them between 12.12 and 13
 
 **And it is one box's number.** 6% is this laptop at this workload; the arithmetic transfers, the constant does not. What a machine's own per-hold spread is should be measured before its bracket's repeats are chosen — which is thirteen holds, and cheaper than one refused hour.
 
+## Three more holds moved the sigma 25%, and the refusal rates with it
+
+[The refusal table](#at-six-percent-a-hold-the-bracket-refuses-a-third-of-stable-runs) rests on a per-hold sigma estimated from thirteen holds. A sigma from thirteen samples carries roughly ±20% of itself, which was flagged before the next set ran and did not survive it. A fifth void set adds three more matched-tenancy holds, and **the pooled sigma moves from 6.0% to 7.48%**.
+
+| a side | se of the difference | 5% in se | refuses a **stable** run |
+|---:|---:|---:|---:|
+| 3 | 6.11% | 0.82 | **41%** — was 31% |
+| 5 — the new default | 4.73% | 1.06 | **29%** — was 19% |
+| 9 | 3.53% | 1.42 | **16%** — was 8% |
+
+Sixteen matched-tenancy holds now: 30 s at n=8, mean 15.769, sd 6.1%; 120 s at n=8, mean 14.995, sd 8.4%. The duration difference is 5.2% against a standard error of the difference near 3.6% — still inside noise, still null, and the arms' spreads remain indistinguishable.
+
+**Raising the repeats to five was right and its published justification is wrong.** It buys **41% → 29%**, not the 31% → 19% the commit claims. And at the corrected sigma **nine only reaches 16%**, so no achievable repeat count makes this bracket quiet here: eighteen baseline holds would still refuse one stable run in six.
+
+**Which turns the allowance question from a matter of principle into arithmetic.** Widening 5% was refused twice tonight, both times correctly — once on the precondition, once on the bracket — because trading false refusals for accepting a moved machine is the failure the check exists to prevent. But a 5% allowance on an instrument with 7.5% per-hold noise is not a strict standard, it is a standard the instrument cannot meet: the bracket is being asked to resolve a difference finer than a single hold.
+
+**Nothing is changed on that here.** The right response is a threshold derived from the measured noise rather than inherited — 2 standard errors at the chosen repeat count, say — and that is a design decision with its own failure modes, not a number to nudge because tonight's runs kept refusing. It is recorded and left open.
+
