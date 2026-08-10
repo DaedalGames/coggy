@@ -481,10 +481,39 @@ fn main() -> anyhow::Result<()> {
                     |v: Option<f64>| v.map_or_else(|| "—".to_string(), |x| format!("{x:.1}%"));
                 let cores =
                     |v: Option<f64>| v.map_or_else(|| "—".to_string(), |x| format!("{x:.2} cores"));
+                // **The spread is a health check and the number alone does not
+                // say so.** Asking whether 12.4 units/s is slow needs a
+                // remembered 21.8; asking whether six holds agree needs
+                // nothing, so it reads on hardware nobody has characterised.
+                // Six holds span 0.42% on this box when it is well, the spread
+                // behind the gate's 2.0654, against 9 to 16% on the night a
+                // whole evening of arithmetic was built on the wrong premise.
+                // More repeats do not fix the second.
+                //
+                // **1.5% is chosen from a gap, not rounded to.** Healthy
+                // brackets here spread 0.42%, 0.39% and 0.52%; m1's 3.33%
+                // is the one healthy run with a cold opening hold. Sick
+                // ones spread 6.0, 9.4, 15.9, 17.0, 21.5 and 36.8. Nothing
+                // observed sits between 0.52 and 6.0, so the bar is 2.9x
+                // above the tightest population and 4.0x below the loosest
+                // — and it is one box, so the number travels only as a
+                // method: measure your own healthy spread and put the bar
+                // in the gap.
+                let health = |v: Option<f64>| match v {
+                    Some(x) if x <= 1.5 => "  <- fit to measure on",
+                    Some(_) => "  <- THE SPREAD IS THE MACHINE: unfit to measure on",
+                    None => "",
+                };
+                let worst = bracketed
+                    .before_spread_percent
+                    .into_iter()
+                    .chain(bracketed.after_spread_percent)
+                    .reduce(f64::max);
                 println!(
-                    "\n  solo spread {} before · {} after\n  solo error  ±{} before · ±{} after\n  solo rest   {} before · {} after\n  solo gap    {}\n  slowdown    {}",
+                    "\n  solo spread {} before · {} after{}\n  solo error  ±{} before · ±{} after\n  solo rest   {} before · {} after\n  solo gap    {}\n  slowdown    {}",
                     percent(bracketed.before_spread_percent),
                     percent(bracketed.after_spread_percent),
+                    health(worst),
                     // The spread is what the holds did; the error is what the
                     // side's mean is worth. Only the second can be set against
                     // an allowance on a difference of means.

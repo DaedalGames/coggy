@@ -744,6 +744,24 @@ pub struct BracketedReport {
     /// length, so the only way to see the floor is to launch again. `None` for
     /// a side of one, which is honest: a single hold cannot say how much a
     /// single hold moves.
+    ///
+    /// **It is also the sharpest health check this instrument has, and the
+    /// only one that needs no remembered figure.** Asking whether 12.4 units/s
+    /// is slow requires knowing the box does 21.8; asking whether six holds
+    /// agree does not, so it works on hardware nobody has characterised. On a
+    /// healthy machine here six solo holds span **0.42%** — that is the
+    /// spread behind the gate's 2.0654, with 0.39% behind 2.0799 and 0.52%
+    /// behind 3.2611. Several percent is a machine unfit to measure on, and
+    /// more repeats do not fix it: more samples of a wandering box is not what
+    /// is missing.
+    ///
+    /// **A whole evening was spent getting this backwards.** Twenty-five holds
+    /// spreading 9.44% and ten spreading 15.87% were read as the instrument's
+    /// noise floor, and a refusal-rate table, a raised repeat default and two
+    /// tasks about a mis-specified allowance followed — all describing [one
+    /// sick
+    /// night](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md).
+    /// Read this before concluding anything about the bracket.
     pub before_spread_percent: Option<f64>,
     pub after_spread_percent: Option<f64>,
     /// How well each side's mean is determined, as a percentage of it.
