@@ -158,22 +158,26 @@ enum Command {
         /// paragraph above stops one step short of saying so.** Checking that
         /// the standard error fits under the allowance is not the question;
         /// what decides a threshold is how often the noise crosses it. Pooled
-        /// a hold's own σ here is **at least 9%**, and that is a lower bound
-        /// rather than a measurement — three poolings of the same box and
-        /// workload gave 6.00% at thirteen holds, 7.48% at sixteen and 9.08%
-        /// at nineteen. **It rose every time.** An estimate converging wanders
-        /// both ways; one that only climbs is a distribution whose tails the
-        /// early samples missed, so the next pooling will probably raise it
-        /// again. At 9.08% the difference of two means carries `9.08·√(2/n)`:
+        /// **On a healthy machine a hold reproduces to about 0.4%**, so the
+        /// allowance carries roughly twelve times the margin it needs and this
+        /// paragraph's arithmetic almost never binds. The gate runs' own
+        /// baselines say so: six solo holds at σ **0.42%** behind slowdown
+        /// 2.0654, 0.39% behind 2.0799, 0.52% behind 3.2611.
         ///
-        /// | a side | se of the difference | 5% in se | refuses a *stable* run |
-        /// |---:|---:|---:|---:|
-        /// | 3 | 7.41% | 0.67 | **50%** |
-        /// | 5 | 5.74% | 0.87 | 38% |
-        /// | 9 | 4.28% | 1.17 | 24% |
+        /// **A night of 6–16% σ was this box being sick, and it was nearly
+        /// written up as a property of the instrument.** Twenty-five holds
+        /// under a neighbour spread 9.44% and ten on an idle box 15.87%, from
+        /// which a refusal table was derived, a default was changed, and two
+        /// tasks were opened about a mis-specified allowance — all describing
+        /// [one degraded
+        /// evening](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md).
         ///
-        /// So five a side is chosen against an unbounded σ rather than a known
-        /// one, and no repeat count rescues this bracket here:
+        /// **So read the spread as a health check rather than a constant.**
+        /// Baselines agreeing inside about 1% mean the machine is fit to
+        /// measure on; several percent means it is not, and no repeat count
+        /// fixes that because more samples of a wandering box is not what is
+        /// missing. Five a side rather than three is cheap insurance and not a
+        /// remedy:
         /// nine a side is eighteen baseline holds and still refuses one stable
         /// run in six. The allowance being finer than a single hold's noise is
         /// [its own open question](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md).

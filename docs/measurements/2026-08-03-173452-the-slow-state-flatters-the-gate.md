@@ -523,3 +523,50 @@ Four more crowded holds close the eighth waiter set, and two questions resolve t
 
 **It inverts what the bracket assumes.** `sessionbench` takes its solo baselines in the quietest window it can find, and `m1-hour`'s precondition refuses a run when a neighbour is present. On this box the neighbour is what makes a solo hold reproducible, so the instrument is choosing its worst measurement conditions deliberately.
 
+## The neighbour left and came back inside one window, and the rate followed it
+
+The group comparison could always be answered with *the windows differed*. A ninth set answers it from inside a single four-minute window, because the neighbour left after the first hold and returned before the last:
+
+| hold | rate | cores held elsewhere |
+|---|---:|---:|
+| 30 s | 12.962 | 13.03 |
+| 120 s | 10.631 | **0.60** |
+| 30 s | 9.246 | **0.82** |
+| 120 s | 12.408 | 12.79 |
+
+**Crowded mean 12.685, quiet mean 9.939 — the loaded machine 27.6% faster, in one window.** And the sequence is *non-monotonic in both tenancy and rate*: a box merely slowing across four minutes gives a decline, and the fourth hold rises with the neighbour's return. Rate tracks tenancy, not elapsed time. That was the objection raised against this set one hold before it landed, and the set answered it.
+
+Pooled across nine sets:
+
+| | n | mean | sigma | range |
+|---|---:|---:|---:|---:|
+| crowded, 12–13.8 cores | 25 | 14.980 | 9.44% | 12.408–17.101 |
+| quiet, under 2.5 cores | 10 | **12.741** | **15.87%** | 9.246–15.815 |
+
+**17.6% apart at 3.2 standard errors**, up from 2.9 on the previous pooling and 1.6 before that — the third consecutive strengthening as the sample grows. The quiet side's spread is now **15.87%**, against 9.44% crowded: the idle distribution is wider at both ends and its floor, 9.246, sits far below anything the loaded machine has produced.
+
+**It retroactively vindicates a closed task.** [#60 collected six sightings of *the quietest hold is the slowest* and was closed](#four-void-sets-pooled-the-duration-effect-is-null-and-a-hold-is-worth-about-6) when a fourth-sighting reversal arrived. On this reading the reversal was one draw from the idle distribution's upper tail — 15.815 sits inside the crowded range — and the six sightings were the effect. The closure was correct on the evidence then available and is now superseded by evidence that did not exist.
+
+**What it means for the instrument is unchanged and more urgent**: `sessionbench` takes solo baselines in the quietest window it can find, and `m1-hour` refuses a run when a neighbour is present. On this box that is choosing the noisiest, slowest measurement conditions on purpose.
+
+## The instrument reproduces a hold to half a percent, so the noise was the machine
+
+Before writing a bias into the places that quote 2.0654, the baselines behind it were read. They refute the whole line of reasoning built tonight.
+
+| run | n | mean | sigma | range |
+|---|---:|---:|---:|---:|
+| `r33-rested`, slowdown **2.0654** | 6 | 21.787 | **0.42%** | 21.656–21.902 |
+| `r36-rested`, slowdown 2.0799 | 6 | 21.837 | **0.39%** | 21.705–21.911 |
+| `eta-at-33`, slowdown 3.2611 | 6 | 9.377 | **0.52%** | 9.308–9.433 |
+| `m1` | 6 | 21.485 | 3.33% | 20.030–21.845 |
+| **tonight, crowded** | 25 | 14.980 | **9.44%** | 12.408–17.101 |
+| **tonight, quiet** | 10 | 12.741 | **15.87%** | 9.246–15.815 |
+
+**Six solo holds spanning 0.42%.** The same binary, the same workload, the same box — twenty to forty times tighter than anything measured tonight.
+
+**So the bracket is not mis-specified and every conclusion drawn from tonight's sigma is about this machine's state rather than the instrument.** [The refusal-rate table](#at-six-percent-a-hold-the-bracket-refuses-a-third-of-stable-runs), [its correction](#three-more-holds-moved-the-sigma-25-and-the-refusal-rates-with-it), and [the claim that no repeat count rescues a 5% allowance](#the-sigma-has-risen-at-every-pooling-which-is-the-finding) all rest on a per-hold sigma of 6–11%. At 0.42% the allowance carries twelve times the margin it needs and three repeats a side refuses essentially nothing. **The instrument was being blamed for the box.**
+
+**And it reframes the loaded-versus-idle finding rather than killing it.** The 2.0654 baselines were taken with no neighbour, at 21.8, reproducing to half a percent — quiet *and* fast *and* stable, which is what tonight's reading says should not happen. So the 17.6% gap is a comparison **inside a degraded state**, not a property of idle machines. Whatever this box has been doing since the session began, it is the thing that makes an idle machine slow and variable; a healthy one is neither.
+
+**What this costs.** Three hours of arithmetic on a sigma that describes tonight only, a default changed from three repeats to five on that basis, and two tasks written around a mis-specified allowance. What it buys is the discriminator: **a bracket whose baselines spread more than about 1% is reporting a sick machine**, and that is a far sharper health check than any rate band, because it needs no reference figure at all.
+
