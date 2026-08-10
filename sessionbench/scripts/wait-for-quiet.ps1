@@ -102,6 +102,7 @@ $deadline = (Get-Date).AddMinutes($GiveUpMinutes)
 
 $run = 0
 $polls = 0
+$inInterruption = $false
 while ((Get-Date) -lt $deadline) {
     $t = Get-TenantCores
     $polls++
@@ -120,6 +121,7 @@ while ((Get-Date) -lt $deadline) {
         $run = 0
     }
     elseif ($t -lt $FireBelow) {
+        $inInterruption = $false
         $run++
         "{0:HH:mm:ss} quiet {1}/{2} at {3:N2} cores" -f (Get-Date), $run, $ConsecutiveQuiet, $t
         if ($run -ge $ConsecutiveQuiet) {
@@ -129,7 +131,17 @@ while ((Get-Date) -lt $deadline) {
     }
     elseif ($t -ge $CountBelow) {
         # A real interruption: above the floor's band, so this is the neighbour.
-        "{0:HH:mm:ss} INTERRUPTION at {1:N2} cores after {2} quiet poll(s)" -f (Get-Date), $t, $run
+        #
+        # **Logged on the EDGE, not on every poll.** The first version fired
+        # this branch whenever the reading was high, so a sustained tenant
+        # wrote a line every ten seconds — 4 lines in the first 40 seconds of
+        # its first run, which is 360 an hour and a census nobody can read. A
+        # census wants one line per arrival plus the heartbeat, so the state
+        # has to be remembered rather than re-derived each poll.
+        if (-not $inInterruption) {
+            "{0:HH:mm:ss} INTERRUPTION at {1:N2} cores after {2} quiet poll(s)" -f (Get-Date), $t, $run
+            $inInterruption = $true
+        }
         $run = 0
     }
     elseif ($run -gt 0) {
@@ -137,6 +149,7 @@ while ((Get-Date) -lt $deadline) {
         # still resets the run, because firing needs the strict bar — but it is
         # labelled so a census does not count it as an interruption.
         "{0:HH:mm:ss} floor {1:N2} cores after {2} quiet poll(s) — not an interruption" -f (Get-Date), $t, $run
+        $inInterruption = $false
         $run = 0
     }
     Start-Sleep -Seconds $PollSeconds
