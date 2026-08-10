@@ -119,3 +119,25 @@ The section above rests on two runs. Every hundred-session hold on disk was then
 
 **What this does not establish.** Nine runs is a distribution, not a mechanism, and the labels are workloads run for other reasons -- `loadgen` is not this record's workload, so its 216.5 is in the low cluster without being comparable to the others in the same way. The clean gap is what nine points support; where the boundary sits, and whether a run can cross it mid-hold as [one already did](2026-08-03-003443-the-footprint-result-was-the-machine.md), they do not.
 
+## The gap is a fact about quiet boxes, and a tenant lands in it
+
+[Nine hundred-session holds, two clusters, nothing between them](#nine-hundred-session-holds-two-clusters-nothing-between-them) reads the total throughput as naming the machine's state. A tenth hold, taken deliberately while a third-party tenant held most of the box, lands **inside the gap**:
+
+| | the quiet reference | this run |
+|---|---:|---:|
+| cores held by the job | 15.34 | **7.45** |
+| cores held outside it | 0.77 | **8.56** |
+| **total units/s** | 902.8 | **344.9** |
+| peak RSS | — | 2.36 GiB of 3.73, held |
+| dropped output | — | 0 failed reads, held |
+
+**Every one of the nine was taken on a quiet box.** So the clusters and the 3.1x gap are a fact about *that* population, and `total` alone no longer separates the states: 344.9 with 8.56 cores held elsewhere is a crowd, where 246.4 on a quiet machine is a box running at a quarter for its own reasons.
+
+That is the same defect as the solo rate, in the figure built this morning to replace it. **What the pair does say, and neither number says alone**: throughput reports how much the box is producing, the rest column reports whether anything else is taking it, and the state needs both — read at both load levels, since a solo hold cannot see contention and a concurrent hold cannot see turbo.
+
+**A tenant also costs more than its core share.** The job held 7.45 cores against 15.34 quiet — **48.6%** — and produced 344.9 against 902.8, **38.2%**. Ten points of throughput went somewhere the core count does not explain, which is the direction [a neighbour costing a solo baseline 27% without starving it](2026-08-03-081500-a-neighbour-costs-the-solo-baseline-twenty-seven-percent.md) already pointed, now at a hundred sessions instead of one.
+
+**Two of gate M1's conditions held anyway**, which is worth recording because it is the first time they have been measured against real competition: RSS at 2.36 GiB of a 3.73 GiB budget and zero failed reads, with all hundred sessions alive at the end.
+
+**What this does not establish.** One tenanted hold against nine quiet ones, and the tenant's own size moved during the run — `doctor` read 66% and 85% eight minutes apart. The median rest of 8.56 smears that, exactly as a median does to a burst. What the run supports is that a tenanted total falls in the gap, not where in the gap it falls.
+
