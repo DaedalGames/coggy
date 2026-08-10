@@ -179,3 +179,22 @@ It is not a bracket and does not pretend to be: the two holds are four minutes a
 
 **Still no rested window.** Roughly ten hours of holds and the count of rested ones has not moved off two, on the quietest background yet measured. RSS held at 2.36 GiB of 3.73 and dropped output was zero for the third time today.
 
+## The neighbour has a name, and it holds twelve cores flat
+
+The tenanted holds above were taken against something unidentified. Named with `Get-Counter '\Process(*)\% Processor Time'`, sampled six times across a minute:
+
+```
+02:44:08  chrome-headless-shell=1,197%
+02:44:21  chrome-headless-shell=1,063%   aihost=94%   claude=37%
+02:44:34  chrome-headless-shell=1,184%
+02:44:47  chrome-headless-shell=1,213%
+02:45:00  chrome-headless-shell=1,104%   claude=62%   claude=48%
+02:45:14  chrome-headless-shell=1,207%
+```
+
+**Eleven to twelve of sixteen cores, and steady** — the minimum across a minute is 1,063%, so nothing here averages out over a two-minute hold the way a bursting neighbour would. [The same process was recorded at 760% earlier](2026-08-03-081500-a-neighbour-costs-the-solo-baseline-twenty-seven-percent.md), so it has grown by half.
+
+**It reframes what gate M1 is waiting for.** The hour was blocked on finding a rested window and treated as a matter of patience. Background went 66, 98, 19, 8 and 83 percent inside about ninety minutes, and the quiet stretches did not last the six minutes a state probe costs — one probe read 0.49 cores held during its concurrent hold and 13.34 fifteen minutes later. A gate needing sixty consecutive minutes is not waiting for a rare state; it is waiting for a process to stop, and waiting does not make a window longer.
+
+**And it explains readings that were attributed to the machine.** The box did not change state between 8% and 83%; a browser started. Any figure here taken while this was running is a figure about a four-core machine, which is why the rest column travels with every one of them.
+
