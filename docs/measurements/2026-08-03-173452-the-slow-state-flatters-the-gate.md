@@ -135,9 +135,28 @@ The section above rests on two runs. Every hundred-session hold on disk was then
 
 That is the same defect as the solo rate, in the figure built this morning to replace it. **What the pair does say, and neither number says alone**: throughput reports how much the box is producing, the rest column reports whether anything else is taking it, and the state needs both — read at both load levels, since a solo hold cannot see contention and a concurrent hold cannot see turbo.
 
-**A tenant also costs more than its core share.** The job held 7.45 cores against 15.34 quiet — **48.6%** — and produced 344.9 against 902.8, **38.2%**. Ten points of throughput went somewhere the core count does not explain, which is the direction [a neighbour costing a solo baseline 27% without starving it](2026-08-03-081500-a-neighbour-costs-the-solo-baseline-twenty-seven-percent.md) already pointed, now at a hundred sessions instead of one.
+**A tenant also costs more than its core share** — [withdrawn an hour later by a second tenanted hold that came back proportional](#a-second-tenant-and-the-core-share-claim-does-not-reproduce), and left here because a record is a log. The job held 7.45 cores against 15.34 quiet — **48.6%** — and produced 344.9 against 902.8, **38.2%**. Ten points of throughput went somewhere the core count does not explain, which is the direction [a neighbour costing a solo baseline 27% without starving it](2026-08-03-081500-a-neighbour-costs-the-solo-baseline-twenty-seven-percent.md) already pointed, now at a hundred sessions instead of one.
 
 **Two of gate M1's conditions held anyway**, which is worth recording because it is the first time they have been measured against real competition: RSS at 2.36 GiB of a 3.73 GiB budget and zero failed reads, with all hundred sessions alive at the end.
 
 **What this does not establish.** One tenanted hold against nine quiet ones, and the tenant's own size moved during the run — `doctor` read 66% and 85% eight minutes apart. The median rest of 8.56 smears that, exactly as a median does to a burst. What the run supports is that a tenanted total falls in the gap, not where in the gap it falls.
+
+## A second tenant, and the core-share claim does not reproduce
+
+The section above says a tenant costs more than its core share, from one run. A second tenanted hold an hour later says it does not.
+
+| | job cores, mean | share of the quiet 15.34 | total units/s | share of the quiet 902.8 |
+|---|---:|---:|---:|---:|
+| tenant A | 7.46 | 48.6% | 344.9 | 38.2% |
+| tenant B | 5.02 | **32.7%** | 297.3 | **32.9%** |
+
+**Tenant B is proportional to a fifth of a percent.** Whatever cost tenant A ten points of throughput beyond its core share, it is not a general property of having a neighbour — and the claim was made from a single run, which is the tell this repository already names. The caveat *one tenanted hold against nine quiet ones* was written into the same commit and did not travel with the sentence that needed it.
+
+What both runs do support is the ordering: 8.56 cores held gave 344.9 and 10.24 gave 297.3, and both sit inside the gap the quiet holds left empty.
+
+**The pair was run as a go/no-go probe and that is what it delivered.** `doctor` read 19% immediately before launch; the solo hold two minutes later saw **4.12** cores held elsewhere, and the hundred-session hold four minutes after that saw **10.24**. The tenant ramped from about three cores to about ten inside six minutes. Read alone the solo's 11.952 units/s is an unremarkable slow-band reading and the window looks open; its rest column is what says a neighbour was arriving. First deliberate use of the pair, and it returned a refusal with a reason rather than a number.
+
+It is not a bracket and does not pretend to be: the two holds are four minutes apart, and this box has changed state inside a five-minute hold before. Six minutes buys a decision about whether to spend an hour. It does not buy a slowdown anyone should quote.
+
+**RSS and dropped output held again** — 2.36 GiB of 3.73 and zero failed reads, with all hundred sessions alive — which is now twice under real competition.
 
