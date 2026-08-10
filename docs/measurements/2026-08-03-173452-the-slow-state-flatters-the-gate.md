@@ -160,3 +160,22 @@ It is not a bracket and does not pretend to be: the two holds are four minutes a
 
 **RSS and dropped output held again** — 2.36 GiB of 3.73 and zero failed reads, with all hundred sessions alive — which is now twice under real competition.
 
+## A quiet hold landed in the gap, so the gap is not a boundary
+
+[Nine hundred-session holds, two clusters](#nine-hundred-session-holds-two-clusters-nothing-between-them) reads the empty 3.1x span as evidence of two states, and [a tenanted hold landing in it](#the-gap-is-a-fact-about-quiet-boxes-and-a-tenant-lands-in-it) was explained by the tenant. **A tenth quiet hold lands there too, and it is the quietest reading this instrument has produced.**
+
+| | |
+|---|---:|
+| solo | 10.739 units/s, 0.93 cores held elsewhere |
+| hundred, total | **756.1** units/s, **0.49** cores held elsewhere |
+| job occupancy | 15.51 cores median |
+| implied slowdown | **1.42** |
+
+0.49 cores held while a hundred sessions run is lower than any of the nine, so nothing was competing. The quiet population now reads **217, 246, 288, 756, 903, 933, 1028, 1050, 1050, 1055** — and the span that had nothing in it has something in it.
+
+**So the bimodality was a fact about ten readings, not about the machine.** Two clusters and a clean gap is what nine points happened to show; the tenth says the box takes intermediate values, and nothing here can now say whether that is a third state, a continuum, or a boundary that moves. What survives is weaker and still useful: a hundred-session total far below ~900 means something is wrong, and the rest column says whether the something is a neighbour.
+
+**The decision the pair exists to make was still correct.** A slowdown of 1.42 flatters gate M1 harder than the 1.54 that first raised this, so the run would have passed a condition asking for 2 while the box was visibly not rested. The classifier calls this solo-slow and says not to spend the hour, which is right — but *solo-slow* is a two-state label on something that just demonstrated a middle, and the label should be read as a verdict rather than a description.
+
+**Still no rested window.** Roughly ten hours of holds and the count of rested ones has not moved off two, on the quietest background yet measured. RSS held at 2.36 GiB of 3.73 and dropped output was zero for the third time today.
+

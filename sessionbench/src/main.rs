@@ -512,12 +512,13 @@ fn main() -> anyhow::Result<()> {
                 // speed is legible from one hold, with no baseline and no
                 // bracket.
                 //
-                // **All nine of those were quiet, so read this beside the rest
-                // figure rather than alone.** A tenth hold taken against a
-                // tenant came back at 344.9 with 8.56 cores held elsewhere,
-                // inside the gap the quiet ones left empty. This says how much
-                // the box is producing; the occupancy line says whether
-                // anything else is taking it. The per-session rate above cannot do that: two
+                // **All nine of those were quiet, and the gap has since been
+                // filled from both sides** — 344.9 under a tenant, and 756.1 on
+                // the quietest box yet measured at 0.49 cores held. So the two
+                // clusters described ten readings rather than the machine, and
+                // what survives is weaker: a total far below ~900 means
+                // something is wrong, and the occupancy line beside it says
+                // whether the something is a neighbour. The per-session rate above cannot do that: two
                 // solos agreeing to half a percent sat on boxes 3.7× apart
                 // [here](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md).
                 //

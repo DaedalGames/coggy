@@ -224,8 +224,10 @@ $srest = ($probeRest | Measure-Object -Average).Average
 "solo rest:  {0:N2} cores" -f $srest
 
 # The pair, read together. Neither number alone survives: a tenanted hundred
-# lands at 344.9 and 297.3, inside the 3.1x gap that quiet holds leave empty,
-# so a low total with cores held elsewhere is a crowd rather than a slow box.
+# lands at 344.9 and 297.3, and a QUIET one has landed at 756.1, so the span
+# between the clusters is not empty and these labels are verdicts rather than
+# descriptions. What each branch decides is still right; what none of them can
+# claim is that the box has exactly three states.
 if ($crest -gt 2.5 -or $srest -gt 2.5) {
     "STATE: a tenant is present ({0:N2} cores during the load probe). Nothing" -f $crest
     "       below names the machine's own state while someone else holds it."
