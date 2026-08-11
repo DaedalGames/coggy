@@ -56,6 +56,23 @@
 # window is usually the slow state at 9-11 units/s, useless as a baseline.
 # The bands barely overlap (9-11 slow, 12-17 tenanted, 18.9-21.9 rested and
 # quiet), so a fired hold's own rate says which one you got.
+#
+# THE POLL INTERVAL HAS A FLOOR OF ABOUT 2-3 SECONDS, MEASURED. `Get-Counter`
+# costs ~1.1s per call whatever you ask it for — 1206 ms for the 346-instance
+# `\Process(*)\% Processor Time` used here, 1093 ms for
+# `\Processor(_Total)\% Processor Time`, 1085 ms for one named process. The
+# expense is that `% Processor Time` is a RATE, so it takes two internal
+# samples about a second apart to compute one. A 3s poll therefore spends 37%
+# of its interval inside the call, a 1s poll is impossible, and N polls at 3s
+# observe 3N seconds of elapsed time but only N seconds of machine.
+#
+# The instance form is the expensive one in CPU rather than latency: 0.216
+# CPU-seconds per call enumerating every process twice, against `_Total`,
+# which waits rather than computes. That matters because the poller runs
+# inside the window being measured. Switching is a RECALIBRATION and not a
+# substitution — `_Total` is a percentage of the whole machine (76.97% with
+# the tenant at ~12.3 of 16 cores) where this sums only processes above half
+# a core, so both bars would have to be re-derived from readings.
 param(
     [double]$FireBelow = 1.0,
     [double]$CountBelow = 3.0,
