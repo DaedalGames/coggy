@@ -80,6 +80,16 @@ If the neighbour is not adding speed but forcing the machine into a definite sta
 
 **The rested case is n = 1**, and that one hold is the 20.295 already flagged as an outlier. A single observation confirming a prediction is still a single observation, and it is the whole of the evidence for the reversal. What would settle it is cheap and needs no injection: **a solo pair taken on a rested box, then again while a neighbour is present.** Rested windows are rare here — 2 of 45 holds — but they are recognisable at the time rather than only afterwards.
 
+## It does not reach the gate's own figures, and that was checked rather than assumed
+
+The compounding above is a hazard for any slowdown whose two arms sat in different tenancy states. **Gate M1's published figures are not among them**, and the check works despite `rest_cores_median` being younger than those artifacts.
+
+[The gate run](2026-08-03-014841-the-gate-misses-by-three-percent.md) records solo baselines of **21.809, 21.787, 21.902** before and **21.708, 21.656, 21.858** after, spread 0.42%, from a box confirmed rested by a 21.555 hold beforehand. A tenanted solo reads about 14.7 under the clamp above; the rested band is 18.9–20.3 and the slow band 9–11. **A clamp that pins to 14.7 cannot produce 21.9**, so those six holds had no neighbour — the rate itself places the state, which is the general way to recover tenancy from any artifact predating the column. The denominator is filtered the same way: the interval-level re-reading compares only intervals where the job held **15+ of 16 cores**, leaving under one for anything else.
+
+**So 2.065, 2.057 and 2.089 are ratios of two untenanted states, and M1's three-to-four-percent shortfall needs no correction from this record.** What the contamination does reach is the 3.958/1.54 pair, the 246.4/902.8 throughputs, and any casual hold used to judge whether a window is open.
+
+One loose end left deliberately: 21.7–21.9 sits *above* the rested band of 18.9–20.3 that nine holds established. Either that band's ceiling is higher than nine holds showed, or the gate ran in a better state than "rested" names.
+
 ## What this does not explain
 
 **The solo slow state survives untouched.** A lone session reading 9.0 units/s against a rested 18.9, [with 1.03 cores held at the time](2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md), is not tenancy — the neighbour was absent and the session was still at half speed. The step described here is worth 34%; that is worth 2×, and it remains unexplained. The two are separate findings that both happen to involve a quiet machine.
