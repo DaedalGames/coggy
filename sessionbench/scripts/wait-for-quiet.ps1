@@ -268,6 +268,26 @@ function Get-TenantCores {
 
 # Parsed once, here, rather than trusting the binder — see the parameter.
 $residentList = @($Residents -split ',' | ForEach-Object { [int]$_ })
+
+# A HARVEST AND A PROBE WANT DIFFERENT FIRE BARS, and the default is the
+# probe's. #74 established the bar has no correct value across the two modes:
+# strict (0.5) protects a clean baseline and costs windows, loose (1.5)
+# harvests and lands holds on both sides of the ~1.4-core transition. The
+# parameter comment said "set it for the run you are doing" and that did not
+# fire at the moment of use -- a footprint harvest launched on the default
+# produced ZERO HOLDS IN 2.5 MINUTES, blocked at readings of 0.51.
+#
+# The script already knows which mode it is in, and already acts on it once:
+# RestedAbove is skipped when there is more than one footprint. The bar and
+# that threshold imply each other, so they move together.
+#
+# `ContainsKey` is exact rather than a sentinel comparison. A sentinel here
+# would be the defect this repo already paid for, where an unreadable-counter
+# value of -1 silently passed a less-than test.
+if ($residentList.Count -gt 1 -and -not $PSBoundParameters.ContainsKey('FireBelow')) {
+    $FireBelow = 1.5
+    "harvest mode: FireBelow raised to 1.5 (pass -FireBelow to override)"
+}
 foreach ($r in $residentList) {
     if ($r -lt 1 -or $r -gt 64) { "REFUSING: resident $r outside 1-64"; exit 1 }
 }
