@@ -405,6 +405,64 @@ try {
     Write-Host ("  co-tenants hold {0:N3} cores of their own, against {1:N2} expected" -f $own, $wanted)
     Start-Sleep -Seconds 3
 
+    # FAIL BEFORE PAYING FOR THE HOLD, NOT AFTER READING IT.
+    #
+    # The delta guard below is correct and it is expensive: it discovers that
+    # the tenant returned only once the tenanted hold has run to completion. On
+    # 2026-08-12 that cost the cleanest rising-limb baseline this instrument has
+    # taken — a baseline at 1.03 cores, then a tenanted arm at 13.23, a move of
+    # 12.20 cores — and with it a share of a window that occurs about once an
+    # hour. The run's other three attempts never got a usable baseline at all.
+    #
+    # WINDOW REMAINING IS THE BINDING RESOURCE, and nothing measures it: a gate
+    # firing on two backward-looking polls says nothing about how much quiet
+    # lies ahead. Failing fast is the only lever available on a quantity that
+    # cannot be predicted.
+    #
+    # THIS CATCHES THE SPAWN WINDOW ONLY, which is about five seconds of the
+    # forty a tenanted attempt costs. An arrival DURING the hold still reaches
+    # the delta guard and still costs the full hold; catching that needs the
+    # hold itself to abort, which means changing the measurement path every
+    # figure in this repository runs through. Cheap first, and say what it
+    # does not cover.
+    #
+    # THE CEILING IS THE DELTA GUARD'S OWN, so this cannot refuse a pair the
+    # guard would have accepted — it can only reach the same verdict sooner.
+    # SYMMETRIC, BECAUSE A DEPARTURE CONFOUNDS AS BADLY AS AN ARRIVAL. The first
+    # version of this check tested only the ceiling, and the run that broke it on
+    # purpose fell straight through to the delta guard — the tenant had LEFT,
+    # -9.17 cores, and a one-sided check had nothing to say about it. That is the
+    # same asymmetry the delta guard itself once had, where -Infinity as a floor
+    # admitted a browser shedding 4.70 cores and the pair reported +27.0%.
+    #
+    # THE FLOOR IS LENIENT IN BOTH MODES, WHERE THE DELTA GUARD'S IS NOT, and
+    # the difference is deliberate. Without `-AnyBaseline` the guard's floor is
+    # `+0.5 * expected`: it requires tenancy to have RISEN by half the injection.
+    # That is right AFTER a thirty-second hold and wrong five seconds after
+    # spawn, when the machine counter has had barely a sample to register six
+    # processes that are still starting. Applying it here would void good
+    # attempts on the exact path the rising-limb work needs — the one that runs
+    # WITHOUT `-AnyBaseline`.
+    #
+    # So this refuses only what is unambiguous at five seconds: a large arrival
+    # or a large departure. Whether the injection itself registered is the delta
+    # guard's question, asked later with a full hold behind it.
+    $preFloor = $wanted * -0.5
+    $nowCores = (Get-Cores).Machine
+    if ($nowCores -ge 0) {
+        $moved = $nowCores - $before.rest
+        if ($moved -lt $preFloor -or $moved -gt ($wanted * 2.0)) {
+            Write-Host ("VOID {0}: tenancy already moved {1:N2} cores before the hold started, where {2} spinners add about {3:N1} — refusing before paying for it" -f `
+                ($voids + 1), $moved, $Tenants, $wanted)
+            $voidLog += [pscustomobject]@{ index = ($voids + 1); kind = 'TenancyMovedBeforeHold'; delta = $moved; expected = $wanted; baseline_rate = $before.rate; baseline_rest = $before.rest; tenanted_rate = $null; tenanted_rest = $nowCores }
+            $voids++
+            $procs | Stop-Process -Force -ErrorAction SilentlyContinue
+            $procs = @()
+            if ($voids -ge $MaxVoids) { Write-Host "gave up after $voids voids"; $outcome = 'GaveUpOnVoids'; exit 4 }
+            continue
+        }
+    }
+
     $after = Invoke-Hold 'inject-after' $Duration
     if ($null -eq $after) { Write-Host 'tenanted hold unmeasurable, stopping rather than guessing'; $outcome = 'TenantedUnmeasurable'; exit 3 }
 
