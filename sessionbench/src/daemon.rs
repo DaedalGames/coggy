@@ -731,6 +731,25 @@ impl HeldRun {
 ///    gate asking for 2 for the wrong reason. No number of solo repeats
 ///    separates them, because the ambiguity is not
 ///    [noise](../../docs/measurements/2026-08-03-173452-the-slow-state-flatters-the-gate.md).
+///
+///    **Most of that pair is now attributed, and to a field both holds already
+///    carry.** Across the seven hundred-session mains holds with a rest column,
+///    per-session rate against cores held elsewhere runs `r = -0.950` at a
+///    slope of -0.4889, spanning a fitted 829 units/s total at half a core held
+///    and 267 at twelve — so a *tenant during the concurrent hold* produces
+///    this range on its own. Meanwhile the same tenant moves a *solo* hold
+///    **+34% the other way**, so tenancy raises the numerator and lowers the
+///    denominator and the slowdown compounds: 1.255 with both arms quiet
+///    against 4.959 with both tenanted, and the pair above sits on the two
+///    mixed cells at 3.810 and
+///    [1.633](../../docs/measurements/2026-08-11-085752-the-neighbour-helps-one-session-and-robs-a-hundred.md).
+///    **So read `occupancy.rest_cores_median` on both holds before reaching for
+///    a reference throughput** — it is recorded already and costs nothing,
+///    where a hundred-session reference costs fifteen minutes. What the rest
+///    column does *not* resolve is a lone session at 9.0 against a rested 18.9
+///    with 1.03 cores held: that one is worth 2x with no neighbour present and
+///    is still unexplained, so a low rest column on both arms narrows the
+///    question rather than closing it.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BracketedReport {
     pub before: Vec<HoldReport>,
