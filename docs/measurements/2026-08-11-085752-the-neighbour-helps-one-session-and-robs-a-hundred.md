@@ -88,7 +88,15 @@ The compounding above is a hazard for any slowdown whose two arms sat in differe
 
 **So 2.065, 2.057 and 2.089 are ratios of two untenanted states, and M1's three-to-four-percent shortfall needs no correction from this record.** What the contamination does reach is the 3.958/1.54 pair, the 246.4/902.8 throughputs, and any casual hold used to judge whether a window is open.
 
-One loose end left deliberately: 21.7–21.9 sits *above* the rested band of 18.9–20.3 that nine holds established. Either that band's ceiling is higher than nine holds showed, or the gate ran in a better state than "rested" names.
+One loose end: 21.7–21.9 sits *above* the rested band of 18.9–20.3 that nine holds established. Either that band's ceiling is higher than nine holds showed, or the gate ran in a better state than "rested" names — a fourth state, which would matter more, since M1's baseline would then be reproducible only in something nobody has learned to recognise.
+
+**The archive cannot decide it.** Only four solo mains holds sit at 17 units/s or above — 17.10, 17.56, 20.30, 21.40 — and of those two predate the rest column and one is a 20-second hold, a duration this repository does not treat as interchangeable with 120. The gate's own 21.7–21.9 baselines were pruned from `bench-out` long ago. Four points, two of unknown tenancy, one of odd length, is not a test for bimodality.
+
+### The clamp is a band, not a point
+
+Twelve of the thirteen solo holds at 16 units/s and above are **tenanted** — rest 12.12 to 13.71, rates 16.134 to 17.101. So the tenanted group reaches 17.1, well above the 14.7 its mean sits at, and "clamps toward ~14.7" overstates what the data supports.
+
+What is supported: tenanted holds occupy a **narrower band of roughly 12–17** (n=48, σ 9.2%) against quiet holds' 9.2–20.3 (n=35, σ 17.7%), and on the one rested occasion the tenanted arm sat below the quiet one. Tighter and higher on average, not pinned to a value. The reversal remains the load-bearing observation and remains n = 1.
 
 ## What this does not explain
 
