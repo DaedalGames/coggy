@@ -120,6 +120,16 @@ One workload on this box has produced spreads of 3.95%, 0.42% and 5–37% on thr
 
 **So quote a spread only for holds that stayed in one band, and say which.** Two sets each is thin, and the separation is complete rather than marginal.
 
+## Appended later the same day: the two arms are one curve, not two effects
+
+This record's title sets "helps one session" against "robs a hundred" as though they were opposite findings that happened to coexist. [Holds taken across the whole tenancy range](2026-08-11-103621-the-step-is-at-one-and-a-half-cores.md) show they are two points on one relationship.
+
+A lone session's rate **rises** across ~1.4 cores of external load, is flat through the middle, and **collapses** above ~4 — an inverted U. One session at 0.26 cores never competes with the neighbour for cores, so it lives on the rising limb; a hundred sessions want every core they can get, so they live on the falling one and never see the rise at all.
+
+The footprint arms separate the limbs by mechanism as well as by position. The rise is **footprint-independent** — +17.5% at `--resident 20` against +17.8% at `--resident 1` — while the fall is not: resident 20 drops to 10.824 above 4 cores held where resident 1 holds 15.269, 41% apart. So the falling limb is **memory contention**, which is exactly why a hundred sessions each holding 20 MiB suffer so badly, and the rising limb is something else entirely.
+
+**The `r = −0.950` above is unaffected**, being measured only on hundred-session holds, which never leave the falling limb. What changes is the framing: there was never a tension between the two arms to resolve.
+
 ## What this does not explain
 
 **The solo slow state survives untouched.** A lone session reading 9.0 units/s against a rested 18.9, [with 1.03 cores held at the time](2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md), is not tenancy — the neighbour was absent and the session was still at half speed. The step described here is worth 34%; that is worth 2×, and it remains unexplained. The two are separate findings that both happen to involve a quiet machine.
