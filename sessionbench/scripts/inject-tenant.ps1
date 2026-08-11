@@ -316,7 +316,8 @@ try {
     if ($null -eq $after) { Write-Host 'tenanted hold unmeasurable, stopping rather than guessing'; exit 3 }
 
     # THE INJECTION MUST BE THE THING THAT CHANGED, AND NOTHING ELSE.
-    # Six spinners are measured to add ~1.6 cores; if the delta is far from
+    # Six cpu-spin hold 1.04-1.25 cores of their own, measured 2026-08-11 from
+    # their own counter; if the delta is far from
     # that, the browser arrived during the second hold and the comparison is
     # about the browser rather than about anything injected. That happened on
     # 2026-08-11: a baseline at 1.09 cores rose to 12.51, and the run reported
@@ -326,9 +327,20 @@ try {
     # TRUE NULL produce identical output — a flat rate on a machine nobody
     # verified had changed. Refusing here is what makes a null mean something.
     $delta = $after.rest - $before.rest
-    if ($delta -lt ($Tenants * 0.15) -or $delta -gt ($Tenants * 0.55)) {
+    # THE BAND DERIVES FROM WHAT A TENANT ACTUALLY HOLDS, not from a constant.
+    # It was `Tenants * 0.15` to `* 0.55`, which are cpu-spin's numbers wearing
+    # no name: six of them hold ~1.14 cores, so the band was 0.9-3.3 and the two
+    # recorded runs landed at 1.31 and 1.47. Point `-Injector` at anything else
+    # and the band stops meaning anything — sixteen file-write hold ~1.1 cores
+    # against a band of 2.4-8.8, so every attempt would void for a reason that
+    # is about the constant rather than about the run.
+    #
+    # Half to twice the expected total keeps both recorded cpu-spin runs inside
+    # and still rejects the 11.42-core delta that was a browser arriving.
+    $expected = $Tenants * $ExpectedPerTenant
+    if ($delta -lt ($expected * 0.5) -or $delta -gt ($expected * 2.0)) {
         Write-Host ("VOID {0}: tenancy moved {1:N2} cores where {2} spinners add about {3:N1} — the injection is not what changed" -f `
-            $voids, $delta, $Tenants, ($Tenants * 0.27))
+            $voids, $delta, $Tenants, $expected)
         Write-Host ("        baseline {0:N3} at {1:N2} cores, tenanted {2:N3} at {3:N2} cores" -f `
             $before.rate, $before.rest, $after.rate, $after.rest)
         $voids++
