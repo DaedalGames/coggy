@@ -98,6 +98,28 @@ Twelve of the thirteen solo holds at 16 units/s and above are **tenanted** — r
 
 What is supported: tenanted holds occupy a **narrower band of roughly 12–17** (n=48, σ 9.2%) against quiet holds' 9.2–20.3 (n=35, σ 17.7%), and on the one rested occasion the tenanted arm sat below the quiet one. Tighter and higher on average, not pinned to a value. The reversal remains the load-bearing observation and remains n = 1.
 
+## Most of a solo set's spread is band-mixing, not instrument noise
+
+One workload on this box has produced spreads of 3.95%, 0.42% and 5–37% on three different days, which read as three noise levels of one instrument. Sorting every solo mains hold into sittings and labelling each by the band it landed in — quiet-slow under 2 cores held and below 18 units/s, rested under 2 cores and at or above 18, tenanted at 2 cores or more — separates them cleanly:
+
+| sitting | n | mean | spread | bands present |
+|---|---|---|---|---|
+| 08-11 03:59 | 12 | 15.282 | **6.4%** | tenanted |
+| 08-03 15:56 | 11 | 10.864 | **9.7%** | quiet-slow |
+| 08-03 06:50 | 6 | 14.163 | 11.3% | tenanted + unknown |
+| 08-11 08:00 | 8 | 13.240 | 12.4% | quiet-slow + tenanted |
+| 08-11 05:08 | 24 | 13.824 | 14.3% | quiet-slow + tenanted |
+| 08-03 14:34 | 10 | 10.979 | 15.0% | quiet-slow + tenanted |
+| 08-11 09:20 | 5 | 11.817 | 16.8% | quiet-slow + tenanted |
+| 08-03 08:08 | 3 | 16.474 | 17.4% | rested + tenanted |
+| 08-11 02:07 | 12 | 13.695 | 17.8% | quiet-slow + tenanted |
+
+**Every set that stayed in one band spread less than every set that straddled two — 6.4% and 9.7% against 11.3% through 17.8%, with no overlap.** Mixing 10.5 with 14.7 gives about 33% on its own, before any instrument noise. So the three daily figures are three amounts of mixing rather than three noise levels, and a spread quoted for holds that wandered between bands is measuring the tenant's schedule.
+
+**It does not reach 0.42%, and the residue is the useful part.** Neither single-band set gets close: 6.4% and 9.7%. The 9.7% one is entirely quiet-slow, and the slow state is independently *slow and variable*; the 6.4% one is entirely tenanted but its `rest_cores` standard deviation is **3.86**, so tenancy ranged from about 2 to 13 cores inside the band. A band is a coarse bin, not a controlled condition. Spread here decomposes into at least three terms — band-mixture, tenancy variation within a band, and what is left when both are held still, which is [the gate's 0.42%](2026-08-03-014841-the-gate-misses-by-three-percent.md).
+
+**So quote a spread only for holds that stayed in one band, and say which.** Two sets each is thin, and the separation is complete rather than marginal.
+
 ## What this does not explain
 
 **The solo slow state survives untouched.** A lone session reading 9.0 units/s against a rested 18.9, [with 1.03 cores held at the time](2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md), is not tenancy — the neighbour was absent and the session was still at half speed. The step described here is worth 34%; that is worth 2×, and it remains unexplained. The two are separate findings that both happen to involve a quiet machine.
