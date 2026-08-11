@@ -72,6 +72,25 @@
 # The bands barely overlap (9-11 slow, 12-17 tenanted, 18.9-21.9 rested and
 # quiet), so a fired hold's own rate says which one you got.
 #
+# "QUIET" HERE MEANS "NO BIG PROCESS", NEVER "IDLE", AND ON THIS BOX THE GAP
+# IS ABOUT TWO CORES. `Get-TenantCores` sums only instances above
+# `CookedValue -gt 50` — half a core each — so a machine carrying 1.87 cores
+# spread across many small processes reads exactly 0.00. Measured
+# 2026-08-11 at 10:57: `\Processor(_Total)` said 1.87 cores busy while NOT ONE
+# process exceeded half a core.
+#
+# That is why every hold the harvester certified quiet landed at
+# `rest_cores_median` between 0.99 and 2.44. Not a calibration error — the two
+# instruments measure different things, and the certifying one cannot see the
+# quantity that [turned out to matter
+# most](../../docs/measurements/2026-08-11-103621-the-step-is-at-one-and-a-half-cores.md):
+# a lone session's rate steps 33% across 1.36-1.46 cores held.
+#
+# So a run needing a genuinely low-tenancy arm cannot get one by waiting here.
+# The floor is not the browser leaving; it is ~1.9 cores of small processes
+# that never leave, and the lowest reading all day was 1.30 — at the transition
+# rather than below it.
+#
 # THE POLL INTERVAL HAS A FLOOR OF ABOUT 2-3 SECONDS, MEASURED. `Get-Counter`
 # costs ~1.1s per call whatever you ask it for — 1206 ms for the 346-instance
 # `\Process(*)\% Processor Time` used here, 1093 ms for
