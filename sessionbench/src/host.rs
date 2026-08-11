@@ -156,6 +156,26 @@ pub struct HostFacts {
     /// `None` where the counter is absent, which is ordinary: `MSAcpi` is not
     /// exposed by every firmware.
     pub thermal_c: Option<f64>,
+    /// **One point sample per report, and it is a poor summary of a hold.**
+    /// Taken once when the report is built, so a two-minute hold gets a
+    /// reading from its first instant. On 2026-08-11 four holds in one set read
+    /// 192.1, 183.5, 105.0 and 149.4 — and the 149.4 belongs to the hold that
+    /// returned the *lowest* rate of the four. Do not derive a rate, a ratio or
+    /// a normalisation from this column.
+    ///
+    /// **Sampling it per tick was costed and rejected.** It arrives from
+    /// [`HOST_QUERY`], one PowerShell process that also asks Defender, the
+    /// battery, the power plan and the thermal zone. Per-tick would mean a
+    /// shell spawn every 5 s, and `Get-Counter` needs ~1.1 s for any
+    /// `% ...` counter on its own — two internal samples about a second apart,
+    /// since the counter is a rate — so roughly 30% of every tick would be
+    /// spent inside a query, in the window being measured. What it would buy
+    /// is narrow: the clock is **not** the mechanism behind the tenancy step.
+    /// From the 2–4 core band to the 11–12.5 band it climbs 143.9% → 174.0%
+    /// while the rate moves 1.1%, and between the two lowest bands it *falls*
+    /// 124.3% → 121.3% while the rate rises 17.6%. A native PDH reader with
+    /// negligible per-read cost would change the arithmetic; a shell spawn
+    /// does not.
     pub processor_performance: Option<f64>,
     /// Anything the query could not answer, kept rather than discarded so a
     /// partial result never reads as a complete one.
