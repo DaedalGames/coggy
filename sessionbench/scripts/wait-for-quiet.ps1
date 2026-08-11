@@ -86,7 +86,7 @@
 # quiet), so a fired hold's own rate says which one you got.
 #
 # "QUIET" HERE MEANS "NO BIG PROCESS", NEVER "IDLE", AND ON THIS BOX THE GAP
-# IS ABOUT TWO CORES. `Get-TenantCores` sums only instances above
+# IS ABOUT TWO CORES. The census half of `Get-Cores` sums only instances above
 # `CookedValue -gt 50` — half a core each — so a machine carrying 1.87 cores
 # spread across many small processes reads exactly 0.00. Measured
 # 2026-08-11 at 10:57: `\Processor(_Total)` said 1.87 cores busy while NOT ONE
@@ -122,7 +122,7 @@
 # a core, so both bars would have to be re-derived from readings.
 param(
     # 0.5, not 1.0, and the value is set by the instrument rather than by the
-    # box. `Get-TenantCores` sums only instances above `CookedValue -gt 50`, so
+    # box. The census half of `Get-Cores` sums only instances above 50, so
     # the smallest non-zero number it can emit is just above 0.50 and there is
     # nothing between 0 and 0.5 to observe. A bar at 1.0 therefore admits
     # exactly one class of reading — the 0.5-1.0 sliver — and every value seen
@@ -153,6 +153,23 @@ param(
     # either way. Set it for the run you are doing; there is no value that
     # serves both.
     [double]$FireBelow = 0.5,
+    # THE SECOND BAR, AND IT IS THE ONE THAT MATCHES WHAT THE HOLD MEASURES.
+    #
+    # `FireBelow` above governs the CENSUS counter, which sums only instances
+    # over half a core and is right for naming which process interrupted a
+    # window. It cannot gate, because load spread across many small processes
+    # reads exactly 0.00 to it. This bar reads `_Total - Idle - ours`, the same
+    # quantity a hold reports as `rest_cores_median`, and firing needs BOTH --
+    # so this can only ever withhold a window the old bar would have fired, and
+    # every comment above about `FireBelow` keeps its meaning.
+    #
+    # 1.0 IS DERIVED FROM THREE HOLDS on 2026-08-11, not chosen: the injection
+    # control voided two of its first three attempts, its gate reading 0.00
+    # before baselines whose own rest came back at 3.26 and 1.43 against a guard
+    # that rejects at 1.3 -- while the attempt that PASSED also read 0.00 at the
+    # gate, against a true 0.75. So 1.0 admits the passing case with margin and
+    # excludes both voided ones, and sits below the guard it feeds.
+    [double]$FireBelowMachine = 1.0,
     [double]$CountBelow = 3.0,
     [int]$PollSeconds = 10,
     # Two, not six. Six polls at ten seconds needs 50-60s of verified quiet
@@ -272,28 +289,69 @@ $null = New-Item -ItemType Directory -Force -Path (Split-Path $census)
 Start-Transcript -Path $census | Out-Null
 try {
 
-function Get-TenantCores {
-    # Retry once, because the query fails transiently and a failure costs a
-    # window: on 2026-08-10 it returned nothing twice in a minute, the second
-    # time after four consecutive quiet polls, and with a reset-on-unreadable
-    # rule an intermittently failing counter would keep the waiter from ever
-    # firing on a box that was in fact quiet.
+
+# WHAT THE HOLD WILL MEASURE, from the same query, at full resolution.
+#
+# `Get-Cores`'s census figure sums only instances over half a core, and that is the
+# right shape for the CENSUS -- it names which processes interrupted a window.
+# It is the wrong shape for a GATE, because load spread across many sub-half-core
+# processes is invisible to it and it returns exactly 0.00.
+#
+# MEASURED, not suspected: on 2026-08-11 the injection control voided two of its
+# first three attempts, and in both cases the gate had just printed "quiet 2/2 at
+# 0.00 cores" before a baseline hold whose own `rest_cores_median` came back at
+# 3.26 and 1.43, against a guard that rejects at 1.3. The hold that PASSED also
+# read 0.00 at the gate against a true 0.75 -- so a gate reading of zero is
+# consistent with anything from ~0.6 to ~1.5 true cores, a band that STRADDLES
+# the guard. That is the whole void rate, and it is arithmetic rather than luck.
+#
+# It is BLIND rather than STALE, which the artifacts settle: the voided holds'
+# per-tick machine CPU shows a STEADY 1.0-1.5 cores across the whole window, and
+# steady load cannot have arrived after the gate. A live comparison at 14:26 on a
+# box the gate called silent: _total 1558.8, idle 1482.4, difference 0.76 cores.
+#
+# `_Total` minus `Idle` is the machine, from the query already made, at no extra
+# cost -- one `Get-Counter` is ~1.1 s whatever is asked of it, because a `%`
+# counter is a rate needing two internal samples. Our own instances are excluded
+# by the same names the census filter uses, since a hold's own session must not
+# gate the next one.
+#
+# NOTE this is NOT a second route to the same number: `_Total` IS the sum over
+# all instances, so `_total - idle` and `sum(all but idle)` are one identity and
+# cannot disagree. It agrees with `rest_cores_median` because it measures the
+# same thing, which is the point.
+function Get-Cores {
+    # ONE QUERY, BOTH FIGURES. The first version queried twice -- once for the
+    # census, once for the machine -- and the second call INTERMITTENTLY FAILED,
+    # returning the sentinel and printing COUNTER UNREADABLE on a box that was
+    # merely being asked twice in a row. Two `%`-counter queries back to back is
+    # the problem; the comment above already said the machine reading comes from
+    # the query already made, and then a second function went and made one.
+    # Halves the poll cost as well: ~1.1 s per call whatever is asked.
     $c = Get-Counter '\Process(*)\% Processor Time' -ErrorAction SilentlyContinue
     if ($null -eq $c) {
         Start-Sleep -Milliseconds 500
         $c = Get-Counter '\Process(*)\% Processor Time' -ErrorAction SilentlyContinue
     }
-    # -1 means the counter could not be read, which is NOT a busy machine and
-    # must not enter the transition log as one: this log is the record of how
-    # long this box's quiet stretches are, and a failed query recorded as a
-    # tenancy event would inflate the count of interruptions that never
-    # happened. It still refuses to fire, since not seeing is not quiet.
-    if ($null -eq $c) { return -1 }
-    $busy = $c.CounterSamples |
+    # -1 in BOTH fields for unreadable: not a quiet machine, and it must not
+    # fire. The branch testing it comes FIRST at the call site, and that order is
+    # load-bearing -- a negative sentinel passes every `-lt` test there is.
+    if ($null -eq $c) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0 } }
+    $s = $c.CounterSamples
+    $total = ($s | Where-Object { $_.InstanceName -eq '_total' }).CookedValue
+    $idle = ($s | Where-Object { $_.InstanceName -eq 'idle' }).CookedValue
+    if ($null -eq $total -or $null -eq $idle) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0 } }
+    $mine = { $_.InstanceName -like 'sessionbench*' -or $_.InstanceName -like 'cpu-spin*' -or
+        $_.InstanceName -like 'coggyd*' -or $_.InstanceName -like 'file-write*' -or
+        $_.InstanceName -like 'stdout-storm*' }
+    $ours = ($s | Where-Object $mine | Measure-Object CookedValue -Sum).Sum
+    # The census: only instances over half a core, which is what names WHICH
+    # process interrupted a window. Blind to load spread across small ones.
+    $busy = $s |
         Where-Object { $_.InstanceName -notin @('_total', 'idle') -and $_.CookedValue -gt 50 } |
-        Where-Object { $_.InstanceName -notlike 'sessionbench*' -and $_.InstanceName -notlike 'cpu-spin*' }
-    if ($null -eq $busy) { return 0 }
-    ($busy | Measure-Object CookedValue -Sum).Sum / 100
+        Where-Object { -not (& $mine) }
+    $tenant = if ($null -eq $busy) { 0.0 } else { ($busy | Measure-Object CookedValue -Sum).Sum / 100 }
+    [pscustomobject]@{ Tenant = $tenant; Machine = ($total - $idle - $ours) / 100 }
 }
 
 # Parsed once, here, rather than trusting the binder — see the parameter.
@@ -320,7 +378,12 @@ foreach ($d in $dutyList) {
 # value of -1 silently passed a less-than test.
 if (($residentList.Count -gt 1 -or $dutyList.Count -gt 1) -and -not $PSBoundParameters.ContainsKey('FireBelow')) {
     $FireBelow = 1.5
-    "harvest mode: FireBelow raised to 1.5 (pass -FireBelow to override)"
+    # The machine bar moves with it, or the loose census bar would be gated by a
+    # strict machine bar and the harvest would be no looser than the probe. The
+    # offset is the ~1.0-1.3 cores the census counter cannot see, measured the
+    # same day: gate 0.00 against true 0.75, 1.43 and 3.26.
+    if (-not $PSBoundParameters.ContainsKey('FireBelowMachine')) { $FireBelowMachine = 2.5 }
+    "harvest mode: FireBelow raised to 1.5, FireBelowMachine to $FireBelowMachine (pass either to override)"
 }
 foreach ($r in $residentList) {
     if ($r -lt 1 -or $r -gt 64) { "REFUSING: resident $r outside 1-64"; exit 1 }
@@ -331,15 +394,19 @@ $holds = 0
 # window is common here and a RESTED one is not — 2 of 45 holds — so catching
 # one means firing on every quiet window and keeping the one whose rate says
 # the box was actually fast.
-"waiting: fire under {0:N1} cores for {1} consecutive polls ({2}s apart); count interruptions above {3:N1}; keep a hold at or above {4:N1} units/s; giving up at {5:HH:mm} or {6} holds" `
-    -f $FireBelow, $ConsecutiveQuiet, $PollSeconds, $CountBelow, $RestedAbove, $deadline, $MaxHolds
+"waiting: fire under {0:N1} census cores AND {7:N2} machine-wide for {1} consecutive polls ({2}s apart); count interruptions above {3:N1}; keep a hold at or above {4:N1} units/s; giving up at {5:HH:mm} or {6} holds" `
+    -f $FireBelow, $ConsecutiveQuiet, $PollSeconds, $CountBelow, $RestedAbove, $deadline, $MaxHolds, $FireBelowMachine
 
 while ((Get-Date) -lt $deadline) {
 $run = 0
 $polls = 0
 $inInterruption = $false
 while ((Get-Date) -lt $deadline) {
-    $t = Get-TenantCores
+    # One query, both readings: the census bar names the interrupting process,
+    # the machine bar decides whether it is really quiet.
+    $cores = Get-Cores
+    $t = $cores.Tenant
+    $m = $cores.Machine
     $polls++
     # A heartbeat whatever happens, because the branches below only speak when
     # the run counter moves — so an unbroken hour of load produced NO lines at
@@ -351,14 +418,21 @@ while ((Get-Date) -lt $deadline) {
     # The sentinel is tested FIRST and this order is load-bearing: -1 is less
     # than any sane MaxTenantCores, so checking quiet first would read an
     # unreadable counter as the quietest possible machine and fire the set.
-    if ($t -lt 0) {
+    if ($t -lt 0 -or $m -lt 0) {
         "{0:HH:mm:ss} COUNTER UNREADABLE — not a tenancy event, resetting" -f (Get-Date)
         $run = 0
+    }
+    elseif ($t -lt $FireBelow -and $m -ge $FireBelowMachine) {
+        # Quiet to the census and NOT to the machine: the exact state that voided
+        # two of three injection attempts, and it used to fire silently.
+        $inInterruption = $false
+        $run = 0
+        "{0:HH:mm:ss} no big process but {1:N2} cores busy machine-wide (bar {2:N2}) — not quiet, resetting" -f (Get-Date), $m, $FireBelowMachine
     }
     elseif ($t -lt $FireBelow) {
         $inInterruption = $false
         $run++
-        "{0:HH:mm:ss} quiet {1}/{2} at {3:N2} cores" -f (Get-Date), $run, $ConsecutiveQuiet, $t
+        "{0:HH:mm:ss} quiet {1}/{2} at {3:N2} cores ({4:N2} machine-wide)" -f (Get-Date), $run, $ConsecutiveQuiet, $t, $m
         if ($run -ge $ConsecutiveQuiet) {
             "{0:HH:mm:ss} WINDOW OPEN — quiet held for {1}s, starting" -f (Get-Date), ($run * $PollSeconds)
             break
