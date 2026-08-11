@@ -162,7 +162,45 @@ param(
     # A stop independent of the clock, so a box that never rests cannot spend
     # two hours firing holds. 40 x 30s is 20 minutes of load spread over the
     # window, which is light and bounded.
-    [int]$MaxHolds = 40
+    [int]$MaxHolds = 40,
+    # ONE FOOTPRINT MAKES THIS A READINESS PROBE; MORE THAN ONE MAKES IT A
+    # HARVEST, and the difference is whether `RestedAbove` means anything.
+    #
+    # Default `20` is the probe `sessionbench/README.md` documents: fire on a
+    # quiet window, hold, and exit 0 the moment the rate says the box is
+    # rested. Pass `-Residents 20,1` and the holds alternate footprint, which
+    # is [the test for whether the 1.4-core step is
+    # memory-bound](../../docs/measurements/2026-08-11-103621-the-step-is-at-one-and-a-half-cores.md):
+    # both arms sample the same wandering tenancy, so after enough holds there
+    # are two rest-versus-rate curves. A large step in the 20 MiB curve and a
+    # small one in the 1 MiB curve says the effect is memory-bound; equal steps
+    # say it is not.
+    #
+    # **`RestedAbove` is skipped when more than one footprint is given**, and
+    # it has to be: a 1 MiB session is a different workload with a different
+    # rate level, so a threshold calibrated on 20 MiB would exit on the wrong
+    # arm. A harvest runs to `MaxHolds` and is read afterwards. Only the SIZE
+    # of each curve's step is comparable — never the two levels.
+    #
+    # This varies the one thing the box has no opinion about. Controlling
+    # tenancy needs a state on demand that this machine will not give: at 1.87
+    # cores busy not one process exceeded half a core, so the floor is small
+    # processes that never leave. Tenancy varies anyway — 4 of 17 holds landed
+    # below the transition and 13 above — so let it, record it, and vary the
+    # footprint on purpose.
+    # A STRING, SPLIT HERE, BECAUSE `-File` CANNOT BIND AN ARRAY AT ALL.
+    # Measured on 2026-08-11 against a `[int[]]` parameter: `-R 20,1` binds the
+    # single integer **201** (PowerShell strips the comma rather than splitting
+    # on it) and `-R 20 1` binds **20**, dropping the second token silently.
+    # The first form ran a hold at `--resident 201` and reported a perfectly
+    # believable 13.005 units/s; it was caught only because the resident is in
+    # the label, so the artifact read `quiet-solo-1-r201`.
+    #
+    # So the parameter takes text and this script does the splitting, which is
+    # the one arrangement whose behaviour does not depend on how the caller was
+    # invoked. `-Residents '20,1'` is now unambiguous.
+    [ValidatePattern('^\d+(,\d+)*$')]
+    [string]$Residents = '20'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -170,7 +208,7 @@ $root = 'C:\Users\LilMG\Desktop\coggy'
 Set-Location $root
 $bench = "$root\target\release\sessionbench.exe"
 $spin = "$root\target\release\cpu-spin.exe"
-$work = @('--units', '100000000', '--duty', '0.27', '--resident', '20')
+$work = @('--units', '100000000', '--duty', '0.27')
 
 # Refuse rather than measure on a dirty machine: a survivor from a killed run
 # would be counted as a neighbour and disqualify the set for the wrong reason.
@@ -228,6 +266,11 @@ function Get-TenantCores {
     ($busy | Measure-Object CookedValue -Sum).Sum / 100
 }
 
+# Parsed once, here, rather than trusting the binder — see the parameter.
+$residentList = @($Residents -split ',' | ForEach-Object { [int]$_ })
+foreach ($r in $residentList) {
+    if ($r -lt 1 -or $r -gt 64) { "REFUSING: resident $r outside 1-64"; exit 1 }
+}
 $deadline = (Get-Date).AddMinutes($GiveUpMinutes)
 $holds = 0
 # The outer loop is what makes this a harvester rather than a one-shot. A quiet
@@ -317,8 +360,10 @@ $holds++
 # itself, so a spoiled hold is detectable afterwards rather than needing to be
 # prevented beforehand — which is how the 34% step and the r = -0.950 relation
 # were both obtained, from holds sorted by their rest column after the fact.
-$label = "quiet-solo-$holds"
-$out = & $bench hold --label $label --sessions 1 --interval 5 --duration 30 -- $spin @work 2>&1
+$resident = $residentList[($holds - 1) % $residentList.Count]
+$label = "quiet-solo-$holds-r$resident"
+$out = & $bench hold --label $label --sessions 1 --interval 5 --duration 30 `
+    -- $spin @work --resident $resident 2>&1
 $out | Select-String -Pattern 'rate |cores held outside the job' |
     ForEach-Object { "{0}: {1}" -f $label, $_.Line.Trim() }
 
@@ -339,6 +384,13 @@ if ($m) { $rate = [double]$m.Matches[0].Groups[1].Value }
 if ($null -eq $rate) {
     "{0:HH:mm:ss} hold {1}: RATE UNPARSEABLE — stopping rather than guessing" -f (Get-Date), $holds
     exit 3
+}
+if ($residentList.Count -gt 1) {
+    # A harvest, not a probe: the arms have different rate levels, so no single
+    # RestedAbove can judge them. Run to MaxHolds and read the artifacts.
+    "{0:HH:mm:ss} hold {1}: {2:N3} units/s at resident {3} — harvesting, {4} of {5}" -f (Get-Date), $holds, $rate, $resident, $holds, $MaxHolds
+    if ($holds -ge $MaxHolds) { "reached MaxHolds ($MaxHolds); read bench-out/*quiet-solo-*/hold.json"; exit 0 }
+    continue
 }
 if ($rate -ge $RestedAbove) {
     "{0:HH:mm:ss} hold {1}: {2:N3} units/s — RESTED AND QUIET, this is the window" -f (Get-Date), $holds, $rate
