@@ -37,6 +37,8 @@ All twenty-four holds of the 15:50–16:31 sitting are on battery, so comparison
 - **Duty is worth about 9% per core-second on battery, not 100%.** The three duty-1.0 holds at 0.84, 1.10 and 1.19 cores read 37.03, 37.29 and 37.79 — agreeing to 2% with each other.
 - **The duty-0.27 arm is flat across tenancy**: 35.73, 35.87, 31.61, 35.58, 33.62, 28.36, 33.54, 32.16, 36.44, from 0.76 to 12.55 cores. On battery, in this sitting, there is no tenancy step.
 
+  > **Appended 2026-08-11 17:34: that flatness is a fact about battery, and the mains set was already on disk.** Eighteen `inject-before` baselines from the afternoon, never read as a set, give **+60.9%** across the same tenancy range where this sitting gives **−5.2%** — [the step is a mains phenomenon](2026-08-11-173433-the-tenancy-step-is-on-mains-and-absent-on-battery.md). So the sentence below, *whether that flatness contradicts the mains injections is exactly what cannot be said from here*, is answered: it does not contradict them, and the reason is the plug. What could not be said from here could be said from the artifacts next to it.
+
 Whether that flatness contradicts the mains injections is exactly what cannot be said from here.
 
 ## What this does not establish
