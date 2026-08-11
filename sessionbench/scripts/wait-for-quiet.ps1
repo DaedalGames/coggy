@@ -200,7 +200,24 @@ param(
     # the one arrangement whose behaviour does not depend on how the caller was
     # invoked. `-Residents '20,1'` is now unambiguous.
     [ValidatePattern('^\d+(,\d+)*$')]
-    [string]$Residents = '20'
+    [string]$Residents = '20',
+    # THE SAME SHAPE FOR DUTY, AND IT TESTS THE LAST MECHANISM CLASS STANDING.
+    # `cpu-spin --duty 0.27` spends 73% of its time NOT RUNNING: wake, work,
+    # sleep, repeat. Everything that makes a WAKE expensive is a candidate for
+    # the ~1.4-core step — idle C-states, timer coalescing, preemption quantum,
+    # and `coggyd`'s own pipe reader — and all four survive the eliminations
+    # that killed core clock, uncore, parking and placement.
+    #
+    # A workload at `--duty 1.0` NEVER SLEEPS, so it can have no wake cost.
+    #   PREDICTION: at duty 1.0 the step vanishes. At 0.27 it is +10 to +49%.
+    #   IF IT SURVIVES AT 1.0, the whole class is out and the effect is about
+    #   running rather than waking.
+    #
+    # All 130 solo mains holds on disk are duty 0.27, so nothing in the archive
+    # can separate the two. ONLY THE SIZE OF EACH DUTY'S STEP IS COMPARABLE —
+    # duty changes the absolute rate, so the levels are not.
+    [ValidatePattern('^[0-9.]+(,[0-9.]+)*$')]
+    [string]$Duties = '0.27'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -208,7 +225,7 @@ $root = 'C:\Users\LilMG\Desktop\coggy'
 Set-Location $root
 $bench = "$root\target\release\sessionbench.exe"
 $spin = "$root\target\release\cpu-spin.exe"
-$work = @('--units', '100000000', '--duty', '0.27')
+$work = @('--units', '100000000')
 
 # Refuse rather than measure on a dirty machine: a survivor from a killed run
 # would be counted as a neighbour and disqualify the set for the wrong reason.
@@ -268,6 +285,10 @@ function Get-TenantCores {
 
 # Parsed once, here, rather than trusting the binder — see the parameter.
 $residentList = @($Residents -split ',' | ForEach-Object { [int]$_ })
+$dutyList = @($Duties -split ',' | ForEach-Object { [double]$_ })
+foreach ($d in $dutyList) {
+    if ($d -le 0 -or $d -gt 1) { "REFUSING: duty $d outside (0, 1]"; exit 1 }
+}
 
 # A HARVEST AND A PROBE WANT DIFFERENT FIRE BARS, and the default is the
 # probe's. #74 established the bar has no correct value across the two modes:
@@ -284,7 +305,7 @@ $residentList = @($Residents -split ',' | ForEach-Object { [int]$_ })
 # `ContainsKey` is exact rather than a sentinel comparison. A sentinel here
 # would be the defect this repo already paid for, where an unreadable-counter
 # value of -1 silently passed a less-than test.
-if ($residentList.Count -gt 1 -and -not $PSBoundParameters.ContainsKey('FireBelow')) {
+if (($residentList.Count -gt 1 -or $dutyList.Count -gt 1) -and -not $PSBoundParameters.ContainsKey('FireBelow')) {
     $FireBelow = 1.5
     "harvest mode: FireBelow raised to 1.5 (pass -FireBelow to override)"
 }
@@ -381,9 +402,10 @@ $holds++
 # prevented beforehand — which is how the 34% step and the r = -0.950 relation
 # were both obtained, from holds sorted by their rest column after the fact.
 $resident = $residentList[($holds - 1) % $residentList.Count]
-$label = "quiet-solo-$holds-r$resident"
+$duty = $dutyList[($holds - 1) % $dutyList.Count]
+$label = "quiet-solo-$holds-r$resident-d$duty"
 $out = & $bench hold --label $label --sessions 1 --interval 5 --duration 30 `
-    -- $spin @work --resident $resident 2>&1
+    -- $spin @work --duty $duty --resident $resident 2>&1
 $out | Select-String -Pattern 'rate |cores held outside the job' |
     ForEach-Object { "{0}: {1}" -f $label, $_.Line.Trim() }
 
@@ -414,7 +436,7 @@ if ($null -eq $rate) {
     '--- end captured output ---'
     exit 3
 }
-if ($residentList.Count -gt 1) {
+if ($residentList.Count -gt 1 -or $dutyList.Count -gt 1) {
     # A harvest, not a probe: the arms have different rate levels, so no single
     # RestedAbove can judge them. Run to MaxHolds and read the artifacts.
     "{0:HH:mm:ss} hold {1}: {2:N3} units/s at resident {3} — harvesting, {4} of {5}" -f (Get-Date), $holds, $rate, $resident, $holds, $MaxHolds
