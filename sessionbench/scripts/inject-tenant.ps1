@@ -160,6 +160,33 @@ $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $null = New-Item -ItemType Directory -Force -Path "$root\bench-out"
 Start-Transcript -Path "$root\bench-out\inject-$stamp.log" | Out-Null
 
+# A VERDICT IS NOT EVIDENCE — RECORD THE FIGURE IT WAS COMPUTED FROM.
+#
+# This script decided to reject a pair, printed the delta that decided it, and
+# stored neither. On 2026-08-12 the void count per arm was HALF the finding of
+# [the duration series](../../docs/measurements/2026-08-12-042000-longer-holds-do-not-cut-the-spread-and-they-halve-the-acceptance.md)
+# — 7-of-8 acceptance against 4-of-8 — and had to be reconstructed by grepping
+# sixteen transcripts, which survive only until `bench-out/` is pruned. The
+# three deltas that voided (-0.94, +9.55, -10.41 cores) are the only record
+# that a ~10-core disturbance arrived and left during the last two runs.
+#
+# A FAILED RUN LEFT NO ARTIFACT AT ALL, so an attempt that failed and an
+# attempt never made looked identical.
+#
+# WRITTEN FROM THE `finally` BLOCK, which is the single path every `exit` and
+# the `break` passes through. Setting `$outcome` at each terminal point and
+# serialising once covers all ten of them, and covers any added later — the
+# alternative is a write beside each exit, which is how a fix for a shape ends
+# up applied to one line.
+#
+# `$outcome` STARTS AT 'Unknown' RATHER THAN AT A PLAUSIBLE VALUE, so a path
+# that forgets to set it produces a word nothing consumes instead of a verdict
+# that reads as real. The same reason `$pair` is $null until there is one: a
+# `0.0` beside a failure silently satisfies a condition where a `$null` cannot.
+$outcome = 'Unknown'
+$voidLog = @()
+$pair = $null
+
 function Get-Cores {
     # ONE QUERY, BOTH FIGURES, AND A RETRY. Ported from wait-for-quiet.ps1 on
     # 2026-08-11 after this script burned its only window in twenty minutes.
@@ -258,7 +285,13 @@ try {
     "injecting $Tenants co-tenants around a $Duration s hold; quiet means under $QuietBelow census cores AND $QuietMachineBelow machine-wide"
     "injector: $inject"
     $deadline = (Get-Date).AddMinutes($GiveUpMinutes)
-    $voids = 1
+    # STARTS AT 0 AND IS CHECKED AFTER THE INCREMENT, so `-MaxVoids 3` permits
+    # THREE voids. It started at 1 until 2026-08-12, which permitted two — and
+    # the give-up line printed $MaxVoids rather than the count, so a run that
+    # voided twice reported `gave up after 3 voids`. A message that states a
+    # PARAMETER cannot disagree with what happened, which is exactly why it
+    # went unnoticed; it now prints $voids and can.
+    $voids = 0
     # THE BASELINE QUALIFIES ROUGHLY ONE ATTEMPT IN THREE, so retrying is the
     # script's job rather than the operator's. The waiter's counter sees only
     # processes over half a core, while the guard below reads the hold's own
@@ -290,10 +323,10 @@ try {
         }
         if ($run -lt 2) { Start-Sleep -Seconds $PollSeconds }
     }
-    if ($run -lt 2) { Write-Host 'gave up without a quiet window'; exit 2 }
+    if ($run -lt 2) { Write-Host 'gave up without a quiet window'; $outcome = 'NoQuietWindow'; exit 2 }
 
     $before = Invoke-Hold 'inject-before' $Duration
-    if ($null -eq $before) { Write-Host 'baseline unmeasurable, stopping rather than guessing'; exit 3 }
+    if ($null -eq $before) { Write-Host 'baseline unmeasurable, stopping rather than guessing'; $outcome = 'BaselineUnmeasurable'; exit 3 }
 
     # THE BASELINE MUST BE BELOW THE TRANSITION OR THERE IS NOTHING TO INJECT
     # INTO. The waiter certifies quiet from a counter that only sees processes
@@ -304,15 +337,17 @@ try {
     # plausible -9.6% that meant nothing. Refuse instead: a void test that says
     # so cannot be quoted later, and one that returns a number can.
     if ([double]::IsNaN($before.rest)) {
-        Write-Host ("VOID {0}: baseline recorded no rest column — refusing rather than guessing" -f $voids)
+        Write-Host ("VOID {0}: baseline recorded no rest column — refusing rather than guessing" -f ($voids + 1))
+        $voidLog += [pscustomobject]@{ index = ($voids + 1); kind = 'BaselineNoRestColumn'; delta = $null; expected = $null; baseline_rate = $before.rate; baseline_rest = $null; tenanted_rate = $null; tenanted_rest = $null }
         $voids++
-        if ($voids -ge $MaxVoids) { Write-Host "gave up after $MaxVoids voided baselines"; exit 4 }
+        if ($voids -ge $MaxVoids) { Write-Host "gave up after $voids voided baselines"; $outcome = 'GaveUpOnVoids'; exit 4 }
         continue
     }
     if (-not $AnyBaseline -and $before.rest -ge 1.3) {
-        Write-Host ("VOID {0}: baseline ran at {1} cores held, above the ~1.4 transition — nothing to inject into" -f $voids, $before.rest)
+        Write-Host ("VOID {0}: baseline ran at {1} cores held, above the ~1.4 transition — nothing to inject into" -f ($voids + 1), $before.rest)
+        $voidLog += [pscustomobject]@{ index = ($voids + 1); kind = 'BaselineAboveTransition'; delta = $null; expected = $null; baseline_rate = $before.rate; baseline_rest = $before.rest; tenanted_rate = $null; tenanted_rest = $null }
         $voids++
-        if ($voids -ge $MaxVoids) { Write-Host "gave up after $MaxVoids voided baselines"; exit 4 }
+        if ($voids -ge $MaxVoids) { Write-Host "gave up after $voids voided baselines"; $outcome = 'GaveUpOnVoids'; exit 4 }
         continue
     }
     if ($AnyBaseline) {
@@ -349,6 +384,7 @@ try {
         Write-Host ("REFUSING: {0} of {1} co-tenants exited within 2s — the injector rejected its arguments" -f $dead.Count, $Tenants)
         Write-Host ("  tried: $inject $($injectArgs -join ' ')")
         Write-Host ("  exit codes: {0}" -f (($dead | ForEach-Object { $_.ExitCode }) -join ', '))
+        $outcome = 'RefusedCoTenantsDied'
         $procs | Where-Object { -not $_.HasExited } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
         exit 5
     }
@@ -360,6 +396,7 @@ try {
     $wanted = $Tenants * $ExpectedPerTenant
     if ([double]::IsNaN($own) -or $own -lt ($wanted * 0.4)) {
         Write-Host ("REFUSING: {0} co-tenants are alive but hold {1:N3} cores, against {2:N2} expected" -f $Tenants, $own, $wanted)
+        $outcome = 'RefusedInjectionTooSmall'
         Write-Host ("  tried: $inject $($injectArgs -join ' ')")
         Write-Host '  alive is a status; holding CPU is the effect. A blocked injector produces a flat rate that reads as a true null.'
         $procs | Where-Object { -not $_.HasExited } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
@@ -369,7 +406,7 @@ try {
     Start-Sleep -Seconds 3
 
     $after = Invoke-Hold 'inject-after' $Duration
-    if ($null -eq $after) { Write-Host 'tenanted hold unmeasurable, stopping rather than guessing'; exit 3 }
+    if ($null -eq $after) { Write-Host 'tenanted hold unmeasurable, stopping rather than guessing'; $outcome = 'TenantedUnmeasurable'; exit 3 }
 
     # THE INJECTION MUST BE THE THING THAT CHANGED, AND NOTHING ELSE.
     # Six cpu-spin hold 1.04-1.25 cores of their own, measured 2026-08-11 from
@@ -422,11 +459,15 @@ try {
     $floor = if ($AnyBaseline) { $expected * -0.5 } else { $expected * 0.5 }
     if ($delta -lt $floor -or $delta -gt ($expected * 2.0)) {
         Write-Host ("VOID {0}: tenancy moved {1:N2} cores where {2} spinners add about {3:N1} — the injection is not what changed" -f `
-            $voids, $delta, $Tenants, $expected)
+            ($voids + 1), $delta, $Tenants, $expected)
         Write-Host ("        baseline {0:N3} at {1:N2} cores, tenanted {2:N3} at {3:N2} cores" -f `
             $before.rate, $before.rest, $after.rate, $after.rest)
+        # THE ONLY VOID KIND THAT CARRIES A DELTA, and the one worth the most:
+        # a rejected pair says the machine moved, and by how much. Three of these
+        # are the whole record of the disturbance that ended 2026-08-12's series.
+        $voidLog += [pscustomobject]@{ index = ($voids + 1); kind = 'TenancyMoved'; delta = $delta; expected = $expected; baseline_rate = $before.rate; baseline_rest = $before.rest; tenanted_rate = $after.rate; tenanted_rest = $after.rest }
         $voids++
-        if ($voids -ge $MaxVoids) { Write-Host "gave up after $MaxVoids voids"; exit 4 }
+        if ($voids -ge $MaxVoids) { Write-Host "gave up after $voids voids"; $outcome = 'GaveUpOnVoids'; exit 4 }
         $procs | Stop-Process -Force -ErrorAction SilentlyContinue
         $procs = @()
         continue
@@ -435,9 +476,24 @@ try {
     Write-Host ("RESULT: {0:N3} -> {1:N3} units/s, {2:+0.0;-0.0}%  (rest {3:N2} -> {4:N2} cores, delta {5:N2})" -f `
         $before.rate, $after.rate, (100 * ($after.rate / $before.rate - 1)), $before.rest, $after.rest, $delta)
     Write-Host 'a rise means the neighbour CAUSES the step; flat means it only coincides with one'
+    # `$pair` EXISTS ONLY ON THIS PATH, so a reader cannot find a rate beside a
+    # failed outcome. The percent change is stored as well as its two inputs:
+    # the extraction on 2026-08-12 recomputed it from the printed rates, and a
+    # figure recomputed downstream is a figure that can disagree with the one
+    # the run acted on.
+    $pair = [pscustomobject]@{
+        baseline_rate  = $before.rate
+        tenanted_rate  = $after.rate
+        percent_change = 100 * ($after.rate / $before.rate - 1)
+        baseline_rest  = $before.rest
+        tenanted_rest  = $after.rest
+        delta          = $delta
+        expected       = $expected
+    }
+    $outcome = 'Paired'
     break
     }
-    if ((Get-Date) -ge $deadline) { Write-Host 'deadline reached'; exit 2 }
+    if ((Get-Date) -ge $deadline) { Write-Host 'deadline reached'; $outcome = 'DeadlineReached'; exit 2 }
 }
 finally {
     # Only one attempt can ever have started spinners: the void path `continue`s
@@ -448,5 +504,30 @@ finally {
     Start-Sleep -Seconds 2
     $left = (Get-Process cpu-spin, sessionbench -ErrorAction SilentlyContinue | Measure-Object).Count
     "survivors after teardown: $left"
+
+    # THE RUN'S OWN RECORD, written on every exit path because this block is on
+    # every exit path. `duration_seconds` is here so an arm never has to be
+    # inferred from log ORDER — a void retry writes an extra transcript and
+    # shifts the alternation, which is the trap the 2026-08-12 extraction had to
+    # be warned about by hand.
+    try {
+        [pscustomobject]@{
+            stamp             = $stamp
+            outcome           = $outcome
+            duration_seconds  = $Duration
+            tenants           = $Tenants
+            expected_per      = $ExpectedPerTenant
+            any_baseline      = [bool]$AnyBaseline
+            injector          = $inject
+            injector_args     = ($injectArgs -join ' ')
+            void_count        = $voidLog.Count
+            voids             = @($voidLog)
+            pair              = $pair
+            survivors         = $left
+        } | ConvertTo-Json -Depth 5 | Set-Content -Path "$root\bench-out\inject-$stamp.json" -Encoding utf8
+        "wrote bench-out\inject-$stamp.json ($outcome, $($voidLog.Count) voids)"
+    }
+    catch { "FAILED to write inject-$stamp.json: $($_.Exception.Message)" }
+
     try { Stop-Transcript | Out-Null } catch {}
 }
