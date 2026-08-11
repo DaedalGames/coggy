@@ -77,7 +77,28 @@ param(
     #
     # The default reproduces the two runs already recorded, so an invocation
     # that omits it is unchanged.
-    [string]$InjectorArgs = '--units|100000000|--duty|0.27|--resident|1'
+    [string]$InjectorArgs = '--units|100000000|--duty|0.27|--resident|1',
+    # HOW MUCH CPU ONE CO-TENANT SHOULD HOLD, so the run can tell an injection
+    # from six processes that merely exist. MEASURED 2026-08-11 by reading each
+    # workload's OWN counter, which is immune to whatever else the box is doing
+    # -- six processes, sampled twice nine seconds apart:
+    #
+    #   cpu-spin  --duty 0.27          1.247 / 1.036 cores   -> ~0.19 each
+    #   file-write --interval 200      0.046 / 0.031         -> ~0.007 each
+    #   file-write --interval  50      0.123 / 0.092
+    #   file-write --interval  10      0.440 / 0.380         -> ~0.068 each
+    #   stdout-storm any interval      0.000 / 0.000         -> NOTHING
+    #
+    # `stdout-storm` is the reason this parameter exists. With no reader draining
+    # its stdout it blocks on the first full buffer, so six copies sit alive and
+    # perfectly idle -- and the liveness check below passes them, because being
+    # alive is a STATUS where holding CPU is the EFFECT. It is a fine session
+    # workload, since `coggyd` drains it, and a useless standalone injector.
+    #
+    # `file-write` at the default interval is nearly as bad at 0.007 cores each:
+    # it would inject a fortieth of what six cpu-spin do, and the delta guard
+    # would blame the browser for the absence.
+    [double]$ExpectedPerTenant = 0.19
 )
 
 $ErrorActionPreference = 'Stop'
@@ -192,6 +213,16 @@ try {
     # below eventually catches that as a too-small injection, but it spends a
     # full cycle to say so and blames the browser for it. Cheaper and truer to
     # ask whether the things we started are still there.
+    # The injector's own CPU, summed over its instances. Reading the MACHINE
+    # before and after cannot do this job: on a box carrying 2.8 cores that
+    # swings +/-0.4, an attempt to size six file-write this way returned 0.20,
+    # 0.57 and an impossible -3.58, when their true draw was 0.046.
+    $base = [IO.Path]::GetFileNameWithoutExtension($inject)
+    $ctr = Get-Counter "\Process($base*)\% Processor Time" -ErrorAction SilentlyContinue
+    $own = if ($null -eq $ctr) { [double]::NaN } else {
+        (($ctr.CounterSamples | Where-Object { $_.InstanceName -notin @('_total', 'idle') } |
+            Measure-Object CookedValue -Sum).Sum) / 100
+    }
     $dead = @($procs | Where-Object { $_.HasExited })
     if ($dead.Count -gt 0) {
         Write-Host ("REFUSING: {0} of {1} co-tenants exited within 2s — the injector rejected its arguments" -f $dead.Count, $Tenants)
@@ -200,6 +231,20 @@ try {
         $procs | Where-Object { -not $_.HasExited } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
         exit 5
     }
+    # ALIVE IS NOT LOADED. Six stdout-storm with no reader stay alive and hold
+    # 0.000 cores, so the check above passes them and the run measures nothing
+    # while reporting a flat rate that reads as a true null. A floor at 40% of
+    # expected is loose enough that a slow start or a differently-tuned injector
+    # is not refused, and tight enough that a blocked one always is.
+    $wanted = $Tenants * $ExpectedPerTenant
+    if ([double]::IsNaN($own) -or $own -lt ($wanted * 0.4)) {
+        Write-Host ("REFUSING: {0} co-tenants are alive but hold {1:N3} cores, against {2:N2} expected" -f $Tenants, $own, $wanted)
+        Write-Host ("  tried: $inject $($injectArgs -join ' ')")
+        Write-Host '  alive is a status; holding CPU is the effect. A blocked injector produces a flat rate that reads as a true null.'
+        $procs | Where-Object { -not $_.HasExited } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+        exit 6
+    }
+    Write-Host ("  co-tenants hold {0:N3} cores of their own, against {1:N2} expected" -f $own, $wanted)
     Start-Sleep -Seconds 3
 
     $after = Invoke-Hold 'inject-after' $Duration
