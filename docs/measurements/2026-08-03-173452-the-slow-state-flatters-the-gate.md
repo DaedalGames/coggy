@@ -315,6 +315,8 @@ Held to the same standard: the nearest-in-time 120-second holds, from the same h
 
 Across **52 one-session holds**, the first thirty seconds run a median **19.3% slower** than the rest of the same hold.
 
+> **Appended 2026-08-11: inflated about 1.7×, and the argument is untouched.** `work_units` comes from the daemon's *latest report*, and `REPORT_EVERY` is 10 s against a 5 s sampling interval — so the first sample is the baseline at a moment when the daemon has not yet reported since the sessions began, and the opening window counts its elapsed time in full while not counting all of its work. Reproduced here at **−20.4% across 54 holds**; comparing **10–40 s against 40 s–end**, which sidesteps the opening period entirely, gives **−12.3%**. So roughly 40% of the figure is the artifact and 60% is a real early-hold deficit. **The conclusion below rests on the sign rather than the size and stands unchanged at −12.3%.**
+
 **That is the wrong sign.** If short windows were intrinsically fast, a hold's own opening should read high; it reads low. So nothing inside a hold explains why standalone 30-second holds averaged above 120-second ones, and the start-up explanation is refuted rather than merely unproven.
 
 **Which leaves the confound as the likeliest reading of the whole thing.** All ten standalone 30-second holds came from a single window; the 120-second holds span a day that included stretches at half speed. A difference that survives no mechanism and disappears under the nearest-in-time comparison is most simply the sitting, not the duration.
