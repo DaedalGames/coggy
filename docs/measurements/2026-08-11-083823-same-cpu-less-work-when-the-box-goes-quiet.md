@@ -58,6 +58,8 @@ The work-rate condition of gate M1 is a ratio of those two — solo over per-ses
 
 The size is not yet known. This set says 36% between 12.5 cores of neighbour and 1.1; a hundred-session hold saturates far past 12.5, so the relevant gap is not this one.
 
+> **Later the same day: this exposure is real and does not reach the gate's published figures.** They were checked rather than assumed — [that run's six solo baselines read 21.66–21.90 at 0.42% spread from a box confirmed rested](2026-08-11-085752-the-neighbour-helps-one-session-and-robs-a-hundred.md), which is above every contaminated band, so the rate itself proves no neighbour was present even though `rest_cores_median` postdates the artifact; and its denominator is filtered to intervals where the job held 15+ of 16 cores. **2.065, 2.057 and 2.089 stand uncorrected.** What the contamination does reach is the 3.958/1.54 pair, the 246.4/902.8 throughputs, and any casual hold used to judge whether a window is open.
+
 ## What this does not establish
 
 - **The clock was read at one instant per hold, not across it.** The direction is confirmed and the size is not: normalising by it leaves a 58% spread. Sampling `processor_performance` per tick, beside `cpu_percent`, is what would close this, and it is a small change to a sampler that already runs.
@@ -113,6 +115,8 @@ Banding the same 83 holds by the cores held elsewhere gives a shape rather than 
 **The time confound does not apply here.** Both tenancy groups span the same three days — 08-02, 08-03 and 08-10 — so the low-rest holds are not one bad afternoon, which is the failure that killed the pooled version of this comparison.
 
 **What would explain a step with flat shelves is something switching rather than something loading**, and core parking is the obvious candidate: Windows unparks cores once there is work to justify them, the lone session lands on a fully-awake core, and further load adds nothing. That is a hypothesis with no measurement behind it — precisely where the clock stood an hour ago — and the counter that would test it is the parked-core count, which nothing here records.
+
+> **Measured the same day, and it is out.** `\Processor Information(*)\Parking Status` exists on this box and reports [12 of 16 cores parked at idle](2026-08-11-103621-the-step-is-at-one-and-a-half-cores.md), unchanged at 12 through 4.27 busy cores — which straddles the transition — and dropping to 9 only at 5.42. The unparking threshold is roughly three times higher than where the rate steps. The leading candidate is now *uncore* frequency, which `% Processor Performance` does not measure.
 
 Two limits on the table: the 2–4 and 4–8 bands hold 5 and 3 holds, so the step's exact position is bounded between about 1.3 and 2.5 cores rather than located; and quiet holds are *selected* by a waiter, so they cluster within a day even though the days overlap.
 
