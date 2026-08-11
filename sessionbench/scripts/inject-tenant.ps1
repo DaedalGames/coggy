@@ -143,8 +143,31 @@ try {
     $after = Invoke-Hold 'inject-after' $Duration
     if ($null -eq $after) { Write-Host 'tenanted hold unmeasurable, stopping rather than guessing'; exit 3 }
 
-    Write-Host ("RESULT: {0:N3} -> {1:N3} units/s, {2:+0.0;-0.0}%  (rest {3:N2} -> {4:N2} cores)" -f `
-        $before.rate, $after.rate, (100 * ($after.rate / $before.rate - 1)), $before.rest, $after.rest)
+    # THE INJECTION MUST BE THE THING THAT CHANGED, AND NOTHING ELSE.
+    # Six spinners are measured to add ~1.6 cores; if the delta is far from
+    # that, the browser arrived during the second hold and the comparison is
+    # about the browser rather than about anything injected. That happened on
+    # 2026-08-11: a baseline at 1.09 cores rose to 12.51, and the run reported
+    # a perfectly believable +62.2% that was 11.4 cores of somebody else.
+    #
+    # This is the guard that matters most, because a FAILED injection and a
+    # TRUE NULL produce identical output — a flat rate on a machine nobody
+    # verified had changed. Refusing here is what makes a null mean something.
+    $delta = $after.rest - $before.rest
+    if ($delta -lt ($Tenants * 0.15) -or $delta -gt ($Tenants * 0.55)) {
+        Write-Host ("VOID {0}: tenancy moved {1:N2} cores where {2} spinners add about {3:N1} — the injection is not what changed" -f `
+            $voids, $delta, $Tenants, ($Tenants * 0.27))
+        Write-Host ("        baseline {0:N3} at {1:N2} cores, tenanted {2:N3} at {3:N2} cores" -f `
+            $before.rate, $before.rest, $after.rate, $after.rest)
+        $voids++
+        if ($voids -ge $MaxVoids) { Write-Host "gave up after $MaxVoids voids"; exit 4 }
+        $procs | Stop-Process -Force -ErrorAction SilentlyContinue
+        $procs = @()
+        continue
+    }
+
+    Write-Host ("RESULT: {0:N3} -> {1:N3} units/s, {2:+0.0;-0.0}%  (rest {3:N2} -> {4:N2} cores, delta {5:N2})" -f `
+        $before.rate, $after.rate, (100 * ($after.rate / $before.rate - 1)), $before.rest, $after.rest, $delta)
     Write-Host 'a rise means the neighbour CAUSES the step; flat means it only coincides with one'
     break
     }
