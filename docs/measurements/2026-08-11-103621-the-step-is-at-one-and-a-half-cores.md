@@ -72,10 +72,31 @@ So core parking is eliminated, and with it the last candidate this record named.
 
 **One caveat that could rescue it.** The injected load was `cpu-spin` at duty 0.27, which is bursty — 27% on, 73% idle. Parking responds to *sustained* utilisation, so a steady 1.6 cores might unpark where a bursty 1.6 does not. Testing that needs a full-duty workload at a controlled core count, which is a different run. The tenancy in the seventeen holds was also not ours and its duty is unknown.
 
+## Appended 2026-08-11 afternoon: four things this record states as properties are not
+
+**The size is not a constant, and the best table is band-restricted.** 30-second holds only, tenancy from artifacts, quiet = rest < 1.4, tenanted = 1.4 ≤ rest ≤ 4:
+
+| sitting | quiet | tenanted | step |
+|---|---|---|---|
+| 08-11 02:49 | 10.444 (n=2) | 14.187 (n=2) | +35.8% |
+| 08-11 08:00 | 11.178 (n=1) | 12.295 (n=1) | +10.0% |
+| 08-11 09:26 | 10.824 (n=4) | 16.106 (n=13) | +48.8% |
+| 08-11 11:14 | 12.526 (n=8) | 14.717 (n=9) | +17.5% |
+
+**All four sittings positive; median +26.7%, range +10.0 to +48.8.** The headline **+33.3%** above is one sitting's value, and the title's *location* survives where the percentage does not. An earlier version of this table read "four of five, one at +2.0%" — that sitting's tenanted arm included collapse-region holds above 4 cores, which drag the tenanted mean down and erase the step. Restricted to the band it reads +17.5%, so separating the limbs removed the only counter-example.
+
+**It is two phenomena, not one curve with flat shelves.** "Flat from 2.5 cores to 13.2" describes a range thinly sampled at its top. Holds now exist at rest 11.77 → 10.014 and 15.38 → 3.190: **the rate collapses at extreme tenancy.** And the limbs differ in kind — the rising limb is **footprint-independent** (+17.5% at `--resident 20` against +17.8% at `--resident 1`) while the falling limb is not (resident 20 falls to 10.824 above 4 cores held where resident 1 holds 15.269, 41% apart). So the collapse is memory contention and the step is not. A linear `r(rate, rest)` across the whole range is therefore meaningless; it reads −0.356 on one set purely because two crushed holds drag a fit through data whose left half rises.
+
+**Every figure here is at duty 0.27.** All 130 solo mains holds on disk use it and no contrasting duty exists anywhere, so this is strictly a statement about *a sleeping workload* — one that wakes, works 27% of the time, and sleeps. This record states no duty at all.
+
+**The clock is eliminated on the per-core proxy, not on `_Total`.** Across twenty 30-second holds carrying `processor_performance_cores`, rate against the max-core clock is **r = +0.096** and against `_Total` +0.019, while max-core against rest is +0.418 — so the clock rises with load and does not carry through to work done. That supersedes both earlier readings in this file: the "backwards refutation" and its withdrawal.
+
+**And the direction of cause is untested.** Every low-tenancy hold on disk got that way by the browser *leaving*, never by anything being *added*. A within-hold measure — 36 holds with ticks on both sides of the transition inside one hold — gives median **−17.4%**, positive in 16 of 36, which is a coin flip; per-tick rates on a bursty workload are noisy enough that this is a hint rather than a result. An injection test exists at [`inject-tenant.ps1`](../../sessionbench/scripts/inject-tenant.ps1) and has not yet produced a valid run.
+
 ## What this does not establish
 
 - **One run, one box, one workload, seventeen holds.** Four of them came from test invocations of the waiter with a deliberately opened fire bar, which affects how they were *triggered* and not what their rest column recorded.
-- **The mechanism is still unnamed, and now has three candidates eliminated rather than one outstanding.** This bullet read "core parking remains the candidate, and nothing here records parked cores" when the record was written; the section above measured it an hour later and ruled it out, which left the document asserting both. What survives is the narrower statement: **this record names a location, not a cause.** The leading candidate is now *uncore* frequency — the L3/fabric/memory-controller governor, which `% Processor Performance` does not measure and which would land directly on a 20 MiB working set — and the test for it is a footprint sweep rather than a load sweep.
+- **The mechanism is unnamed, and every candidate this record has proposed is now eliminated.** The bullet has been wrong twice in the same way, which is why it is worth stating the history: it first read "core parking remains the candidate, and nothing here records parked cores" while a section above had already measured parking and ruled it out; it was then corrected to name *uncore* as leading, and the footprint sweep in the append above eliminated that too — equal steps at 20 MiB and 1 MiB, +17.5% against +17.8%, where a memory-bound effect must shrink. **Four out: core clock (per-core, r = +0.096), uncore, parking, placement. No named candidate remains.** What survives unchanged: **this record names a location, not a cause.**
 - **The boundary has four points below it and thirteen above.** 1.36 → 1.46 is sharp in this data and thinly sampled at exactly the place it matters.
 - **`rest_cores_median` is a median over a 30-second hold**, so a hold whose tenancy moved is summarised by its middle.
 - **The waiter's certification is not the rest column.** It sums only processes above half a core; `rest_cores` counts everything. That difference is why these holds carry 1 to 2.4 cores while being called quiet, and it is what made this measurement possible.
