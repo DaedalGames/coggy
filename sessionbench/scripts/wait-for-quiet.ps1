@@ -358,16 +358,29 @@ function Get-Cores {
     # where a mislabelled event inflates a count of interruptions that never
     # happened. Same defect as #72, one layer down. Withholding the window is
     # right either way; saying WHY is what changes.
-    if ($null -ne $total -and $null -ne $idle -and ($total - $idle - $ours) -lt 0) {
+    # BUT ONLY A LARGE NEGATIVE. `_Total` and `Idle` are computed over slightly
+    # offset internal samples, so their difference drifts by hundredths — and it
+    # drifts closest to zero when the machine is NEAREST IDLE, which is the
+    # reading a quiet gate exists to find. Rejecting every negative therefore
+    # discards the best windows and resets the consecutive-quiet run: the 22:25
+    # injection run logged 4 churn rejections against 2 quiet polls in forty
+    # minutes, twice as many thrown away as let through.
+    #
+    # THE THRESHOLD IS IN THE COUNTER'S OWN UNITS, where 100 is one core, so -25
+    # is a quarter of a core. The observed artifact was -195; a quiet box's
+    # drift is single digits.
+    $machine = $total - $idle - $ours
+    if ($null -ne $total -and $null -ne $idle -and $machine -lt -25) {
         return [pscustomobject]@{ Tenant = -1.0; Machine = -2.0 }
     }
+    if ($machine -lt 0) { $machine = 0.0 }
     # The census: only instances over half a core, which is what names WHICH
     # process interrupted a window. Blind to load spread across small ones.
     $busy = $s |
         Where-Object { $_.InstanceName -notin @('_total', 'idle') -and $_.CookedValue -gt 50 } |
         Where-Object { -not (& $mine) }
     $tenant = if ($null -eq $busy) { 0.0 } else { ($busy | Measure-Object CookedValue -Sum).Sum / 100 }
-    [pscustomobject]@{ Tenant = $tenant; Machine = ($total - $idle - $ours) / 100 }
+    [pscustomobject]@{ Tenant = $tenant; Machine = ($machine / 100) }
 }
 
 # Parsed once, here, rather than trusting the binder — see the parameter.

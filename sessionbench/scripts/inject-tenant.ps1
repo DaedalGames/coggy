@@ -172,12 +172,35 @@ function Get-Cores {
     $ours = ($s | Where-Object $mine | Measure-Object CookedValue -Sum).Sum
     # A negative machine reading is process churn making `_Total` and `Idle`
     # inconsistent, not a failed query. -2.0 keeps the two distinguishable.
-    if (($total - $idle - $ours) -lt 0) { return [pscustomobject]@{ Tenant = -1.0; Machine = -2.0 } }
+    $machine = $total - $idle - $ours
+    # A SMALL NEGATIVE IS A QUIET BOX, NOT A BROKEN COUNTER. `_Total` and `Idle`
+    # come from one query but are computed over slightly offset internal
+    # samples, so their difference drifts by hundredths -- and it drifts closest
+    # to zero when the machine is NEAREST IDLE, because that is when the two
+    # figures are nearest each other.
+    #
+    # Rejecting every negative therefore threw away the quietest readings a gate
+    # exists to find, and each rejection resets the consecutive-quiet run.
+    # MEASURED on the 22:25 injection run: 4 churn rejections against 2 quiet
+    # polls logged in forty minutes, so the guard discarded twice what it let
+    # through and the run never assembled a second pair.
+    #
+    # The sentinel came from ONE reading of -1.95 cores, taken six seconds after
+    # six processes were spawned on a box carrying 2.8 cores. That is real churn
+    # and a magnitude no rounding reaches.
+    #
+    # THE THRESHOLD IS IN THE COUNTER'S OWN UNITS, where 100 is one core -- the
+    # return divides by 100. So -25 is a quarter of a core, and writing -0.25
+    # here would have meant a four-hundredth of one, a hundred times tighter
+    # than intended and still rejecting the drift this exists to allow.
+    if ($machine -lt -25) { return [pscustomobject]@{ Tenant = -1.0; Machine = -2.0 } }
+    if ($machine -lt 0) { $machine = 0.0 }
+
     $busy = $s |
         Where-Object { $_.InstanceName -notin @('_total', 'idle') -and $_.CookedValue -gt 50 } |
         Where-Object { -not (& $mine) }
     $tenant = if ($null -eq $busy) { 0.0 } else { ($busy | Measure-Object CookedValue -Sum).Sum / 100 }
-    [pscustomobject]@{ Tenant = $tenant; Machine = ($total - $idle - $ours) / 100 }
+    [pscustomobject]@{ Tenant = $tenant; Machine = ($machine / 100) }
 }
 
 # Returns @{rate; rest}, or $null when the rate could not be read. The caller
