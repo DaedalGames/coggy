@@ -334,6 +334,23 @@ try {
     # THREE SAMPLES RATHER THAN TWO, because a mean of two is a point reading
     # with extra steps: one excursion still moves it half its own size. Three
     # costs one extra poll — ten seconds against a window measured in minutes.
+    # RESET BOTH, AT THE TOP OF EVERY ATTEMPT, AND THE FIRST ONE IS LOAD-BEARING.
+    # `$run = 0` was dropped when the mean replaced the streak on 2026-08-12,
+    # and the result was not a wrong number but NO GATE AT ALL: the first
+    # clearance sets `$run = 2`, so on the next attempt the polling loop's
+    # `-and $run -lt 2` was already false and it never ran. Five consecutive
+    # baselines were then taken with no quiet check whatsoever, at 3.43, 13.18,
+    # 13.02, 14.19 and 9.11 cores held, and the transcript shows NO poll lines
+    # between them.
+    #
+    # It survived both deliberate breaks because each used `-MaxVoids 1` and so
+    # only ever ran ONE attempt — the reset path was never exercised. A check
+    # broken on purpose proves the branch you broke, not the loop around it.
+    #
+    # `$recent` is cleared for a second reason worth keeping separate: a hold
+    # has just run, and this box has moved ten cores inside one thirty-second
+    # hold, so samples from before it describe a machine that may be gone.
+    $run = 0
     $recent = @()
     while ((Get-Date) -lt $deadline -and $run -lt 2) {
         $cores = Get-Cores
