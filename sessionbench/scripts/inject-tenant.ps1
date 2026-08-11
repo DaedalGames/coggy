@@ -56,6 +56,30 @@ param(
     # 1.43. 1.0 admits the attempt that passed (true 0.75) with margin and sits
     # below the 1.3 it feeds.
     [double]$QuietMachineBelow = 1.0,
+    # MEASURE AT WHATEVER TENANCY EXISTS, instead of waiting for a low baseline.
+    #
+    # The guard below rejects a baseline at 1.3 cores because the step's
+    # transition sits at 1.36-1.46, and crossing it is what the ORIGINAL
+    # experiment measured. That requirement was inherited rather than chosen,
+    # and it is not what every question needs.
+    #
+    # COMPARING TWO INJECTORS does not need the rising limb at all: it asks
+    # whether `file-write` and `cpu-spin` produce the SAME step at the SAME
+    # delta, so running both at whatever tenancy the box offers, back to back,
+    # pairs them against EACH OTHER inside one window. That is stronger than the
+    # low-baseline design, which pairs each against a different afternoon.
+    #
+    # It exists because this box does not go quiet. On 2026-08-11 evening three
+    # runs across two and a half hours produced ONE baseline, and the browser
+    # returned inside its thirty-second hold. Windows opened at 18:15, 22:10,
+    # 22:20, 22:29 and 23:53, each a minute or two long, against a paired
+    # measurement needing two consecutive quiet minutes.
+    #
+    # WHAT IT COSTS, and it must be stated with any result: a pair taken at 8
+    # cores measures the COLLAPSE limb, where the recorded +95.4% and +100.1%
+    # are both from the rising limb below ~1.4. The absolute figures are not
+    # comparable with those; two injectors measured against each other are.
+    [switch]$AnyBaseline,
     [int]$PollSeconds = 10,
     [int]$GiveUpMinutes = 30,
     [ValidateRange(1, 20)]
@@ -279,11 +303,20 @@ try {
     # to 12.89. Both arms sat in the collapse region and the run reported a
     # plausible -9.6% that meant nothing. Refuse instead: a void test that says
     # so cannot be quoted later, and one that returns a number can.
-    if ($before.rest -ge 1.3 -or [double]::IsNaN($before.rest)) {
+    if ([double]::IsNaN($before.rest)) {
+        Write-Host ("VOID {0}: baseline recorded no rest column — refusing rather than guessing" -f $voids)
+        $voids++
+        if ($voids -ge $MaxVoids) { Write-Host "gave up after $MaxVoids voided baselines"; exit 4 }
+        continue
+    }
+    if (-not $AnyBaseline -and $before.rest -ge 1.3) {
         Write-Host ("VOID {0}: baseline ran at {1} cores held, above the ~1.4 transition — nothing to inject into" -f $voids, $before.rest)
         $voids++
         if ($voids -ge $MaxVoids) { Write-Host "gave up after $MaxVoids voided baselines"; exit 4 }
         continue
+    }
+    if ($AnyBaseline) {
+        Write-Host ("  -AnyBaseline: measuring at {0:N2} cores held rather than waiting for a low one" -f $before.rest)
     }
 
     Write-Host ("{0:HH:mm:ss} starting $Tenants co-tenants: $inject $($injectArgs -join ' ')" -f (Get-Date))
