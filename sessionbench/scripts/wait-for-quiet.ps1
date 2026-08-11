@@ -101,6 +101,25 @@ param(
     # no process is over half a core — and it rejects every edge this counter
     # can see. This one cannot be tuned by watching readings, because the
     # readings it would need do not exist.
+    #
+    # THE SLIVER HOLDS TWO POPULATIONS AND THIS COUNTER CANNOT TELL THEM
+    # APART. The six edge readings above were transients before an 11-core
+    # arrival. A 42-minute run on 2026-08-11 produced twenty more — 17 of them
+    # between 0.5 and 1.1 — and NONE was followed by an arrival: a steady
+    # background rather than a tenant. The obvious discriminator is the
+    # previous reading (ascending from 0.00 means arrival, steady means
+    # background), and it does not work: the background reaches the counter as
+    # 0.00 → 0.51 → 0.00 → 0.62, flickering across the half-core threshold
+    # exactly as a leading edge does. Only what happens AFTER separates them.
+    #
+    # SO THE BAR IS A CHOICE OF PURPOSE, NOT A FACT. Strict (0.5) protects a
+    # clean baseline and costs windows — this run took 13 holds in 30 minutes
+    # and then none for 12 while a ~1.7-core process sat there. Loose (1.5)
+    # harvests more and lands holds on both sides of the 1.4-core step, which
+    # is how that step was measured in the first place. Every hold records its
+    # own `rest_cores_median`, so a spoiled hold is detectable afterwards
+    # either way. Set it for the run you are doing; there is no value that
+    # serves both.
     [double]$FireBelow = 0.5,
     [double]$CountBelow = 3.0,
     [int]$PollSeconds = 10,
