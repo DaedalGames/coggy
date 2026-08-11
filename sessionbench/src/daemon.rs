@@ -698,8 +698,9 @@ impl HeldRun {
 ///    that to what one session does on **your** rested box, measured once and
 ///    written down. On the box these were taken on, one session at
 ///    `--duty 0.27 --resident 20` runs about 18.9 rested — **two holds, the
-///    thinnest of the three** — 13.8 with ten or
-///    more cores held elsewhere, and 9.1 in a slow state that has lasted
+///    thinnest of the three** — a *band* of 11.95 to 17.10 with a neighbour,
+///    mean 14.741 across 48 holds where an earlier 13.8 came from nine, and
+///    9.1 in a slow state that has lasted
 ///    [over two and a half
 ///    hours](../../docs/measurements/2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md).
 /// 3. **Note the order.** A crowded rested box outruns a quiet slow one, so a

@@ -1068,7 +1068,9 @@ fn doctor(strict: bool) -> anyhow::Result<()> {
     // 18.9 units/s on this box rested and 8.997 in a slower one, measured over
     // twenty holds across 340 minutes, and a bracket ran entirely inside the
     // slow one with nothing in its artifact to say so. A tenant lands between
-    // the two at 13.8, so the order is the trap: a crowded rested box outruns
+    // the two in a band of 11.95 to 17.10, mean 14.741 over 48 holds where an
+    // earlier 13.8 came from nine, so the order is the trap: a crowded rested
+    // box outruns
     // a quiet slow one. Whether either of these two figures distinguishes them
     // is unknown — the run that tried could not induce the slow state, so both
     // its phases sampled the fast one. They print because the state has to be
