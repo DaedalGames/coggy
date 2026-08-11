@@ -62,6 +62,24 @@ So a quiet box is **bimodal** — rarely rested at 18.9–20.3, usually slow at 
 
 **Until then the causal claim in this record's title is not established, and the concurrent arm is unaffected** — that one is ordinary contention at r = −0.950 and does not depend on which reading of the solo arm is right.
 
+### The competing reading made a prediction, and the archive already held the test
+
+If the neighbour is not adding speed but forcing the machine into a definite state, then it should pull a lone session toward that state **from either side** — up from the slow band, and *down* from a rested one. So on a rested box the step should **reverse**.
+
+| sitting | quiet arm | tenanted arm | step |
+|---|---|---|---|
+| 08-03 08:08 | **20.30** (rested) | 13.42, 15.71 | **−28.2%** |
+| 08-03 14:34 | 9.30, 9.87, 10.06, 10.07 … | 15.22 | +44.8% |
+| 08-11 02:07 | 9.55, 10.74, 11.34, 11.53 | 11.95, 14.05, 14.39, 15.43 … | +40.4% |
+| 08-11 05:08 | 9.25, 10.63, 10.74, 12.43 … | 12.41, 12.67, 12.75, 12.96 … | +20.3% |
+| 08-11 08:00 | 10.29, 11.18 | 12.30, 13.86, 14.40, 14.48 … | +31.1% |
+
+**The one sitting whose quiet arm was rested reverses, and its tenanted arm lands at 13.42 and 15.71 — the same place every other sitting's tenanted arm lands.** The shelf shapes agree: the tenanted group spans 11.952–17.101 at σ 9.2%, sitting *inside* the quiet group's 9.246–20.295 at σ 17.7%. A clamp toward ~14.7, not a shift upward.
+
+**This reconciles the two-band figure rather than overruling it.** *18.9 quiet against 13.8 crowded* was measured when this box was rested, so the neighbour pulled it down; the +34% here is mostly slow-state holds, so the neighbour pulled them up. Both are correct readings of one phenomenon, and each looked like a contradiction only because each saw one side of the clamp.
+
+**The rested case is n = 1**, and that one hold is the 20.295 already flagged as an outlier. A single observation confirming a prediction is still a single observation, and it is the whole of the evidence for the reversal. What would settle it is cheap and needs no injection: **a solo pair taken on a rested box, then again while a neighbour is present.** Rested windows are rare here — 2 of 45 holds — but they are recognisable at the time rather than only afterwards.
+
 ## What this does not explain
 
 **The solo slow state survives untouched.** A lone session reading 9.0 units/s against a rested 18.9, [with 1.03 cores held at the time](2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md), is not tenancy — the neighbour was absent and the session was still at half speed. The step described here is worth 34%; that is worth 2×, and it remains unexplained. The two are separate findings that both happen to involve a quiet machine.
