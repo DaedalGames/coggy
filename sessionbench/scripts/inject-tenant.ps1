@@ -315,7 +315,26 @@ try {
     # processes — so a window that looks quiet often is not, and the first
     # version cost a launch every time.
     while ((Get-Date) -lt $deadline) {
-    $run = 0
+    # A WINDOWED MEAN, NOT TWO CONSECUTIVE POINT READINGS.
+    #
+    # The old rule wanted two polls in a row under the bar, and MEASURED ON
+    # 2026-08-12 that is the wrong question to ask this box. Across one waiting
+    # run every one of ten polls read below the 1.0 machine-wide bar — 0.94,
+    # 0.88, 0.49, 0.78, 0.89, 0.90, 0.58, 0.83, 0.93, 0.62 — and most failed
+    # anyway, because a single excursion breaks the streak. The machine sits at
+    # ~0.8 and the SAMPLER occasionally reports above threshold, so the gate was
+    # measuring its own sampling variance and calling it the machine's state.
+    #
+    # A mean over the same number of polls keeps the same bar and the same cost
+    # while letting one high sample be outvoted rather than decisive — the same
+    # reason a two-minute solo hold beats four point readings of `doctor`, and
+    # the same reason pre-screening a ratio on point readings was measured to
+    # cost runs in both directions.
+    #
+    # THREE SAMPLES RATHER THAN TWO, because a mean of two is a point reading
+    # with extra steps: one excursion still moves it half its own size. Three
+    # costs one extra poll — ten seconds against a window measured in minutes.
+    $recent = @()
     while ((Get-Date) -lt $deadline -and $run -lt 2) {
         $cores = Get-Cores
         $t = $cores.Tenant
@@ -324,18 +343,47 @@ try {
         # negative is less than any threshold, so checking quiet first would
         # read an unreadable counter as the quietest possible machine. -2.0 is
         # tested before -1 because it also satisfies `-lt 0`.
-        if ($m -eq -2.0) { "{0:HH:mm:ss} counter inconsistent (process churn), resetting" -f (Get-Date); $run = 0 }
-        elseif ($t -lt 0 -or $m -lt 0) { "{0:HH:mm:ss} counter unreadable, resetting" -f (Get-Date); $run = 0 }
+        if ($m -eq -2.0) { "{0:HH:mm:ss} counter inconsistent (process churn), resetting" -f (Get-Date); $run = 0; $recent = @() }
+        elseif ($t -lt 0 -or $m -lt 0) { "{0:HH:mm:ss} counter unreadable, resetting" -f (Get-Date); $run = 0; $recent = @() }
         # QUIET MEANS QUIET TO THE GUARD, which reads the machine rather than
         # the census. Both bars, so this can only withhold a window the census
         # bar alone would have passed and the baseline guard then voided.
-        elseif ($t -lt $QuietBelow -and $m -lt $QuietMachineBelow) {
-            $run++
-            "{0:HH:mm:ss} quiet {1}/2 at {2:N2} cores ({3:N2} machine-wide)" -f (Get-Date), $run, $t, $m
-        }
         else {
-            if ($run -gt 0) { "{0:HH:mm:ss} not quiet at {1:N2} cores ({2:N2} machine-wide)" -f (Get-Date), $t, $m }
-            $run = 0
+            # THE CENSUS BAR IS GONE FROM THIS CONDITION AND THE MEAN REPLACES
+            # THE STREAK.
+            #
+            # `$t` read 0.00 on every poll of three waiting runs while the
+            # machine figure sat at 0.49-0.94 — so it never bound, and the gate
+            # was effectively machine-only already. NOT because the counter is
+            # dead: verifying this change on a LOADED box showed it reading
+            # 10.60-11.98 against a machine figure of 11.38-12.95, tracking
+            # closely. It sums only instances over half a core, so it sees one
+            # big tenant perfectly and goes blind exactly when load is spread
+            # thin — which is the quiet regime this gate exists to detect, and
+            # the same blindness that once let a gate read 0.00 against a true
+            # 3.26.
+            #
+            # It is NOT strictly redundant, and that is worth stating rather
+            # than glossing: at the defaults the census bar is 0.5 against the
+            # machine bar's 1.0, so a machine at 0.9 with a census of 0.6 used
+            # to be refused and now passes. That is deliberate — the figure the
+            # baseline guard is calibrated against is the machine one, so the
+            # gate should ask the same question the guard will.
+            #
+            # Still printed, because a reading nobody consumes is what this
+            # repository refuses to leave lying around, and a census sitting at
+            # zero beside a live machine figure is the evidence for all of the
+            # above.
+            $recent += $m
+            if ($recent.Count -gt 3) { $recent = $recent[-3..-1] }
+            $mean = ($recent | Measure-Object -Average).Average
+            if ($recent.Count -ge 3 -and $mean -lt $QuietMachineBelow) {
+                $run = 2
+                "{0:HH:mm:ss} quiet: mean {1:N2} over {2} polls (this one {3:N2} machine-wide, census {4:N2})" -f (Get-Date), $mean, $recent.Count, $m, $t
+            }
+            else {
+                "{0:HH:mm:ss} not quiet: mean {1:N2} over {2} polls (this one {3:N2} machine-wide, census {4:N2})" -f (Get-Date), $mean, $recent.Count, $m, $t
+            }
         }
         if ($run -lt 2) { Start-Sleep -Seconds $PollSeconds }
     }
