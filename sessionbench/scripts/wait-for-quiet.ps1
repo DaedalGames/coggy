@@ -75,7 +75,19 @@
 # the tenant at ~12.3 of 16 cores) where this sums only processes above half
 # a core, so both bars would have to be re-derived from readings.
 param(
-    [double]$FireBelow = 1.0,
+    # 0.5, not 1.0, and the value is set by the instrument rather than by the
+    # box. `Get-TenantCores` sums only instances above `CookedValue -gt 50`, so
+    # the smallest non-zero number it can emit is just above 0.50 and there is
+    # nothing between 0 and 0.5 to observe. A bar at 1.0 therefore admits
+    # exactly one class of reading — the 0.5-1.0 sliver — and every value seen
+    # there was a tenant edge: leading 0.53, 0.55, 0.55 and trailing 0.82,
+    # 0.76, 0.67. One of those fired a hold during a live test.
+    #
+    # So any bar in (0, 0.5] is the same rule — require exactly 0.00, meaning
+    # no process is over half a core — and it rejects every edge this counter
+    # can see. This one cannot be tuned by watching readings, because the
+    # readings it would need do not exist.
+    [double]$FireBelow = 0.5,
     [double]$CountBelow = 3.0,
     [int]$PollSeconds = 10,
     # Two, not six. Six polls at ten seconds needs 50-60s of verified quiet
@@ -89,7 +101,16 @@ param(
     # on the hold itself catches what verification would have.
     [int]$ConsecutiveQuiet = 2,
     [int]$HeartbeatPolls = 30,
-    [int]$GiveUpMinutes = 120
+    [int]$GiveUpMinutes = 120,
+    # The rate above which a 30s solo hold says the box was RESTED rather than
+    # merely unoccupied. Bands on this box: 9-11 slow, 12-17 with a neighbour,
+    # 18.9-21.9 rested and quiet. 18 sits in the gap below the rested band's
+    # floor and above every tenanted reading recorded (max 17.101).
+    [double]$RestedAbove = 18.0,
+    # A stop independent of the clock, so a box that never rests cannot spend
+    # two hours firing holds. 40 x 30s is 20 minutes of load spread over the
+    # window, which is light and bounded.
+    [int]$MaxHolds = 40
 )
 
 $ErrorActionPreference = 'Stop'
@@ -150,9 +171,15 @@ function Get-TenantCores {
 }
 
 $deadline = (Get-Date).AddMinutes($GiveUpMinutes)
-"waiting: fire under {0:N1} cores for {1} consecutive polls ({2}s apart); count interruptions above {3:N1}; giving up at {4:HH:mm}" `
-    -f $FireBelow, $ConsecutiveQuiet, $PollSeconds, $CountBelow, $deadline
+$holds = 0
+# The outer loop is what makes this a harvester rather than a one-shot. A quiet
+# window is common here and a RESTED one is not — 2 of 45 holds — so catching
+# one means firing on every quiet window and keeping the one whose rate says
+# the box was actually fast.
+"waiting: fire under {0:N1} cores for {1} consecutive polls ({2}s apart); count interruptions above {3:N1}; keep a hold at or above {4:N1} units/s; giving up at {5:HH:mm} or {6} holds" `
+    -f $FireBelow, $ConsecutiveQuiet, $PollSeconds, $CountBelow, $RestedAbove, $deadline, $MaxHolds
 
+while ((Get-Date) -lt $deadline) {
 $run = 0
 $polls = 0
 $inInterruption = $false
@@ -212,6 +239,7 @@ while ((Get-Date) -lt $deadline) {
     Start-Sleep -Seconds $PollSeconds
 }
 if ($run -lt $ConsecutiveQuiet) { "gave up without a window"; exit 2 }
+$holds++
 
 # ONE HOLD, NOT A SET. This fired four alternating holds — 30, 120, 30, 120 —
 # to compare durations inside one window. Two reasons that is now wrong.
@@ -231,10 +259,37 @@ if ($run -lt $ConsecutiveQuiet) { "gave up without a window"; exit 2 }
 # itself, so a spoiled hold is detectable afterwards rather than needing to be
 # prevented beforehand — which is how the 34% step and the r = -0.950 relation
 # were both obtained, from holds sorted by their rest column after the fact.
-$label = "quiet-solo"
-& $bench hold --label $label --sessions 1 --interval 5 --duration 30 -- $spin @work 2>&1 |
-    Select-String -Pattern 'rate |cores held outside the job' |
+$label = "quiet-solo-$holds"
+$out = & $bench hold --label $label --sessions 1 --interval 5 --duration 30 -- $spin @work 2>&1
+$out | Select-String -Pattern 'rate |cores held outside the job' |
     ForEach-Object { "{0}: {1}" -f $label, $_.Line.Trim() }
-"hold complete"
+
+# QUIET IS NOT THE STATE THE GATE WANTS, so the hold's own rate decides whether
+# this window was worth catching. On this box the bands barely overlap — 9-11
+# slow, 12-17 with a neighbour, 18.9-21.9 rested and quiet — and of 45 holds
+# with known tenancy only 2 were rested. So a caught window is usually the slow
+# state, and firing reliably into it is not progress.
+#
+# `$rate` stays $null when the line cannot be parsed, and the branch order
+# below is load-bearing: a 0.0 default would read as the slowest possible
+# machine and keep waiting forever, which is the same defect as a sentinel
+# comparable to the quantity it stands in for.
+$rate = $null
+$m = ($out | Select-String -Pattern '^\s*rate\s+([\d.]+)\s+units/s' | Select-Object -First 1)
+if ($m) { $rate = [double]$m.Matches[0].Groups[1].Value }
+
+if ($null -eq $rate) {
+    "{0:HH:mm:ss} hold {1}: RATE UNPARSEABLE — stopping rather than guessing" -f (Get-Date), $holds
+    exit 3
+}
+if ($rate -ge $RestedAbove) {
+    "{0:HH:mm:ss} hold {1}: {2:N3} units/s — RESTED AND QUIET, this is the window" -f (Get-Date), $holds, $rate
+    exit 0
+}
+"{0:HH:mm:ss} hold {1}: {2:N3} units/s — quiet but not rested, waiting for another" -f (Get-Date), $holds, $rate
+if ($holds -ge $MaxHolds) { "reached MaxHolds ($MaxHolds) without a rested window"; exit 4 }
+}
+"gave up: deadline reached after $holds hold(s), none rested"
+exit 2
 }
 finally { Remove-Item $lock -ErrorAction SilentlyContinue }
