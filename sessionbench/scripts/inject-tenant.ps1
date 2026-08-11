@@ -29,6 +29,15 @@
 # would need repeating with a steady load before it means tenancy does not cause
 # the step.
 #
+# LAUNCH DETACHED AND DO NOT REDIRECT ITS OUTPUT:
+#   Start-Process pwsh -ArgumentList '-NoProfile','-File','<this>' `
+#       -WindowStyle Hidden -PassThru
+# A redirect forces UseShellExecute=$false, so the child inherits the
+# launching console and dies on that console's control event. This script
+# writes its own transcript under bench-out/, which is what to read. The
+# full account, with the exit code that named it, is in CLAUDE.md beside
+# `commit before any wait whose end you cannot see`.
+#
 # BOTH HOLDS RECORD THEIR OWN `rest_cores_median`, so the injection's real size
 # is measured rather than assumed, and a browser arriving mid-test shows up in
 # the artifact rather than silently spoiling the comparison.
