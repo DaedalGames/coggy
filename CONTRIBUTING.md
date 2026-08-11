@@ -71,9 +71,10 @@ The body is free-form: one bullet per durable change, each on a single line, omi
 
 ## Pull requests
 
-Branch from `dev`. Before opening:
+Branch from `main`, which is the only branch this repository has. Before opening:
 
-- [ ] `cargo fmt --check`, `cargo clippy --all-targets`, `cargo build` all pass
+- [ ] `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, and `cargo +1.88.0 check --all-targets --locked` all pass
+- [ ] `cargo run -p sessionbench -- doctor` runs, and you read it
 - [ ] Performance claims carry a `sessionbench` artifact with its provenance block
 - [ ] Nothing in "What gets closed" applies
 - [ ] Docs updated when behavior changed — PLAN for what is true, ROADMAP for order and gates
@@ -82,4 +83,4 @@ Branch from `dev`. Before opening:
 
 Contributions are licensed **GPL-3.0-or-later**, matching the project.
 
-GPL propagates through linking, so **COGGY never publishes a linkable core crate** — anything consuming it runs the executable and speaks to its socket. A PR exposing internals as a library dependency for outside consumers will be closed.
+[The linking boundary](docs/PLAN.md#the-linking-boundary) is why: a PR exposing internals as a library dependency for outside consumers will be closed.

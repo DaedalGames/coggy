@@ -45,6 +45,7 @@ See [sessionbench/README.md](sessionbench/README.md) for the metric definition, 
 | [CLAUDE.md](CLAUDE.md) | How to approach the work: reuse before building, measure before optimizing |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute: setup, conventions, what gets closed |
 | [docs/PLAN.md](docs/PLAN.md) | What is true: architecture, scope boundary, constraints |
+| [docs/measurements/](docs/measurements/README.md) | Every run that decided something, oldest to newest, with what it could not establish |
 
 Claims in PLAN are marked **[measured]** or **[assumed]**, so an assumption cannot be quietly designed around.
 

@@ -622,3 +622,45 @@ fn slug_matches_github_anchor_rules() {
     assert_eq!(slug("Name: COGGY (settled)"), "name-coggy-settled");
     assert_eq!(slug("`redline` is a pair"), "redline-is-a-pair");
 }
+
+/// The minimum supported Rust version is stated in four documents, and
+/// `Cargo.toml` is the only one that enforces it.
+///
+/// Nothing drifted yet — all four say 1.88 — which is exactly when the check is
+/// cheap to add. A workspace `rust-version` bump lands in one file and leaves
+/// the READMEs telling a contributor to install a toolchain that will no longer
+/// build the tree, and `cargo` cannot notice: it reads the manifest and never
+/// the prose. This is the same shape as the documentation map above, one field
+/// wide.
+#[test]
+fn every_document_states_the_msrv_the_manifest_declares() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crate sits one level below the repository root");
+    let manifest = fs::read_to_string(root.join("Cargo.toml")).expect("a workspace manifest");
+    let declared = manifest
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("rust-version"))
+        .and_then(|rest| rest.split('"').nth(1))
+        .expect("the workspace declares rust-version");
+
+    let mut wrong = Vec::new();
+    for doc in ["README.md", "CONTRIBUTING.md", "sessionbench/README.md"] {
+        let body = fs::read_to_string(root.join(doc)).expect("a document that exists");
+        // Every mention of a Rust version in these files is the MSRV, so any
+        // other version named beside "Rust" is a stale copy rather than a
+        // different fact.
+        for (n, line) in body.lines().enumerate() {
+            if !line.contains("Rust 1.") {
+                continue;
+            }
+            if !line.contains(&format!("Rust {declared}")) {
+                wrong.push(format!("{doc}:{} says {line:?}", n + 1));
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "the manifest declares Rust {declared}; these disagree: {wrong:#?}"
+    );
+}
