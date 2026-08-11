@@ -60,7 +60,24 @@ param(
     #
     # If the rise survives, self-similarity is out. If it collapses, the causal
     # result is about the injector rather than about tenancy.
-    [string]$Injector = ''
+    [string]$Injector = '',
+    # WHAT TO PASS THE INJECTOR, because `-Injector` alone was a trap.
+    #
+    # The arguments were hardcoded to cpu-spin's `--units/--duty/--resident`,
+    # so `-Injector` could only ever name another cpu-spin. `file-write` takes
+    # `--files/--size/--interval` and `stdout-storm` its own set, so pointing
+    # this at either would have spawned processes that clap rejects and that die
+    # before the hold starts -- and a mangled switch producing error output is
+    # exactly [how a ramp counted three error lines a second as completed
+    # work](../../CLAUDE.md#verify-before-you-launch-too).
+    #
+    # A DELIMITED STRING, split in-script, for the reason `-Residents` and
+    # `-Duties` are: `pwsh -File` cannot bind an array parameter, and an
+    # argument list beginning with `-` is read as this script's own parameters.
+    #
+    # The default reproduces the two runs already recorded, so an invocation
+    # that omits it is unchanged.
+    [string]$InjectorArgs = '--units|100000000|--duty|0.27|--resident|1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -72,6 +89,7 @@ $spin = "$root\target\release\cpu-spin.exe"
 # carrying the shared-code-page confound. Resolved and existence-checked here
 # rather than at first use, so a typo fails before a window is spent.
 $inject = if ($Injector) { (Resolve-Path $Injector -ErrorAction Stop).Path } else { $spin }
+$injectArgs = $InjectorArgs -split [regex]::Escape('|')
 if (-not (Test-Path $inject)) { "REFUSING: injector not found at $inject"; exit 1 }
 $work = @('--units', '100000000', '--duty', '0.27')
 
@@ -159,11 +177,30 @@ try {
         continue
     }
 
-    Write-Host ("{0:HH:mm:ss} starting $Tenants co-tenants" -f (Get-Date))
+    Write-Host ("{0:HH:mm:ss} starting $Tenants co-tenants: $inject $($injectArgs -join ' ')" -f (Get-Date))
     $procs = 1..$Tenants | ForEach-Object {
-        Start-Process $inject -ArgumentList (@('--units', '100000000', '--duty', '0.27', '--resident', '1')) -PassThru -WindowStyle Hidden
+        Start-Process $inject -ArgumentList $injectArgs -PassThru -WindowStyle Hidden
     }
-    Start-Sleep -Seconds 5
+    Start-Sleep -Seconds 2
+
+    # ASSERT ON THE EFFECT, NOT THE STATUS. `Start-Process` returns a handle for
+    # a process that has already died, so a mis-flagged injector looks launched.
+    # This matters the moment `-Injector` names anything but `cpu-spin`: the
+    # arguments were hardcoded to `--units/--duty/--resident` until 2026-08-11,
+    # and `file-write` takes `--files/--size/--interval`, so clap would reject
+    # them and every co-tenant would exit before the hold began. The delta guard
+    # below eventually catches that as a too-small injection, but it spends a
+    # full cycle to say so and blames the browser for it. Cheaper and truer to
+    # ask whether the things we started are still there.
+    $dead = @($procs | Where-Object { $_.HasExited })
+    if ($dead.Count -gt 0) {
+        Write-Host ("REFUSING: {0} of {1} co-tenants exited within 2s — the injector rejected its arguments" -f $dead.Count, $Tenants)
+        Write-Host ("  tried: $inject $($injectArgs -join ' ')")
+        Write-Host ("  exit codes: {0}" -f (($dead | ForEach-Object { $_.ExitCode }) -join ', '))
+        $procs | Where-Object { -not $_.HasExited } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+        exit 5
+    }
+    Start-Sleep -Seconds 3
 
     $after = Invoke-Hold 'inject-after' $Duration
     if ($null -eq $after) { Write-Host 'tenanted hold unmeasurable, stopping rather than guessing'; exit 3 }
