@@ -47,6 +47,15 @@ param(
     [ValidateRange(5, 300)]
     [int]$Duration = 30,
     [double]$QuietBelow = 0.5,
+    # THE BAR THAT MATCHES WHAT THE BASELINE GUARD REJECTS ON. `QuietBelow`
+    # above governs the census counter, which sums only instances over half a
+    # core and therefore reads 0.00 for load spread across small ones. The guard
+    # below rejects a baseline at 1.3 cores of `rest_cores_median`, which is
+    # machine-wide -- so a census-only gate passes runs the guard then throws
+    # away, two of three on 2026-08-11 at readings of 0.00 against true 3.26 and
+    # 1.43. 1.0 admits the attempt that passed (true 0.75) with margin and sits
+    # below the 1.3 it feeds.
+    [double]$QuietMachineBelow = 1.0,
     [int]$PollSeconds = 10,
     [int]$GiveUpMinutes = 30,
     [ValidateRange(1, 20)]
@@ -127,14 +136,48 @@ $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $null = New-Item -ItemType Directory -Force -Path "$root\bench-out"
 Start-Transcript -Path "$root\bench-out\inject-$stamp.log" | Out-Null
 
-function Get-TenantCores {
+function Get-Cores {
+    # ONE QUERY, BOTH FIGURES, AND A RETRY. Ported from wait-for-quiet.ps1 on
+    # 2026-08-11 after this script burned its only window in twenty minutes.
+    #
+    # THE RETRY IS THE PART THAT MATTERED. The waiter has had it since
+    # 2026-08-10 with a comment saying why -- the query fails transiently, and
+    # under a reset-on-unreadable rule an intermittent failure keeps a poller
+    # from ever firing on a box that is in fact quiet. This function returned -1
+    # on the FIRST failure, so every transient cleared the consecutive-quiet run.
+    # Measured: two wait-for-quiet runs of 40 and 15 minutes logged ZERO
+    # unreadable counters while this script logged nine in twenty, and the
+    # counter answered 3 of 3 from a shell immediately afterwards. The counter
+    # was never the problem.
+    #
+    # AND THE CENSUS FIGURE CANNOT GATE. It sums only instances over half a
+    # core, so a process hovering near 0.5 reads either 0.00 or 0.67 with
+    # nothing between -- which is what this run saw at 18:15, one quiet poll
+    # then a crossing, twice, while the machine sat at a smooth ~1-1.5 cores.
+    # `_Total - Idle - ours` is what the baseline guard below actually rejects
+    # on, so gating on it stops passing runs the guard then throws away.
     $c = Get-Counter '\Process(*)\% Processor Time' -ErrorAction SilentlyContinue
-    if ($null -eq $c) { return -1 }
-    $busy = $c.CounterSamples |
+    if ($null -eq $c) {
+        Start-Sleep -Milliseconds 500
+        $c = Get-Counter '\Process(*)\% Processor Time' -ErrorAction SilentlyContinue
+    }
+    if ($null -eq $c) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0 } }
+    $s = $c.CounterSamples
+    $total = ($s | Where-Object { $_.InstanceName -eq '_total' }).CookedValue
+    $idle = ($s | Where-Object { $_.InstanceName -eq 'idle' }).CookedValue
+    if ($null -eq $total -or $null -eq $idle) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0 } }
+    $mine = { $_.InstanceName -like 'sessionbench*' -or $_.InstanceName -like 'cpu-spin*' -or
+        $_.InstanceName -like 'coggyd*' -or $_.InstanceName -like 'file-write*' -or
+        $_.InstanceName -like 'stdout-storm*' }
+    $ours = ($s | Where-Object $mine | Measure-Object CookedValue -Sum).Sum
+    # A negative machine reading is process churn making `_Total` and `Idle`
+    # inconsistent, not a failed query. -2.0 keeps the two distinguishable.
+    if (($total - $idle - $ours) -lt 0) { return [pscustomobject]@{ Tenant = -1.0; Machine = -2.0 } }
+    $busy = $s |
         Where-Object { $_.InstanceName -notin @('_total', 'idle') -and $_.CookedValue -gt 50 } |
-        Where-Object { $_.InstanceName -notlike 'sessionbench*' -and $_.InstanceName -notlike 'cpu-spin*' }
-    if ($null -eq $busy) { return 0 }
-    ($busy | Measure-Object CookedValue -Sum).Sum / 100
+        Where-Object { -not (& $mine) }
+    $tenant = if ($null -eq $busy) { 0.0 } else { ($busy | Measure-Object CookedValue -Sum).Sum / 100 }
+    [pscustomobject]@{ Tenant = $tenant; Machine = ($total - $idle - $ours) / 100 }
 }
 
 # Returns @{rate; rest}, or $null when the rate could not be read. The caller
@@ -165,7 +208,7 @@ function Invoke-Hold($label, $seconds) {
 
 $procs = @()
 try {
-    "injecting $Tenants co-tenants around a $Duration s hold; quiet means under $QuietBelow cores"
+    "injecting $Tenants co-tenants around a $Duration s hold; quiet means under $QuietBelow census cores AND $QuietMachineBelow machine-wide"
     "injector: $inject"
     $deadline = (Get-Date).AddMinutes($GiveUpMinutes)
     $voids = 1
@@ -178,13 +221,26 @@ try {
     while ((Get-Date) -lt $deadline) {
     $run = 0
     while ((Get-Date) -lt $deadline -and $run -lt 2) {
-        $t = Get-TenantCores
-        # The sentinel is tested FIRST and the order is load-bearing: -1 is less
-        # than any threshold, so checking quiet first would read an unreadable
-        # counter as the quietest possible machine.
-        if ($t -lt 0) { "{0:HH:mm:ss} counter unreadable, resetting" -f (Get-Date); $run = 0 }
-        elseif ($t -lt $QuietBelow) { $run++; "{0:HH:mm:ss} quiet {1}/2 at {2:N2} cores" -f (Get-Date), $run, $t }
-        else { if ($run -gt 0) { "{0:HH:mm:ss} not quiet at {1:N2} cores" -f (Get-Date), $t }; $run = 0 }
+        $cores = Get-Cores
+        $t = $cores.Tenant
+        $m = $cores.Machine
+        # The sentinels are tested FIRST and the order is load-bearing: a
+        # negative is less than any threshold, so checking quiet first would
+        # read an unreadable counter as the quietest possible machine. -2.0 is
+        # tested before -1 because it also satisfies `-lt 0`.
+        if ($m -eq -2.0) { "{0:HH:mm:ss} counter inconsistent (process churn), resetting" -f (Get-Date); $run = 0 }
+        elseif ($t -lt 0 -or $m -lt 0) { "{0:HH:mm:ss} counter unreadable, resetting" -f (Get-Date); $run = 0 }
+        # QUIET MEANS QUIET TO THE GUARD, which reads the machine rather than
+        # the census. Both bars, so this can only withhold a window the census
+        # bar alone would have passed and the baseline guard then voided.
+        elseif ($t -lt $QuietBelow -and $m -lt $QuietMachineBelow) {
+            $run++
+            "{0:HH:mm:ss} quiet {1}/2 at {2:N2} cores ({3:N2} machine-wide)" -f (Get-Date), $run, $t, $m
+        }
+        else {
+            if ($run -gt 0) { "{0:HH:mm:ss} not quiet at {1:N2} cores ({2:N2} machine-wide)" -f (Get-Date), $t, $m }
+            $run = 0
+        }
         if ($run -lt 2) { Start-Sleep -Seconds $PollSeconds }
     }
     if ($run -lt 2) { Write-Host 'gave up without a quiet window'; exit 2 }
