@@ -345,6 +345,22 @@ function Get-Cores {
         $_.InstanceName -like 'coggyd*' -or $_.InstanceName -like 'file-write*' -or
         $_.InstanceName -like 'stdout-storm*' }
     $ours = ($s | Where-Object $mine | Measure-Object CookedValue -Sum).Sum
+    # A NEGATIVE MACHINE READING IS NONSENSE, NOT A MEASUREMENT, and it happens:
+    # `% Processor Time` is a rate taken from two internal samples about a second
+    # apart, so processes starting or exiting between them leave `_Total` and
+    # `Idle` inconsistent. Observed 2026-08-11 at **-1.95 cores** six seconds
+    # after six processes were spawned, while five readings on an undisturbed box
+    # were all positive.
+    #
+    # It must not simply fall through: the call site tests `$m -lt 0` as the
+    # UNREADABLE sentinel, so a churn artifact would be logged as a failed query
+    # — and this census is the record of how long this box's quiet stretches are,
+    # where a mislabelled event inflates a count of interruptions that never
+    # happened. Same defect as #72, one layer down. Withholding the window is
+    # right either way; saying WHY is what changes.
+    if ($null -ne $total -and $null -ne $idle -and ($total - $idle - $ours) -lt 0) {
+        return [pscustomobject]@{ Tenant = -1.0; Machine = -2.0 }
+    }
     # The census: only instances over half a core, which is what names WHICH
     # process interrupted a window. Blind to load spread across small ones.
     $busy = $s |
@@ -418,7 +434,13 @@ while ((Get-Date) -lt $deadline) {
     # The sentinel is tested FIRST and this order is load-bearing: -1 is less
     # than any sane MaxTenantCores, so checking quiet first would read an
     # unreadable counter as the quietest possible machine and fire the set.
-    if ($t -lt 0 -or $m -lt 0) {
+    if ($m -eq -2.0) {
+        # Distinguished from an unreadable query so the census is not polluted
+        # with interruptions that never happened.
+        "{0:HH:mm:ss} COUNTER INCONSISTENT (negative machine reading, process churn) — not a tenancy event, resetting" -f (Get-Date)
+        $run = 0
+    }
+    elseif ($t -lt 0 -or $m -lt 0) {
         "{0:HH:mm:ss} COUNTER UNREADABLE — not a tenancy event, resetting" -f (Get-Date)
         $run = 0
     }
