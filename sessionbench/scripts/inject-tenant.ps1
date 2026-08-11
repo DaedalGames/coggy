@@ -265,8 +265,17 @@ function Get-Cores {
 # rate]. That happened on 2026-08-11: the `-f` format on the result threw, and
 # the `$null -eq $before` guard passed an array straight through the check
 # meant to stop it. Nothing reached stdout and the run reported nothing.
-function Invoke-Hold($label, $seconds) {
-    $out = & $bench hold --label $label --sessions 1 --interval 5 --duration $seconds `
+function Invoke-Hold($label, $seconds, $abortAbove) {
+    # STOP A HOLD THE MACHINE HAS ALREADY SPOILED, at the sample that shows it.
+    # Without a ceiling this script paid for a full hold before the guard below
+    # could refuse the pair: three spoiled baselines on 2026-08-12 read 12.27 at
+    # sample 0, 8.33 at sample 1 and 1.71 at sample 0, so two of three were
+    # decided by the first sample and ran twenty-five more seconds anyway.
+    #
+    # $null means no ceiling, which is what a hold measuring whatever the box
+    # offers wants — the `-AnyBaseline` path, and the gate's own holds.
+    $ceiling = if ($null -ne $abortAbove) { @('--abort-rest-above', $abortAbove) } else { @() }
+    $out = & $bench hold --label $label --sessions 1 --interval 5 --duration $seconds @ceiling `
         -- $spin @work --resident 20 2>&1
     $m = ($out | Select-String -Pattern '^\s*rate\s+([\d.]+)\s+units/s' | Select-Object -First 1)
     if (-not $m) {
@@ -274,6 +283,13 @@ function Invoke-Hold($label, $seconds) {
         $out | ForEach-Object { Write-Host "      $_" }
         return $null
     }
+    # SURFACE THE TRUNCATION. The hold prints its own ABORTED line, and this
+    # function CAPTURES the hold's output to parse a rate out of it — so
+    # without this the console shows a normal-looking hold that silently ran
+    # five seconds instead of thirty. The artifact carries `aborted_rest_cores`
+    # either way; this is so a reader watching the run is not misled.
+    $stopped = ($out | Select-String -Pattern '^\s*ABORTED .*' | Select-Object -First 1)
+    if ($stopped) { Write-Host ("  {0}" -f $stopped.Matches[0].Value.Trim()) }
     $rest = ($out | Select-String -Pattern '([\d.]+) cores held outside the job' | Select-Object -First 1)
     $held = if ($rest) { [double]$rest.Matches[0].Groups[1].Value } else { [double]::NaN }
     Write-Host ("  {0} : {1} units/s, {2} cores held outside the job" -f $label, $m.Matches[0].Groups[1].Value, $held)
@@ -325,7 +341,13 @@ try {
     }
     if ($run -lt 2) { Write-Host 'gave up without a quiet window'; $outcome = 'NoQuietWindow'; exit 2 }
 
-    $before = Invoke-Hold 'inject-before' $Duration
+    # THE BASELINE ARM'S CEILING IS THE GUARD IT WILL BE JUDGED BY. Without
+    # `-AnyBaseline` the guard refuses a baseline at or above 1.3 cores, so a
+    # hold that has already crossed it cannot produce a usable baseline no
+    # matter how long it runs. With `-AnyBaseline` there is no such guard and
+    # no ceiling belongs here.
+    $baselineCeiling = if ($AnyBaseline) { $null } else { 1.3 }
+    $before = Invoke-Hold 'inject-before' $Duration $baselineCeiling
     if ($null -eq $before) { Write-Host 'baseline unmeasurable, stopping rather than guessing'; $outcome = 'BaselineUnmeasurable'; exit 3 }
 
     # THE BASELINE MUST BE BELOW THE TRANSITION OR THERE IS NOTHING TO INJECT
@@ -463,7 +485,13 @@ try {
         }
     }
 
-    $after = Invoke-Hold 'inject-after' $Duration
+    # THE TENANTED ARM'S CEILING IS THE DELTA GUARD'S OWN, expressed as an
+    # absolute: the guard refuses when tenancy moved more than twice the
+    # expected injection, so the hold can stop the moment it passes that rather
+    # than at the end. This is what would have saved the cleanest rising-limb
+    # baseline of 2026-08-12, whose tenanted arm ran a full thirty seconds
+    # against a machine carrying twelve more cores than its baseline did.
+    $after = Invoke-Hold 'inject-after' $Duration ($before.rest + $wanted * 2.0)
     if ($null -eq $after) { Write-Host 'tenanted hold unmeasurable, stopping rather than guessing'; $outcome = 'TenantedUnmeasurable'; exit 3 }
 
     # THE INJECTION MUST BE THE THING THAT CHANGED, AND NOTHING ELSE.
