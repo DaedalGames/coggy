@@ -25,6 +25,12 @@ Only three of eight are the tenant. **Half are the machine's own idle floor**, s
 >
 > **And the third run optimised the wrong term.** Its void budget was raised from 8 to 20 because [the abort predicate](2026-08-12-053500-the-rising-limb-is-reachable-and-the-tenanted-arm-is-what-loses-it.md) had made a spoiled attempt cost five seconds instead of thirty. It used two. The scarce thing was never the cost of an attempt but the rate of opportunities to make one — the same mistake as lengthening a hold to buy precision and finding acceptance halved instead. In both cases the binding constraint had been named and never measured before the change was made.
 
+> **2026-08-12 09:00: a fourth run added one gated baseline and five ungated ones, and only the first counts.** A defect introduced while reworking the quiet gate disabled it after the first clearance, so five baselines were taken with no quiet check at all — 13.18, 13.02, 14.19, 9.11 and one earlier 3.43. **Those are a sample of the machine at arbitrary moments, not at candidate-quiet ones, and they do not bear on this claim**, which is about what a baseline looks like *when the gate says quiet*. Counting them would be reading a different population into the same table.
+>
+> The one **gated** baseline from that run read **3.43**, after a clearance at a mean of 1.00 cores. It is above the band. Gated baselines now stand at eleven — 1.03, 1.45, 1.76, 1.78, 1.94, 1.94, 3.43, 5.00, 11.75, 12.22, 13.39 — of which **six are the floor**, the same share as before, with the transitional group growing from one to two.
+>
+> **What the ungated five do show is worth keeping separately**: between 08:48 and 08:53 this machine went 0.52 → 3.43 → 13.18 → 13.02 → 14.19 → 9.11 cores. That is the tenant's range inside five minutes, and it is why a gate clearance says nothing about the thirty seconds that follow it.
+
 ## Why no guard tuning fixes this
 
 The 1.3 bar is not mis-set. It is placed just below the transition on purpose, because crossing that transition is the thing being measured. Moving it up admits baselines *above* the transition, which measures nothing. Moving it down refuses nearly everything the machine offers.
@@ -48,7 +54,7 @@ So a pre-baseline re-check would be worthless — the gate has just read quiet, 
 ## What this does not establish
 
 - **No pair, so nothing about the step.** The sign contradiction now has four failed attempts against it rather than an answer — the 04:38 launch into an open window, and the three waiting runs.
-- **Ten baselines is not a distribution.** "Floor between 1.0 and 2.0" is a description of ten readings on one night, not a characterisation of the machine — though six of the ten are in that band and the last two were taken after this claim was written, which is the difference between a description and a survived prediction.
+- **Eleven gated baselines is not a distribution.** "Floor between 1.0 and 2.0" is a description of eleven readings on one night, not a characterisation of the machine — though six of the eleven are in that band and the last two were taken after this claim was written, which is the difference between a description and a survived prediction.
 - **The 1.03 baseline that passed** shows the low end is reachable, and says nothing about how often.
 - **Nothing here re-derives the +95.4% and +100.1% figures.** But it does raise a question about them that this record cannot answer: if a baseline under the transition is this rare, how were those two obtained, and what was the machine doing at the time?
 
