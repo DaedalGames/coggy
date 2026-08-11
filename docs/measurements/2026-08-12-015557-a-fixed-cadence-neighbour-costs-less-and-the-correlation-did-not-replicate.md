@@ -1,5 +1,7 @@
 # A fixed-cadence neighbour costs less, and the correlation did not replicate
 
+> **2026-08-12 02:51: the arm difference is withdrawn.** It survived neither correction. The duty arm delivered **53% more load** than the wait arm in these very pairs (1.508 against 0.987 cores), and removing that takes the 14.6-point gap to **1.5**. A re-sized repeat with overlapping loads found the same thing by a different route: a 25.2-point gap falling to 5.3 once achieved tenancy delta was accounted for. [The replication and the correction are here](2026-08-12-025147-wake-shape-adds-nothing-once-the-tenancy-change-is-controlled.md). The `p = 0.06` below was computed on means that were never comparable.
+
 **Eight interleaved pairs say a `--wait-ms` neighbour costs a session 14.6 points less than a `--duty` one — −8.1% against −22.8%, `t ≈ 2.4`, suggestive and not established at four pairs a side. The same set refutes [the +0.771 correlation](2026-08-12-005518-the-scatter-was-the-step-measured-six-times.md) recorded ninety minutes earlier: the identical injection now gives `r = +0.25`.**
 
 ## The differently-shaped neighbour was a flag, not a program
