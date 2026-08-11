@@ -48,6 +48,26 @@ That is stronger than the archive's refutation, which showed the clock climbing 
 
 The job's own occupancy ran **0.259 to 0.275 cores** — 6% — while its rate ran 10.079 to 17.222, a spread of 71%. It was never starved, never descheduled, never given more. Whatever changed, changed how much work a core-second buys, and it changed by 71% across 1.4 cores of load belonging to someone else on a sixteen-core machine.
 
+## Core parking is out, measured rather than argued
+
+`\Processor Information(*)\Parking Status` exists on this box and reads per core. **At idle it reports 12 of 16 cores parked** — 0 through 3 awake, 4 through 15 asleep. That alone is worth knowing for anything measured here at low load.
+
+Driving the box with `cpu-spin` sessions and reading the counter at each level:
+
+| load | cores busy | cores parked |
+|---|---|---|
+| idle | 2.30 | **12** |
+| +2 sessions | 2.44 | **12** |
+| +6 sessions | 4.27 | **12** |
+| +12 sessions | 5.42 | 9 |
+| after | 2.41 | **12** |
+
+**The parked count does not move across the step.** Six sessions add about 1.6 cores, straddling the 1.36–1.46 transition, and parking is unchanged at 12. Unparking begins somewhere between 4.27 and 5.42 busy cores — roughly three times higher than where the rate jumps.
+
+So core parking is eliminated, and with it the last candidate this record named. The clock was refuted backwards at `r(rate, clock) = −0.429`; core placement across this box's [2.1× tiers](2026-07-31-145412-the-cores-are-not-interchangeable.md) was refuted by [the low shelf showing no bimodality](2026-08-11-083823-same-cpu-less-work-when-the-box-goes-quiet.md); parking is refuted here. **Three mechanisms out, and the effect is as solid as it has ever been.**
+
+**One caveat that could rescue it.** The injected load was `cpu-spin` at duty 0.27, which is bursty — 27% on, 73% idle. Parking responds to *sustained* utilisation, so a steady 1.6 cores might unpark where a bursty 1.6 does not. Testing that needs a full-duty workload at a controlled core count, which is a different run. The tenancy in the seventeen holds was also not ours and its duty is unknown.
+
 ## What this does not establish
 
 - **One run, one box, one workload, seventeen holds.** Four of them came from test invocations of the waiter with a deliberately opened fire bar, which affects how they were *triggered* and not what their rest column recorded.
