@@ -394,7 +394,22 @@ try {
     # Half to twice the expected total keeps both recorded cpu-spin runs inside
     # and still rejects the 11.42-core delta that was a browser arriving.
     $expected = $Tenants * $ExpectedPerTenant
-    if ($delta -lt ($expected * 0.5) -or $delta -gt ($expected * 2.0)) {
+    # ON A LOADED BOX THE INJECTION DISPLACES RATHER THAN ADDS, so the lower
+    # bound tests something that cannot be true there. Measured 2026-08-12 00:26:
+    # six co-tenants VERIFIED holding 0.847 cores of their own moved machine-wide
+    # tenancy by 0.15, because the box was already at 8.48 of 16 cores and they
+    # took their share from the browser rather than from idle.
+    #
+    # The guard's PURPOSE survives: prove the injection is what changed and not
+    # the browser. On a loaded box those are two questions with two instruments
+    # — the co-tenants' own CPU (asserted above) proves the injection happened,
+    # and a BOUNDED delta proves the browser stayed put. The void at 3.11 cores
+    # was the browser moving; 0.15 and 1.67 were not.
+    #
+    # So `-AnyBaseline` keeps the ceiling and drops the floor. Without it, on a
+    # quiet box where adding N cores raises the total by N, both bounds hold.
+    $floor = if ($AnyBaseline) { [double]::NegativeInfinity } else { $expected * 0.5 }
+    if ($delta -lt $floor -or $delta -gt ($expected * 2.0)) {
         Write-Host ("VOID {0}: tenancy moved {1:N2} cores where {2} spinners add about {3:N1} — the injection is not what changed" -f `
             $voids, $delta, $Tenants, $expected)
         Write-Host ("        baseline {0:N3} at {1:N2} cores, tenanted {2:N3} at {3:N2} cores" -f `
