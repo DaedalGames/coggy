@@ -1,5 +1,7 @@
 # The scatter was the step, measured six times
 
+> **2026-08-12 01:56: the correlation did not replicate, and this record's central claim is withdrawn.** Four more pairs of the identical injection, ninety minutes later, give `r = +0.25`; pooled over all ten the coefficient falls to +0.53 with a standard deviation of 19.4 points. **And one pair contradicts another at matched tenancy** — +22.7% at delta 1.67 (rest 8.34 → 10.01) here against −21.1% at delta 1.59 (rest 8.42 → 10.01) there, 44 points apart. So what follows describes a within-sitting artifact rather than a property of the machine. Its own hedge — *the ordering is the more robust claim than the coefficient* — was insufficient, because the ordering did not survive either. [The replication is here](2026-08-12-015557-a-fixed-cadence-neighbour-costs-less-and-the-correlation-did-not-replicate.md). The paragraphs below are kept as the reasoning that was in play, which is the point of a log.
+
 **Six identical injections gave rate changes from −26.5% to +22.7%, and the 49-point spread is not noise: it tracks how much tenancy actually landed on the box, `r = +0.771`, at +19.7% per core.** The injection was constant; the browser was not; and the browser's wandering was the independent variable all along.
 
 ## The set
