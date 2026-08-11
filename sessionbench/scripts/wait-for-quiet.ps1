@@ -20,16 +20,42 @@
 # what distinguishes an absence from an instant.
 # TWO BARS, BECAUSE FIRING AND COUNTING WANT DIFFERENT ONES. Firing is strict:
 # a set costs five and a half minutes and voids if any hold sees more than
-# ~2.5 cores held. Counting wants a bar above this box's idle floor, which
-# breathes between 1.0 and 2.0 — with one bar at 1.0 the transition log fills
-# with the floor crossing it and a genuinely quiet machine is unreadable.
+# ~2.5 cores held. Counting wants a bar above the readings that are not a
+# settled tenant, so the transition log stays readable.
 #
-# The gap is measured rather than guessed. Nine rejections on 2026-08-10 split
-# with nothing between 2.20 and 8.14:
-#   floor   1.02  1.04  1.30  1.51  1.60  1.94  2.20
+# Nine rejections on 2026-08-10 split with nothing between 2.20 and 8.14:
+#   band    1.02  1.04  1.30  1.51  1.60  1.94  2.20
 #   tenant  8.14 10.32 10.50 12.89
-# One of those floor rejections came after FIVE quiet polls, one short of
+# One of those band rejections came after FIVE quiet polls, one short of
 # firing, refused by two hundredths of a core.
+#
+# THAT SPLIT WAS READ AS AN IDLE FLOOR BREATHING BETWEEN 1.0 AND 2.0, AND IT
+# IS NOT. On 2026-08-11 the band readings were all the TENANT IN TRANSITION:
+# leading edges at 0.53, 0.55, 0.55 — each the last reading before an arrival —
+# and trailing edges at 0.82 and 0.76, each the first poll after a departure.
+# Seven of thirteen quiet-phase polls read exactly 0.00, which here means no
+# process is over half a core, since this counter sums only instances above
+# `CookedValue -gt 50`. So there is no floor band; the smallest non-zero value
+# this instrument can emit is just above 0.50, because that is the threshold
+# for being counted at all.
+#
+# The empty gap between 2.20 and 8.14 is a SAMPLING ARTIFACT rather than two
+# populations: one cycle went 0.55 -> 11.38 in a single poll, crossing the
+# whole range in eleven seconds. And a reading of 2.89 — below `CountBelow` —
+# arrived twelve seconds before a 10.78-core arrival, so the counting bar is
+# not a safe firing bar and the strict `FireBelow` is what caught both.
+#
+# THE ARM IS AS LONG AS THE WINDOW, WHICH MAKES FIRING NEAR-RANDOM.
+# `ConsecutiveQuiet` 6 at `PollSeconds` 10 needs 50-60s of verified quiet
+# before a hold starts. This box's measured gaps are 49, 50 and ~70s, against
+# a tenant present 4m00s to 4m15s each cycle. See task #67.
+#
+# AND QUIET IS NOT THE STATE THE GATE WANTS. This waits for the tenant to
+# leave; gate M1's baseline needs the box RESTED. Of 45 holds with known
+# tenancy, 33 were slow, 7 tenanted, 3 between and 2 rested — so a caught
+# window is usually the slow state at 9-11 units/s, useless as a baseline.
+# The bands barely overlap (9-11 slow, 12-17 tenanted, 18.9-21.9 rested and
+# quiet), so a fired hold's own rate says which one you got.
 param(
     [double]$FireBelow = 1.0,
     [double]$CountBelow = 3.0,
