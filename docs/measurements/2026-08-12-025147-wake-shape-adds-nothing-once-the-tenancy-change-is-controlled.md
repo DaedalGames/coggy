@@ -40,6 +40,8 @@ The same command at the same tenancy produced, across the night at rest 8.0–9.
 
 With a within-arm standard deviation near 20 points, resolving a 10-point arm difference at conventional confidence needs roughly **100 pairs per arm** — about four hours an arm at this box's throughput, and that assumes the tenant holds still, which it does not.
 
+> **2026-08-12 04:20: half of this was measured and is wrong.** Quadrupling the hold does **not** cut the spread — `sd 7.61` at 30 seconds against `12.81` at 120, with acceptance falling 7-of-8 to 4-of-8 for **7.0x the wall clock per usable pair**. [The measurement is here](2026-08-12-042000-longer-holds-do-not-cut-the-spread-and-they-halve-the-acceptance.md). The ~100-pair price below stands; of the two escapes named beside it, only **a quiet machine** survives.
+
 **So the lever is not more pairs.** Variance falls with hold duration, and every pair here is 30 seconds. A quiet machine would remove the confound at its source: both corrections exist only because the browser moved during the holds.
 
 ## What this does not establish
