@@ -342,6 +342,12 @@ impl Held {
 pub struct HeldRun {
     pub sessions: u32,
     pub samples: Vec<crate::sampler::Sample>,
+    /// Cores held outside the job when the hold refused to continue.
+    ///
+    /// `None` means the hold ran its full duration. A figure here is both the
+    /// verdict and the evidence for it — a bare flag would say the hold
+    /// stopped and lose how badly the machine had moved.
+    pub aborted_rest_cores: Option<f64>,
     /// The last thing the daemon said, or `None` if it never reported.
     pub last: Option<Report>,
     /// Fewest sessions alive at any report.
@@ -417,6 +423,11 @@ impl HeldRun {
 /// so the tree is armed before the daemon exists; a daemon started first sits
 /// outside the measurement along with everything it spawns, and the run would
 /// report a machine holding nothing.
+// EIGHT ARGUMENTS RATHER THAN A CONFIG STRUCT, deliberately. Every one is
+// supplied at all three call sites and read once here; a struct would add a
+// type whose only job is to be destructured immediately, and the lint's
+// threshold is a heuristic about readability rather than a rule this crosses.
+#[allow(clippy::too_many_arguments)]
 pub fn hold(
     daemon: &std::path::Path,
     sessions: u32,
@@ -425,6 +436,11 @@ pub fn hold(
     interval: std::time::Duration,
     duration: std::time::Duration,
     samples_to: Option<std::path::PathBuf>,
+    // STOP THE HOLD WHEN CORES HELD OUTSIDE THE JOB EXCEED THIS, and say so.
+    // `None` runs to `duration` whatever the machine does, which is what the
+    // gate's own holds want: they measure a loaded box on purpose. A plain
+    // comment because Rust does not take doc comments on parameters.
+    abort_rest_above: Option<f64>,
 ) -> anyhow::Result<HeldRun> {
     use anyhow::Context;
     use std::io::Write as _;
@@ -461,6 +477,7 @@ pub fn hold(
     // samples because this goes to a human watching a log.
     const SAY_EVERY: std::time::Duration = std::time::Duration::from_secs(60);
     let mut last_said = std::time::Instant::now();
+    let mut aborted_rest_cores: Option<f64> = None;
 
     while started.elapsed() < duration {
         std::thread::sleep(interval);
@@ -517,6 +534,51 @@ pub fn hold(
         }
         cost.write_ms = at.elapsed().as_millis() as u64;
         worst_tick.keep_worse(cost);
+
+        // **Stop a hold the machine has already spoiled, at the sample that
+        // shows it.** A paired injection refuses a pair when tenancy moved,
+        // and until now it learned that only after the hold ran to completion
+        // — so a tenant arriving at second five cost the remaining twenty-five
+        // and a share of a window that occurs about once an hour.
+        //
+        // MEASURED BEFORE IT WAS BUILT, on three spoiled baselines from
+        // 2026-08-12: rest read 12.27 at sample 0, 8.33 at sample 1, and 1.71
+        // at sample 0. Two of three would abort on the first sample and the
+        // third on the second.
+        //
+        // AN ABSOLUTE CEILING, NOT A DEPARTURE FROM THE FIRST SAMPLE, and the
+        // measurement is what corrected that: the design started as *abort when
+        // this hold's tenancy moves away from its own opening reading*, which
+        // is blind to the commonest case here — the tenant already present at
+        // sample 0, where there is no departure to detect and the hold runs to
+        // completion regardless.
+        //
+        // The caller supplies the bound because the caller owns the question:
+        // an injection's baseline arm wants the transition it is measuring
+        // across, and its tenanted arm wants the baseline plus the injection
+        // it expects. Neither is knowable here.
+        if let Some(ceiling) = abort_rest_above {
+            let rest = f64::from(sample.machine_cpu_percent - sample.cpu_percent) / 100.0;
+            if rest > ceiling {
+                // The figure travels with the verdict. `Some(rest)` beside a
+                // stop cannot come apart the way a bare flag can, and a caller
+                // that wants to know how badly it was spoiled has the number
+                // rather than the threshold it crossed.
+                aborted_rest_cores = Some(rest);
+                // NAME WHAT IT CAUGHT. A run that merely stops early is
+                // indistinguishable from one that finished, and the deliberate
+                // break of this check produced exactly that: a hold that ended
+                // at 17s of 60 and said nothing about why.
+                println!(
+                    "    ABORTED at {:.0}s: {rest:.2} cores held outside the job, above the {ceiling:.2} ceiling",
+                    started.elapsed().as_secs_f64(),
+                );
+                use std::io::Write as _;
+                std::io::stdout().flush().ok();
+                samples.push(sample);
+                break;
+            }
+        }
         samples.push(sample);
 
         // **A liveness line, and quote nothing from it.** Between the phase
@@ -555,6 +617,7 @@ pub fn hold(
         sessions,
         worst_tick,
         samples,
+        aborted_rest_cores,
         last: seen.latest(),
         fewest_running: seen.fewest_running(),
         elapsed: started.elapsed(),
@@ -613,6 +676,7 @@ impl HeldRun {
         };
 
         HoldReport {
+            aborted_rest_cores: self.aborted_rest_cores,
             label,
             daemon,
             workload,
@@ -1060,6 +1124,13 @@ pub enum Verdict {
 /// repository keeps finding.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HoldReport {
+    /// Cores held outside the job when the hold refused to continue.
+    ///
+    /// `None` means it ran its full duration. The FIGURE rather than a flag,
+    /// for the reason every verdict here carries one: a hold that stopped at
+    /// 12.27 cores and one that stopped at 1.4 are different events, and a
+    /// bare `aborted: true` loses which happened.
+    pub aborted_rest_cores: Option<f64>,
     pub label: String,
     pub daemon: String,
     pub workload: Vec<String>,
@@ -1291,6 +1362,7 @@ mod tests {
     fn run_of(sessions: u32, fewest: Option<u64>, samples: usize) -> HeldRun {
         HeldRun {
             sessions,
+            aborted_rest_cores: None,
             worst_tick: crate::sampler::TickCost::default(),
             // Built by hand rather than by deriving Default on Sample, which
             // would add a convenience to the real type that only a test wants.
@@ -1335,6 +1407,7 @@ mod tests {
         assert_eq!(full.unusable(), None, "a hold that ran is usable");
 
         let died = HeldRun {
+            aborted_rest_cores: None,
             left_early: Some("the daemon exited exit code: 1 after 5.0s of a 3600.0s hold".into()),
             ..run_of(100, Some(100), 700)
         };

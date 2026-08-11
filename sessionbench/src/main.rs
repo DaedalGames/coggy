@@ -122,6 +122,21 @@ enum Command {
         #[arg(long, default_value_t = 4.0, value_name = "GB")]
         rss_budget_gb: f64,
 
+        /// Stop a hold when cores held outside the job exceed this.
+        ///
+        /// **For a paired measurement, not for the gate.** An injection refuses
+        /// a pair when tenancy moved, and without this it learns so only after
+        /// the hold has run to completion — so a tenant arriving at second five
+        /// costs the remaining twenty-five and a share of a window that occurs
+        /// about once an hour. Measured on three spoiled baselines from
+        /// 2026-08-12: two would abort at sample 0 and the third at sample 1.
+        ///
+        /// Omitted means run the full duration whatever the machine does,
+        /// which is what the gate's own holds want — they measure a loaded box
+        /// on purpose.
+        #[arg(long, value_name = "CORES")]
+        abort_rest_above: Option<f64>,
+
         /// Take a solo hold before and after, and report the ratio between.
         ///
         /// The work-rate condition is per-session rate against the same
@@ -371,6 +386,7 @@ fn main() -> anyhow::Result<()> {
             duration,
             daemon,
             rss_budget_gb,
+            abort_rest_above,
             with_solo,
             solo_duration,
             solo_repeats,
@@ -409,6 +425,7 @@ fn main() -> anyhow::Result<()> {
                     interval,
                     Duration::from_secs_f64(secs),
                     Some(out_dir.join(format!("{name}-samples.jsonl"))),
+                    abort_rest_above,
                 )?;
                 let samples = run.samples.clone();
                 let report = run.into_report(sessionbench::daemon::Ran {

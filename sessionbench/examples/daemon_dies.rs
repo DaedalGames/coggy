@@ -52,6 +52,8 @@ fn main() -> anyhow::Result<()> {
         Duration::from_secs(2),
         Duration::from_secs(30),
         None,
+        // no abort ceiling: this example measures whatever the box is doing
+        None,
     )?;
 
     println!("samples          {}", run.samples.len());
