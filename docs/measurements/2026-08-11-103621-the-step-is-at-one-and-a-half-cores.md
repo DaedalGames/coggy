@@ -44,6 +44,8 @@ That is stronger than the archive's refutation, which showed the clock climbing 
 
 `processor_performance` remains a point sample at hold start, so this cannot quantify anything. As a sign test it is unambiguous.
 
+> **Weakened the same day, and it may not be a refutation at all.** `processor_performance` is the `_Total` instance, and reading `\Processor Information(*)\% Processor Performance` per core on this box gives **91.1% to 123.8% across sixteen cores — a 36% spread — while `_Total` reads 96.6%**. The session runs on *one* core and nothing records which, so `_Total` need not describe the core the work happened on. That alone would make it a noisy proxy, and noise gives `r ≈ 0` rather than −0.429 — but there is a mechanism for a *negative* one: `_Total` averages across cores, so as load rises and more cores wake, the average takes in newly-active cores at middling clocks and falls, while the busy core may be climbing. If that is what happened here, this section measured **how many cores are awake, dressed as a frequency**. The clock is therefore *unrefuted by this instrument* rather than refuted, and only a per-core reading settles it.
+
 ## What the job did not do
 
 The job's own occupancy ran **0.259 to 0.275 cores** — 6% — while its rate ran 10.079 to 17.222, a spread of 71%. It was never starved, never descheduled, never given more. Whatever changed, changed how much work a core-second buys, and it changed by 71% across 1.4 cores of load belonging to someone else on a sixteen-core machine.
