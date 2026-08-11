@@ -382,7 +382,16 @@ $m = ($out | Select-String -Pattern '^\s*rate\s+([\d.]+)\s+units/s' | Select-Obj
 if ($m) { $rate = [double]$m.Matches[0].Groups[1].Value }
 
 if ($null -eq $rate) {
+    # REFUSING IS RIGHT AND DISCARDING THE EVIDENCE IS NOT. This fired for real
+    # on 2026-08-11 at hold 9: `sessionbench` exited during warmup after three
+    # samples, wrote no `hold.json`, and left nothing on stderr — so the only
+    # record of *why* was the output this branch had just failed to parse, and
+    # the branch exited without printing it. A verdict is not evidence; the
+    # thing the verdict was computed from has to travel with it.
     "{0:HH:mm:ss} hold {1}: RATE UNPARSEABLE — stopping rather than guessing" -f (Get-Date), $holds
+    '--- captured output follows, which is the whole reason this is unrecoverable otherwise ---'
+    $out | ForEach-Object { "    $_" }
+    '--- end captured output ---'
     exit 3
 }
 if ($residentList.Count -gt 1) {
