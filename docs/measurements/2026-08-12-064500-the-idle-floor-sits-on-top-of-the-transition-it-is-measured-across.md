@@ -19,6 +19,12 @@ Both runs used the real quiet gate and **no `-AnyBaseline`**, so the baseline gu
 
 Only three of eight are the tenant. **Half are the machine's own idle floor**, sitting between 1.0 and 2.0 cores — and drifting across the 1.36–1.46 transition within minutes.
 
+> **2026-08-12 08:08: a third run tested this out of sample, and the band held.** The eight baselines below were taken before this record was written; a third waiting run (07:08–08:08, `-MaxVoids 20`, ended `NoQuietWindow`) added two more, at **1.76** and **1.45** — both in the floor band, the second sitting *inside* the 1.36–1.46 transition itself. Six of ten baselines are now the floor. The run also cleared the gate only **twice in sixty minutes**, against five in forty-five and four in sixty for the two runs below, so the clearance rate is not steady either.
+>
+> **Two figures follow, and both are conditional on the tenant rather than on the hardware.** At roughly one clearance per ten minutes and one usable baseline per eight clearances, a single rising-limb pair costs about **eighty minutes of idle waiting** in expectation — for one pair, where a claim needs several. That price is a fact about a box running Playwright automation, not about this machine, and it should never be quoted as *this box cannot do rising-limb work*.
+>
+> **And the third run optimised the wrong term.** Its void budget was raised from 8 to 20 because [the abort predicate](2026-08-12-053500-the-rising-limb-is-reachable-and-the-tenanted-arm-is-what-loses-it.md) had made a spoiled attempt cost five seconds instead of thirty. It used two. The scarce thing was never the cost of an attempt but the rate of opportunities to make one — the same mistake as lengthening a hold to buy precision and finding acceptance halved instead. In both cases the binding constraint had been named and never measured before the change was made.
+
 ## Why no guard tuning fixes this
 
 The 1.3 bar is not mis-set. It is placed just below the transition on purpose, because crossing that transition is the thing being measured. Moving it up admits baselines *above* the transition, which measures nothing. Moving it down refuses nearly everything the machine offers.
@@ -41,8 +47,8 @@ So a pre-baseline re-check would be worthless — the gate has just read quiet, 
 
 ## What this does not establish
 
-- **No pair, so nothing about the step.** The sign contradiction now has three failed attempts against it rather than an answer.
-- **Eight baselines is not a distribution.** "Floor between 1.0 and 2.0" is a description of eight readings on one night, not a characterisation of the machine.
+- **No pair, so nothing about the step.** The sign contradiction now has four failed attempts against it rather than an answer — the 04:38 launch into an open window, and the three waiting runs.
+- **Ten baselines is not a distribution.** "Floor between 1.0 and 2.0" is a description of ten readings on one night, not a characterisation of the machine — though six of the ten are in that band and the last two were taken after this claim was written, which is the difference between a description and a survived prediction.
 - **The 1.03 baseline that passed** shows the low end is reachable, and says nothing about how often.
 - **Nothing here re-derives the +95.4% and +100.1% figures.** But it does raise a question about them that this record cannot answer: if a baseline under the transition is this rare, how were those two obtained, and what was the machine doing at the time?
 
@@ -60,5 +66,6 @@ The rising-limb design should not be retried on this box without something new. 
 |---|---|
 | Run 1 | `inject-tenant.ps1 -Tenants 6 -ExpectedPerTenant 0.19 -Duration 30 -MaxVoids 4 -GiveUpMinutes 45`, 04:49:32–05:34, outcome `GaveUpOnVoids` |
 | Run 2 | same with `-MaxVoids 8 -GiveUpMinutes 60`, 05:45:04–06:45, outcome `DeadlineReached` |
-| Read from | `bench-out/inject-20260812-044932.json` and `-054504.json`, both `pair: null` |
+| Run 3 | same with `-MaxVoids 20`, 07:08:24–08:08, outcome `NoQuietWindow`, 2 voids, both floor baselines |
+| Read from | `bench-out/inject-20260812-044932.json`, `-054504.json` and `-070825.json`, all `pair: null` |
 | Machine | 16 logical / 31 GiB / Windows 11, **mains**, 0 survivors after teardown |
