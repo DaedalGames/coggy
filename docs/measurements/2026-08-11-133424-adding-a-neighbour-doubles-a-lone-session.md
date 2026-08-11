@@ -1,6 +1,8 @@
 # Adding a neighbour doubles a lone session
 
-**Injecting 1.47 cores of load onto an otherwise quiet box took the same session from 9.678 to 18.913 units/s — +95.4% — while its own CPU stayed at 0.27 cores and its core clock stayed at 205.1% against 203.7%.** Same CPU, same clock, ninety-five percent more work.
+**Injecting 1.47 cores of load onto an otherwise quiet box took the same session from 9.678 to 18.913 units/s — +95.4% — while its own CPU stayed at 0.27 cores.** Same CPU, ninety-five percent more work.
+
+> **2026-08-11 14:19: the clock half of this sentence is withdrawn.** It read "and its core clock stayed at 205.1% against 203.7% … same CPU, same clock". That column is a single point sample taken at the *end* of a hold and must not be used this way; see [the section below](#the-clock-reading-in-this-record-is-not-evidence) and [the copied-binary control](2026-08-11-141925-the-neighbour-is-not-six-copies-of-the-workload.md). The CPU figure and the result stand.
 
 ## What was run
 
@@ -27,7 +29,17 @@ Three guards had to pass, all written before this run and each after a failure i
 
 `median_cores` reads **0.27 in both arms**. The session was not given more CPU, was not starved, and was not descheduled. What changed is how much work a core-second buys, and it changed by a factor of nearly two across 1.47 cores of somebody else's load on a sixteen-core machine.
 
-**And the clock is eliminated for this transition outright**: 205.1% before against 203.7% after, on the per-core maximum. Not a small difference — none at all, in the direction of slightly lower. That is a stronger statement than [the r = +0.096 across twenty holds](2026-08-11-103621-the-step-is-at-one-and-a-half-cores.md), because it is one session, one minute, one change.
+## The clock reading in this record is not evidence
+
+> **Appended 2026-08-11 14:19.** The paragraph below is withdrawn. It is kept because the [copied-binary control](2026-08-11-141925-the-neighbour-is-not-six-copies-of-the-workload.md) made the *opposite* error with the same column, and the pair is the point.
+
+**The withdrawal.** `host.processor_performance_cores` is [queried once, at the *end* of a hold](../../sessionbench/src/host.rs), and its own documentation says: *"One point sample per report, and it is a poor summary of a hold … Do not derive a rate, a ratio or a normalisation from this column."* Two point samples cannot refute anything, and the correlation this paragraph called weaker averages twenty of them. The clock is still eliminated — on **r = +0.096**, which is where it always rested. What was wrong is the sentence claiming a better source for it.
+
+The control an hour later read 100.8% before against 201.9% after and nearly wrote the doubling up as the mechanism. **Two baselines whose rates differ by 1.1% carry clocks of 205.1% and 100.8%**, which settles the column's usefulness here from both ends at once.
+
+**The withdrawn paragraph:**
+
+> **And the clock is eliminated for this transition outright**: 205.1% before against 203.7% after, on the per-core maximum. Not a small difference — none at all, in the direction of slightly lower. That is a stronger statement than [the r = +0.096 across twenty holds](2026-08-11-103621-the-step-is-at-one-and-a-half-cores.md), because it is one session, one minute, one change.
 
 ## The within-hold contradiction was not real, and neither was the reconciliation
 
@@ -43,6 +55,8 @@ So both stand: a **steady** one-and-a-half cores of neighbour is worth a large s
 
 - **n = 1.** One valid pair, after two voids and several aborted attempts.
 - **The co-tenants are `cpu-spin`, the same binary as the measured session.** Six copies share code pages, and a warm instruction cache could help in a way a browser never would. **A repeat with `file-write` or `stdout-storm` is required before this means "a neighbour" rather than "six copies of myself"** — this was written into the reading rules before the run, and it is the single most important follow-up.
+
+  > **Answered in part, 2026-08-11 14:15.** [Injecting a byte-identical *copy* at a different path gave +100.1%](2026-08-11-141925-the-neighbour-is-not-six-copies-of-the-workload.md) against this run's +95.4%, at baselines agreeing to 1.1%. A different file is a different section object, so **shared pages and a warm instruction cache are out.** The behavioural half is untouched — the co-tenants are still `cpu-spin --duty 0.27`, waking on the same cadence — so the follow-up stands, narrowed to needing a workload of a *different shape* rather than merely a different path.
 - **The injected load is bursty**, duty 0.27, where the browser is steady.
 - **One duty.** All 130 solo mains holds on disk are duty 0.27, so this remains a statement about a *sleeping* workload — one that wakes, works 27% of the time, and sleeps. Nothing here separates running from waking, which is where the untested mechanisms live.
 - **The size exceeds every correlational estimate** (+10 to +49%), which is unexplained and could mean the injection differs from the browser in more than magnitude.
