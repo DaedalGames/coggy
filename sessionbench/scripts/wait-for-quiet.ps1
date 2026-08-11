@@ -7,8 +7,9 @@
 # its absences are under five minutes, so the latency of noticing IS the window.
 #
 # The waiter decides nothing. It removes the gap between the window opening and
-# the run starting, and fires a fixed set whose reading rule is written down in
-# task #59 before any number exists.
+# the run starting, then fires ONE 30-second solo hold. It fired a four-hold
+# duration set until 2026-08-11; that question is closed and the set could not
+# fit the window — see the comment above the hold.
 #
 # LAUNCH DETACHED, like anything that outlives a tool call:
 #   Start-Process pwsh -ArgumentList '-NoProfile','-File','<this>' `
@@ -77,7 +78,16 @@ param(
     [double]$FireBelow = 1.0,
     [double]$CountBelow = 3.0,
     [int]$PollSeconds = 10,
-    [int]$ConsecutiveQuiet = 6,
+    # Two, not six. Six polls at ten seconds needs 50-60s of verified quiet
+    # before a hold starts, and this box's measured gaps are 49, 50 and ~70s —
+    # so the arm was as long as the window and firing was closer to a coin
+    # toss than a decision. Two polls is 10s of verification, and 10s + a 30s
+    # hold fits every gap observed. It is not one poll, because the very first
+    # attempt fired on a single 0.00 and its hold recorded 12.20 cores held:
+    # a process ramping up reads zero on the way, so one confirmation is what
+    # separates an absence from an instant. Beyond that, `rest_cores_median`
+    # on the hold itself catches what verification would have.
+    [int]$ConsecutiveQuiet = 2,
     [int]$HeartbeatPolls = 30,
     [int]$GiveUpMinutes = 120
 )
@@ -188,9 +198,13 @@ while ((Get-Date) -lt $deadline) {
         $run = 0
     }
     elseif ($run -gt 0) {
-        # Between the bars: the idle floor breathing, not the neighbour. It
-        # still resets the run, because firing needs the strict bar — but it is
-        # labelled so a census does not count it as an interruption.
+        # Between the bars. Read as the idle floor breathing when this was
+        # written; the 2026-08-11 census says it is the TENANT IN TRANSITION —
+        # a leading edge on the way up or a trailing edge on the way down, and
+        # the smallest non-zero value this counter can emit is just above 0.50
+        # because that is its per-process threshold. Resetting the run is right
+        # either way, and more clearly so: an ascending edge is the window
+        # ending. The label stays `floor` so old census logs remain greppable.
         "{0:HH:mm:ss} floor {1:N2} cores after {2} quiet poll(s) — not an interruption" -f (Get-Date), $t, $run
         $inInterruption = $false
         $run = 0
@@ -199,17 +213,28 @@ while ((Get-Date) -lt $deadline) {
 }
 if ($run -lt $ConsecutiveQuiet) { "gave up without a window"; exit 2 }
 
-# The pre-registered set: two arms, alternating, both inside one window, so the
-# comparison varies duration and nothing else. Order alternates rather than
-# grouping, so a drift partway through hits both arms equally.
-foreach ($pair in 1..2) {
-    foreach ($d in 30, 120) {
-        $label = "dur-$d-$pair"
-        & $bench hold --label $label --sessions 1 --interval 5 --duration $d -- $spin @work 2>&1 |
-            Select-String -Pattern 'rate |cores held outside the job' |
-            ForEach-Object { "{0}: {1}" -f $label, $_.Line.Trim() }
-    }
-}
-"set complete"
+# ONE HOLD, NOT A SET. This fired four alternating holds — 30, 120, 30, 120 —
+# to compare durations inside one window. Two reasons that is now wrong.
+#
+# The question is closed. A 30s hold reads at most ~1.6% differently from a
+# 120s one at matched tenancy, against a 25-35% claim that came from comparing
+# ten holds in one window with fifty-two spanning a day. Six accounts agree.
+# The set was re-measuring a settled thing.
+#
+# And it could not fit. The set costs about five minutes; this box's measured
+# quiet gaps are 49, 50 and ~70 seconds, with the tenant present 4m00s-4m15s
+# each cycle. Twelve sets fired and twelve voided, the neighbour usually
+# arriving inside the FIRST hold. One 30s hold after ~10s of verification is
+# 40s, which fits every gap observed.
+#
+# The safety net is that the hold records `occupancy.rest_cores_median`
+# itself, so a spoiled hold is detectable afterwards rather than needing to be
+# prevented beforehand — which is how the 34% step and the r = -0.950 relation
+# were both obtained, from holds sorted by their rest column after the fact.
+$label = "quiet-solo"
+& $bench hold --label $label --sessions 1 --interval 5 --duration 30 -- $spin @work 2>&1 |
+    Select-String -Pattern 'rate |cores held outside the job' |
+    ForEach-Object { "{0}: {1}" -f $label, $_.Line.Trim() }
+"hold complete"
 }
 finally { Remove-Item $lock -ErrorAction SilentlyContinue }
