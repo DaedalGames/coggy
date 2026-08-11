@@ -59,8 +59,11 @@ try {
   if ($zone) { "thermal_c`t$([Math]::Round($zone.CurrentTemperature / 10 - 273.15, 1))" }
 } catch { "error`tMSAcpi_ThermalZoneTemperature: $($_.Exception.Message)" }
 try {
-  $perf = (Get-Counter '\Processor Information(_Total)\% Processor Performance' -ErrorAction Stop).CounterSamples[0].CookedValue
-  "processor_performance`t$([Math]::Round($perf, 1))"
+  $samples = (Get-Counter '\Processor Information(*)\% Processor Performance' -ErrorAction Stop).CounterSamples
+  $total = $samples | Where-Object { $_.InstanceName -eq '_total' } | Select-Object -First 1
+  if ($total) { "processor_performance`t$([Math]::Round($total.CookedValue, 1))" }
+  $cores = @($samples | Where-Object { $_.InstanceName -notmatch '_total' } | Sort-Object InstanceName)
+  if ($cores.Count -gt 0) { "processor_performance_cores`t$((($cores | ForEach-Object { [Math]::Round($_.CookedValue, 1) }) -join ','))" }
 } catch { "error`t% Processor Performance: $($_.Exception.Message)" }
 "#;
 
@@ -177,6 +180,33 @@ pub struct HostFacts {
     /// negligible per-read cost would change the arithmetic; a shell spawn
     /// does not.
     pub processor_performance: Option<f64>,
+    /// The same counter per core, because `_Total` is an average and the
+    /// session runs on **one** core.
+    ///
+    /// **Added because a refutation turned out to rest on the aggregate.** A
+    /// run on 2026-08-11 found `r(rate, processor_performance) = −0.429` and
+    /// read it as the clock being refuted backwards. Read per core the same
+    /// day, this box spans **91.1% to 123.8% — 36% — while `_Total` said
+    /// 96.6%**, so the aggregate need not describe the core the work happened
+    /// on. Worse, it has a mechanism for a spurious negative: `_Total`
+    /// averages across cores, so as load rises and more cores wake it takes in
+    /// newly-active ones at middling clocks and falls, while the busy core may
+    /// be climbing. That reading would be *how many cores are awake* wearing a
+    /// frequency's name.
+    ///
+    /// **All of them are kept rather than a summary.** Which core a session
+    /// lands on is not recorded, so no single value can be chosen honestly:
+    /// the maximum assumes the scheduler picked the fastest core, and [this
+    /// box's cores differ by 2.1× under
+    /// load](../../docs/measurements/2026-07-31-145412-the-cores-are-not-interchangeable.md),
+    /// so the maximum may belong to something else entirely. Sixteen numbers
+    /// in an artifact that already holds hundreds is cheap, and a clock at
+    /// hold time cannot be recovered afterwards at any price.
+    ///
+    /// Empty where the query failed or the counter is absent, which is a
+    /// different state from a machine that answered with nothing.
+    #[serde(default)]
+    pub processor_performance_cores: Vec<f64>,
     /// Anything the query could not answer, kept rather than discarded so a
     /// partial result never reads as a complete one.
     pub errors: Vec<String>,
@@ -240,6 +270,12 @@ impl HostFacts {
                 "power_plan" => facts.power_plan = Some(value.to_string()),
                 "thermal_c" => facts.thermal_c = value.parse().ok(),
                 "processor_performance" => facts.processor_performance = value.parse().ok(),
+                "processor_performance_cores" => {
+                    facts.processor_performance_cores = value
+                        .split(',')
+                        .filter_map(|v| v.trim().parse().ok())
+                        .collect();
+                }
                 "error" => facts.errors.push(value.to_string()),
                 _ => {}
             }
