@@ -59,5 +59,5 @@ Every artifact already carries the power state, and `doctor` prints it. What is 
 | Injections | `inject-tenant.ps1`, 13:32 and 14:15, **mains** |
 | Artifacts | `bench-out/*quiet-solo-*-r20-d*/`, `bench-out/*inject-*/`, transcript `bench-out/quiet-20260811-155011.log` |
 | Read from | `hold.json` — `units_per_session_per_sec`, `occupancy.median_cores`, `occupancy.rest_cores_median`, `host.on_battery` |
-| Analysis | written before the data was read, so the bands, the sitting split and the floor could not be chosen for their answer — it did not check the power column, which is the defect this record is about |
+| Analysis | [`scripts/duty-bands.ps1`](../../sessionbench/scripts/duty-bands.ps1), written before the data was read, so the bands, the sitting split and the `job = 0.15` floor could not be chosen for their answer — it did not check the power column, which is the defect this record is about. Ported from the throwaway it began as and checked against it: same 6 held-out holds, same 29 in 4 sittings, same band means |
 | Machine | 16 logical / 31 GiB / Windows 11, 0 survivors after teardown |
