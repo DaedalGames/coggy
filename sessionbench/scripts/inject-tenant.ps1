@@ -41,7 +41,26 @@ param(
     [int]$PollSeconds = 10,
     [int]$GiveUpMinutes = 30,
     [ValidateRange(1, 20)]
-    [int]$MaxVoids = 6
+    [int]$MaxVoids = 6,
+    # THE CONFOUND THIS EXISTS FOR: by default the co-tenants are `cpu-spin`,
+    # the SAME BINARY as the measured session. Windows maps one image file once,
+    # so seven processes share code pages and an instruction-cache footprint —
+    # and a warm icache could help in a way a browser never would. The 2026-08-11
+    # result of +95.4% has that confound and needs it removed before it means
+    # "a neighbour" rather than "six copies of myself".
+    #
+    # A COPY OF THE BINARY AT A DIFFERENT PATH IS THE SHARPEST CONTROL. Same
+    # instructions, same duty, same memory behaviour, different image identity,
+    # so the pages are no longer shared and nothing else moves. Swapping to
+    # `file-write` instead would change the load's character — disk I/O, a
+    # different memory pattern — AND the sharing at once, which is two changes.
+    #
+    #   copy target\release\cpu-spin.exe target\release\cpu-spin-b.exe
+    #   ... -Injector 'target\release\cpu-spin-b.exe'
+    #
+    # If the rise survives, self-similarity is out. If it collapses, the causal
+    # result is about the injector rather than about tenancy.
+    [string]$Injector = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,6 +68,11 @@ $root = 'C:\Users\LilMG\Desktop\coggy'
 Set-Location $root
 $bench = "$root\target\release\sessionbench.exe"
 $spin = "$root\target\release\cpu-spin.exe"
+# Empty means "same binary as the session", which is the default and the one
+# carrying the shared-code-page confound. Resolved and existence-checked here
+# rather than at first use, so a typo fails before a window is spent.
+$inject = if ($Injector) { (Resolve-Path $Injector -ErrorAction Stop).Path } else { $spin }
+if (-not (Test-Path $inject)) { "REFUSING: injector not found at $inject"; exit 1 }
 $work = @('--units', '100000000', '--duty', '0.27')
 
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -94,6 +118,7 @@ function Invoke-Hold($label, $seconds) {
 $procs = @()
 try {
     "injecting $Tenants co-tenants around a $Duration s hold; quiet means under $QuietBelow cores"
+    "injector: $inject"
     $deadline = (Get-Date).AddMinutes($GiveUpMinutes)
     $voids = 1
     # THE BASELINE QUALIFIES ROUGHLY ONE ATTEMPT IN THREE, so retrying is the
@@ -136,7 +161,7 @@ try {
 
     Write-Host ("{0:HH:mm:ss} starting $Tenants co-tenants" -f (Get-Date))
     $procs = 1..$Tenants | ForEach-Object {
-        Start-Process $spin -ArgumentList (@('--units', '100000000', '--duty', '0.27', '--resident', '1')) -PassThru -WindowStyle Hidden
+        Start-Process $inject -ArgumentList (@('--units', '100000000', '--duty', '0.27', '--resident', '1')) -PassThru -WindowStyle Hidden
     }
     Start-Sleep -Seconds 5
 

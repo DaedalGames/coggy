@@ -29,7 +29,9 @@ Three guards had to pass, all written before this run and each after a failure i
 
 **And the clock is eliminated for this transition outright**: 205.1% before against 203.7% after, on the per-core maximum. Not a small difference — none at all, in the direction of slightly lower. That is a stronger statement than [the r = +0.096 across twenty holds](2026-08-11-103621-the-step-is-at-one-and-a-half-cores.md), because it is one session, one minute, one change.
 
-## It reconciles the within-hold contradiction rather than losing to it
+## The within-hold contradiction was not real, and neither was the reconciliation
+
+> **Corrected within the hour.** The section below explains a disagreement between this result and a within-hold measure, via browser ramp transients. **There was no disagreement**: the within-hold measure is invalid. Per-tick deltas in `concurrent-samples.jsonl` alternate between zero and ~28.5 — `28.53, 0.00, 0.00, 28.72, 0.00, 29.31, 0.00, 28.53…` — because the units counter advances in bursts rather than every five-second sample. A per-tick "rate" measures whether a burst landed inside that interval. **Only the hold-level average over `counted_ms` is a rate.** The −37.7%, a +9.6% "drift" between halves, and a +30%/−21.6% "hump" across thirds were all the same artifact, and the hump's near-perfect symmetry (first third ≈ last third) was the tell. This result stands unopposed rather than reconciled, and the paragraphs below are kept as the reasoning that was in play.
 
 A within-hold measure taken an hour earlier said the opposite: across 36 holds where tenancy crossed 1.4 cores mid-hold, the rate **fell** — median −17.4%, and −37.7% restricted to the cleanest arms, worse still after correcting for a **+9.6%** first-half-to-second-half drift measured on six constant-tenancy holds.
 
