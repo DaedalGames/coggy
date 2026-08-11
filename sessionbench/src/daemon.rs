@@ -128,6 +128,24 @@ impl Watch {
     /// **Never zero for *has not reported*.** A rung taking zero units from a
     /// daemon that simply had not spoken would read as saturation, which is
     /// the same silent-zero this file's parser refuses one level down.
+    ///
+    /// **This is the LATEST REPORT'S count, so its resolution is the daemon's
+    /// `REPORT_EVERY` (10 s) and not the hold's `--interval`.** Sampling faster
+    /// than the daemon reports cannot see finer than the daemon: at the default
+    /// 5 s interval every other sample reads an unchanged value, and the next
+    /// carries ten seconds of work at once. A real hold looks like
+    /// `28.53, 0.00, 0.00, 28.72, 0.00, 29.31, …` per tick against a hold-level
+    /// rate of ~14, and it does so identically at one session and at a hundred,
+    /// because the cadence belongs to the daemon rather than to any session.
+    ///
+    /// **So a single tick of `work_units` is not a rate.** Integrate over at
+    /// least `REPORT_EVERY / interval` samples — two at the defaults, where the
+    /// zeros and the doubles cancel exactly. On 2026-08-11 three findings were
+    /// derived from single ticks and all three were withdrawn within the hour:
+    /// a within-hold tenancy effect of −37.7%, a +9.6% drift between halves,
+    /// and a +30%/−21.6% "hump" across thirds. Each measured burst alignment
+    /// against sample boundaries. Nothing is broken here; two intervals chosen
+    /// sensibly apart simply do not divide.
     pub fn units(&self) -> Option<u64> {
         self.latest.map(|r| r.read)
     }
