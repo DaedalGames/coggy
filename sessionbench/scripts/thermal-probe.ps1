@@ -48,21 +48,40 @@ function Sample {
 
 function Phase([string]$name) {
     Write-Host "=== $name ==="
-    $log = "$root\bench-out\thermal-$name.log"
+    # THE LAUNCH MUST STAY ASYNCHRONOUS -- the sampling loop below runs *during*
+    # the hold, so a synchronous call would collect nothing.
+    #
+    # But `-WindowStyle Hidden` beside a redirect READS AS SAFE AND IS NOT: the
+    # redirect forces UseShellExecute=$false, the hidden window buys nothing,
+    # and the child INHERITS THIS CONSOLE. Four harvests died of that on
+    # 2026-08-11, the one launched holding its process handle reporting
+    # EXIT -1073741510 = 0xC000013A = STATUS_CONTROL_C_EXIT. This probe waits on
+    # its child inside one shell so it was never at risk the same way, and that
+    # is exactly why the pattern survived here -- it is where the next script
+    # copies it from.
     $p = Start-Process -FilePath $bench -ArgumentList (@('hold','--label',"thermal-$name",'--sessions','1',
         '--duration','60','--interval','5','--daemon',"$root\target\release\coggyd.exe",'--') + @($spin) + $work) `
-        -RedirectStandardOutput $log -RedirectStandardError "$root\bench-out\thermal-$name.err" -PassThru -WindowStyle Hidden
+        -PassThru -WindowStyle Hidden
     $rows = @()
     for ($i = 0; $i -lt 11; $i++) { Start-Sleep -Seconds 5; $rows += Sample }
     $p.WaitForExit(120000) | Out-Null
-    $rate = (Select-String -Path $log -Pattern 'rate\s+([\d.]+)').Matches.Groups[1].Value
+    # AND THE FIGURES NOW COME FROM THE ARTIFACT RATHER THAN THE CONSOLE, which
+    # is what made the redirect look necessary. `hold.json` is what the run
+    # actually recorded; the printed line is a summary of it that a refine pass
+    # or a superseded rung can disagree with.
+    $dir = Get-ChildItem "$root\bench-out" -Directory -Filter "*thermal-$name*" |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    $json = if ($dir) { Get-Content "$($dir.FullName)\hold.json" -Raw | ConvertFrom-Json } else { $null }
+    if (-not $json) { Write-Host "  NO hold.json for thermal-$name -- refusing to report a phase that left no artifact"; return }
+    $rate = $json.units_per_session_per_sec
     # **What else held the machine while this phase ran.** The whole probe
     # attributes a solo rate drop to the burst, and a tenant produces the same
     # drop: 11.5 of 16 cores held cost a single session 26% on 2026-08-03, which
     # is larger than most of what this is looking for. Every hold prints the
     # figure; without reading it, a busy afternoon reads as an induced state.
-    $restMatch = Select-String -Path $log -Pattern '([\d.]+) cores held outside the job'
-    $rest = if ($restMatch) { [double]$restMatch.Matches.Groups[1].Value } else { [double]::NaN }
+    # NaN rather than 0 where the field is absent: a zero here would read as a
+    # perfectly idle machine, which is the reading this exists to refuse.
+    $rest = if ($null -ne $json.occupancy.rest_cores_median) { [double]$json.occupancy.rest_cores_median } else { [double]::NaN }
     $c    = ($rows | Where-Object { $_.C } | Measure-Object -Property C -Average).Average
     $perf = ($rows | Measure-Object -Property Perf -Average).Average
     $mhz  = ($rows | Measure-Object -Property MHz -Average).Average

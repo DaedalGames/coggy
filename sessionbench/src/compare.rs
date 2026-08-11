@@ -87,6 +87,23 @@ pub struct Comparison {
     /// Set when the two ran on hardware that does not match, which no solo
     /// agreement could excuse.
     pub machine_mismatch: Option<String>,
+    /// Set when one ran on mains and the other on battery.
+    ///
+    /// **This belongs beside the hardware mismatch rather than beside the solo
+    /// gap, because the solo rung cannot see it.** Two quiet holds of one
+    /// workload ninety minutes apart read 9.574 and 9.322 units/s — [agreeing
+    /// to 2.6% across a boundary worth
+    /// 7.8×](../../docs/measurements/2026-08-11-163342-a-solo-baseline-cannot-see-the-plug.md).
+    /// The 7.8× was measured at a hundred sessions, where the power plan's
+    /// ceiling binds; a lone session at duty 0.27 asks for a quarter of one
+    /// core out of sixteen and never makes the box leave its lowest state. So
+    /// the fingerprint agrees at the baseline and the ramps diverge wherever
+    /// they saturate, which is exactly where a redline is read.
+    ///
+    /// `None` when either side did not record the state, which is a different
+    /// thing from the two matching: a pair that cannot be checked must not read
+    /// as a pair that passed.
+    pub power_mismatch: Option<String>,
     /// Whether the two ran different commands.
     ///
     /// The solo rung is a machine fingerprint only for ramps sharing a
@@ -112,6 +129,24 @@ impl Comparison {
         let machine_mismatch = (left.machine.label() != right.machine.label())
             .then(|| format!("{} against {}", left.machine.label(), right.machine.label()));
 
+        // Both sides must have answered. `Option::zip` gives None when either
+        // did not, so an unrecorded state cannot be compared into a match --
+        // the absence stays an absence instead of defaulting to `false` and
+        // reading as two ramps that agreed.
+        let power_mismatch = left
+            .host
+            .on_battery
+            .zip(right.host.on_battery)
+            .filter(|(l, r)| l != r)
+            .map(|(l, _)| {
+                let (first, second) = if l {
+                    ("battery", "mains")
+                } else {
+                    ("mains", "battery")
+                };
+                format!("{first} against {second}")
+            });
+
         Self {
             left_label: left.label.clone(),
             right_label: right.label.clone(),
@@ -119,6 +154,7 @@ impl Comparison {
             right_solo: right.solo_units_per_sec,
             solo_gap_percent: solo_gap_percent(left.solo_units_per_sec, right.solo_units_per_sec),
             machine_mismatch,
+            power_mismatch,
             command_differs: left.command != right.command,
             left_redline: left.redline.as_ref().map(|r| r.sessions),
             right_redline: right.redline.as_ref().map(|r| r.sessions),
@@ -145,6 +181,7 @@ impl Comparison {
     /// allowance would be finer than the thing it is measuring.
     pub fn comparable(&self) -> bool {
         self.machine_mismatch.is_none()
+            && self.power_mismatch.is_none()
             && self.solo_gap_percent.abs() <= SOLO_AGREEMENT_PERCENT
             && self
                 .worst_solo_spread()
@@ -167,6 +204,15 @@ impl Comparison {
         if let Some(mismatch) = &self.machine_mismatch {
             return format!(
                 "**Different hardware** — {mismatch}. Nothing about these two belongs in one table."
+            );
+        }
+        // BEFORE every solo-based branch below, and the order is load-bearing:
+        // a mains/battery pair can agree on its solo rungs to 2.6% and still be
+        // 7.8x apart where it saturates, so reaching a solo verdict first would
+        // print "comparable" for the one mismatch the fingerprint is blind to.
+        if let Some(mismatch) = &self.power_mismatch {
+            return format!(
+                "**Different power state** — {mismatch}. A solo rung cannot see this: two quiet holds of one workload agreed to 2.6% across it while the state is worth 7.8x under saturation, which is where a redline is read."
             );
         }
         if let Some(spread) = self.worst_solo_spread()
@@ -249,6 +295,7 @@ mod tests {
             right_solo: 74.90,
             solo_gap_percent: solo_gap_percent(74.11, 74.90),
             machine_mismatch: None,
+            power_mismatch: None,
             left_redline: Some(27),
             right_redline: Some(26),
             command_differs: false,
@@ -261,6 +308,53 @@ mod tests {
     fn agreeing_baselines_permit_a_subtraction() {
         assert!(agreeing_pair().comparable());
         assert_eq!(agreeing_pair().redline_delta(), Some(-1));
+    }
+
+    /// The pair this exists for: baselines that agree, and a plug that does not.
+    ///
+    /// Built from `agreeing_pair`, whose solo rungs sit ~1% apart and which the
+    /// test above proves is otherwise accepted — so the only thing refusing
+    /// this one is the power state, and the assertion cannot pass for some
+    /// other reason. That is the shape the real pair had: 9.574 against 9.322,
+    /// 2.6% apart, one on each side of the boundary.
+    #[test]
+    fn a_power_state_refuses_a_pair_its_baselines_would_have_passed() {
+        let crossed = Comparison {
+            power_mismatch: Some("mains against battery".into()),
+            ..agreeing_pair()
+        };
+        assert!(
+            agreeing_pair().comparable(),
+            "the control must pass, or this test proves nothing"
+        );
+        assert!(
+            !crossed.comparable(),
+            "a mains/battery pair must be refused"
+        );
+        assert_eq!(
+            crossed.redline_delta(),
+            None,
+            "and its redlines must not subtract"
+        );
+        assert!(
+            crossed.verdict().contains("Different power state"),
+            "the verdict must say which check refused it, got: {}",
+            crossed.verdict()
+        );
+    }
+
+    /// An unrecorded state is not a matching one.
+    #[test]
+    fn a_state_only_one_side_recorded_cannot_read_as_agreement() {
+        // `zip` is what enforces this: None on either side yields no mismatch
+        // to report, and the pair must not therefore be advertised as checked.
+        assert_eq!(None::<bool>.zip(Some(true)), None);
+        assert_eq!(Some(false).zip(None::<bool>), None);
+        // And two that did answer, differing, do produce one.
+        assert_eq!(
+            Some(false).zip(Some(true)).filter(|(l, r)| l != r),
+            Some((false, true))
+        );
     }
 
     #[test]
