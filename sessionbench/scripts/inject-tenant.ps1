@@ -408,7 +408,18 @@ try {
     #
     # So `-AnyBaseline` keeps the ceiling and drops the floor. Without it, on a
     # quiet box where adding N cores raises the total by N, both bounds hold.
-    $floor = if ($AnyBaseline) { [double]::NegativeInfinity } else { $expected * 0.5 }
+    # A DEPARTURE CONFOUNDS AS BADLY AS AN ARRIVAL, and -Infinity admitted every
+    # one. Measured 2026-08-12 02:08: the browser shed 4.70 cores during a
+    # tenanted arm carrying a 1.15-core injection, and the pair reported +27.0%
+    # — the machine getting quieter, not the neighbour doing anything.
+    #
+    # Dropping the floor was right for the WRONG BOUND. On a loaded box a
+    # displacing injection legitimately gives delta near zero, which is why
+    # `expected * 0.5` was wrong; but -Infinity says any departure is fine. A
+    # small negative tolerance takes both: enough for displacement and sampling
+    # noise, not enough for a tenant leaving. At -0.5 * expected the previously
+    # accepted -0.35 still passes and this -4.70 is refused.
+    $floor = if ($AnyBaseline) { $expected * -0.5 } else { $expected * 0.5 }
     if ($delta -lt $floor -or $delta -gt ($expected * 2.0)) {
         Write-Host ("VOID {0}: tenancy moved {1:N2} cores where {2} spinners add about {3:N1} — the injection is not what changed" -f `
             $voids, $delta, $Tenants, $expected)
