@@ -45,6 +45,23 @@ The advice was right and the reason was not a named machine state. **Those two s
 
 **The 246.4 hold predates the rest column, so it cannot be checked directly** — that attribution is inference from the line, not a reading. What is checkable is that the two clusters the record describes, "six runs between 903 and 1055 and three between 217 and 288 with nothing in the 3.1× gap", straddle exactly the range this line spans, and the gap has since been filled from both sides at 344.9 and 756.1, both of which sit on it.
 
+## A competing explanation, raised the same hour, which fits better
+
+**The solo arm may not be a benefit at all.** Two facts already recorded elsewhere point the other way:
+
+- Nine one-session holds gave **18.9 units/s under four cores held** and **13.8 over nine** — quiet *faster* than crowded, the opposite sign to the step above.
+- Of 45 holds whose tenancy is known, **33 were slow, 7 tenanted, 3 between and 2 rested.** The slow state is most of what this box does when nothing else is on it.
+
+So a quiet box is **bimodal** — rarely rested at 18.9–20.3, usually slow at 9–11 — while a tenanted box sits reliably in the thirteens and fourteens. A low-rest sample is then dominated by slow-state holds and a high-rest sample contains none, which produces a step without tenancy causing anything.
+
+**The shape of the two groups favours this reading over mine.** If tenancy added speed, the high shelf would be the low shelf translated upward and would keep its width. Instead it is *narrower*: σ 9.2% across 48 holds against 17.7% across 35, and it never reads below **11.952** where the low shelf reaches 9.246. Truncation, not translation.
+
+**And the within-sitting control does not separate them.** Inside a sitting where the box is in the slow state, the low-rest arm is slow and the high-rest arm is not, which reads as a step on either account. The four sittings establish that the difference is not a comparison across windows; they do not establish direction of cause.
+
+**What would separate them is deliberate co-tenancy**: inject a known load onto a box already measured as slow, and see whether the lone session recovers. If it does, the neighbour excludes the slow state and this is a finding about the slow state. If it does not, the step is what it looked like. Nothing on disk answers it, because every low-rest hold here got that way by the browser leaving rather than by anything being added.
+
+**Until then the causal claim in this record's title is not established, and the concurrent arm is unaffected** — that one is ordinary contention at r = −0.950 and does not depend on which reading of the solo arm is right.
+
 ## What this does not explain
 
 **The solo slow state survives untouched.** A lone session reading 9.0 units/s against a rested 18.9, [with 1.03 cores held at the time](2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md), is not tenancy — the neighbour was absent and the session was still at half speed. The step described here is worth 34%; that is worth 2×, and it remains unexplained. The two are separate findings that both happen to involve a quiet machine.
