@@ -14,6 +14,20 @@
 # LAUNCH DETACHED, like anything that outlives a tool call:
 #   Start-Process pwsh -ArgumentList '-NoProfile','-File','<this>' `
 #       -RedirectStandardOutput quiet.log -RedirectStandardError quiet.err
+#
+# THAT REDIRECT IS A CONVENIENCE AND NOT THE RECORD. It names a fixed path, so
+# every invocation overwrote the last and only the newest census survived —
+# which cost something real: the aftermath of five of the eight band readings
+# was unrecoverable, so a question this box had already answered had to be
+# settled from three observations instead of eight. Sequential and silent,
+# which is worse than the concurrent version of the same defect, where two
+# gate runs sharing one temp path at least made the second redirect fail
+# loudly. Nothing here fails; a later read just comes back empty.
+#
+# So the script keeps its own transcript under `bench-out/` with a timestamp
+# in the name, and the launcher cannot get that wrong by choosing a path.
+# Appending to one file would not do: a census means nothing without the
+# parameters it ran under, and appending mixes runs that had different ones.
 # A SINGLE READING OF 0.00 MEANS STARTING AS READILY AS GONE. The first
 # attempt fired on exactly that and its first hold recorded 12.20 cores held,
 # voiding the set. `Get-Counter` is a point sample, and a process ramping up
@@ -144,6 +158,12 @@ if (Test-Path $lock) {
     "stale lock from pid $holder, taking it"
 }
 Set-Content -Path $lock -Value $PID
+# The script's own record, named so no invocation can overwrite another's.
+# Under bench-out/ because it is gitignored scratch, and a census log is three
+# orders below the ramps the pruning rule was written for.
+$census = Join-Path $root ("bench-out\quiet-{0}.log" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+$null = New-Item -ItemType Directory -Force -Path (Split-Path $census)
+Start-Transcript -Path $census | Out-Null
 try {
 
 function Get-TenantCores {
@@ -292,4 +312,10 @@ if ($holds -ge $MaxHolds) { "reached MaxHolds ($MaxHolds) without a rested windo
 "gave up: deadline reached after $holds hold(s), none rested"
 exit 2
 }
-finally { Remove-Item $lock -ErrorAction SilentlyContinue }
+finally {
+    Remove-Item $lock -ErrorAction SilentlyContinue
+    # Every exit from here is an `exit N` inside the try, so the transcript
+    # only ever closes on this path. Errors are swallowed because a failure to
+    # stop transcribing must not change the exit code the caller reads.
+    try { Stop-Transcript | Out-Null } catch {}
+}
