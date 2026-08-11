@@ -29,10 +29,15 @@
 # baseline. Start it so its lifetime is nobody else's:
 #
 #   Start-Process pwsh -ArgumentList '-NoProfile','-File','<this>' `
-#       -RedirectStandardOutput m1.log -RedirectStandardError m1.err
+#       -WindowStyle Hidden -PassThru
 #
-# then read m1.log. The run prints a line per phase, which is what tells a
-# working run from a hung one.
+# AND DO NOT REDIRECT ITS OUTPUT. -RedirectStandardOutput forces
+# UseShellExecute=$false, so the child inherits the launching console rather
+# than taking its own, and a control event on that console reaches it: four
+# harvests died that way on 2026-08-11, the one launched holding the process
+# handle reporting EXIT -1073741510 = 0xC000013A = STATUS_CONTROL_C_EXIT.
+# Read this run's own transcript instead. The run prints a line per phase,
+# which is what tells a working run from a hung one.
 #
 # READ THE OUTPUT, NOT THE EXIT CODE. Piping this script makes $LASTEXITCODE
 # the last native command's, and neither `exit` nor `throw` survives that. A

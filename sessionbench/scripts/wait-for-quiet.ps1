@@ -11,11 +11,24 @@
 # duration set until 2026-08-11; that question is closed and the set could not
 # fit the window — see the comment above the hold.
 #
-# LAUNCH DETACHED, like anything that outlives a tool call:
+# LAUNCH DETACHED, like anything that outlives a tool call -- AND DO NOT
+# REDIRECT ITS OUTPUT:
 #   Start-Process pwsh -ArgumentList '-NoProfile','-File','<this>' `
-#       -RedirectStandardOutput quiet.log -RedirectStandardError quiet.err
+#       -WindowStyle Hidden -PassThru
 #
-# THAT REDIRECT IS A CONVENIENCE AND NOT THE RECORD. It names a fixed path, so
+# THE REDIRECT IS WHAT KILLS THE RUN. This comment showed one for a fortnight
+# and cost four harvests: -RedirectStandardOutput forces UseShellExecute=$false,
+# so the child INHERITS THE LAUNCHING CONSOLE rather than taking its own, and
+# every process on a console gets the control event when it tears down. Three
+# died leaving only absences -- no Stop-Transcript footer, no stderr, no event.
+# The fourth was launched holding the process handle and named itself in three
+# seconds: EXIT -1073741510, which is 0xC000013A, STATUS_CONTROL_C_EXIT.
+# Nothing is lost, because this script writes its own timestamped transcript
+# under bench-out/ -- which is the artifact actually read, and which held
+# byte-identical content to the redirected log every time.
+#
+# A REDIRECT WAS NEVER THE RECORD EITHER. The one shown here named a fixed
+# path, so
 # every invocation overwrote the last and only the newest census survived —
 # which cost something real: the aftermath of five of the eight band readings
 # was unrecoverable, so a question this box had already answered had to be
