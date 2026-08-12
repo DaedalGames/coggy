@@ -441,6 +441,23 @@
 >
 > **And its parked rate falls where the dose-response says it should**, at 13% between the 25% seen at 7.45-7.70 tenant cores and the 4% seen at 8.71-9.76. The relationship holds on a sixth window without being tuned to it.
 
+> **2026-08-12 22:12 — the archive breaks the fit, and the out-of-sample check was not out of sample.** Two hundred-session holds on disk:
+>
+> | hold | job | rest | machine | the fit predicts |
+> |---|---|---|---|---|
+> | `statepair2-conc` | **15.505** | 0.495 | **16.00** | ~3.6 |
+> | `slowstate-ratio` | **15.340** | 0.768 | **16.11** | ~3.8 |
+>
+> **Sixteen cores with no neighbour, where `0.937t + 3.119` predicts 3.6** — wrong by a factor of **4.4**, and wrong on the two best runs in the archive, which are the 3 and 11 August holds this whole question started from.
+>
+> **So the fit is a law of the state this box has been in today, not of the hardware.** It was built from six censuses taken within a few hours and confirmed by a seventh taken minutes later — which is out of sample in *time* and inside the sample in *state*. That is the shared-input trap in a new costume: two routes that agree because they share the thing that varies.
+>
+> **The intercept is the clearest casualty.** 3.12 cores was read as *what this machine offers with nothing else running*, and the archive says a quiet hundred-session hold once got 16.00. The intercept describes what the box offers **while parked**, and parking is the state, not the floor.
+>
+> **What survives**: within today, tenant load and delivered cores move together with r² 0.831 across 1085 samples, and the dose-response reproduced on six windows. That is a real relationship in a real state. **What does not**: any use of it as `C` in the gate's arithmetic, or of 3.12 as this machine's own core count.
+>
+> **And the archive is the control this needed all along** — 37 hundred-session holds with occupancy, spanning 4.52 to 16.11 machine cores. Eleven sit under 7. The question the fit cannot answer is what puts the box in one regime or the other, which is where this record started.
+
 ## What was measured
 
 | | |
