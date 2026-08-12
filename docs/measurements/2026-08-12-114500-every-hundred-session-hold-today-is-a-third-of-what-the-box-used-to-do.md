@@ -280,6 +280,17 @@ The clock also splits: cores 0–3 sit at **~94%** of nominal and cores 4–15 a
 
 **That is the measurement this record now needs**: per-core `% Processor Time` during a `--duty 0.27` hundred-session hold. If the cores are busy there too, then the sessions were never on an idle machine and the deschedule figures are ordinary contention with an unaccounted consumer; if the cores are genuinely idle, the anomaly stands and this section is about a different regime.
 
+**Taken, and the cores are idle.** During a real hundred-session hold at `--duty 0.27`:
+
+| | |
+|---|---|
+| machine total busy | **12.3% — 1.97 of 16 cores** |
+| per-core busy | min **0.0%**, median **15.7%**, max 57.9% |
+
+Against **91.9%** for the sleepless workload. **The two regimes are different machines**, so this section describes the sleepless one and the "idle box" phrasing elsewhere in this record is correct.
+
+**The anomaly therefore stands, and is now sharply framed**: a hundred CPU-bound sessions, each descheduled about 88% of its own spin, on a machine with fourteen of sixteen cores free and at least one core doing nothing at all. Nothing is competing for what they are not getting.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
