@@ -1,5 +1,7 @@
 # A hundred sessions hold a fifth of what one does, on an idle box
 
+> **2026-08-12 12:05 — superseded. [Read the ceiling record instead](2026-08-12-114500-every-hundred-session-hold-today-is-a-third-of-what-the-box-used-to-do.md).** The collapse below is real and it is not about session count or `--resident`: the box has **two stable operating points at a hundred sessions, 4.7× apart**, and every hold behind this record was taken in the low one. Per-core efficiency is identical in both, compute per unit is constant at 13–20 ms, and what varies fivefold is the **pause** — the sessions oversleep by 2× in the fast state and 11× in the slow one. What survives here is the within-day arithmetic; what it meant does not.
+
 > **2026-08-12 10:58 — the headline is withdrawn: this is a `--resident 1` result and the gate uses `--resident 20`.** Reading the eleven hundred-session holds already on disk, the same `--duty 0.27` command spans **2.396 to 15.525 job cores** — and the four highest all ran `--resident 20` on a quiet box, holding **15.34, 15.36, 15.51 and 15.53 cores**, which is 0.155 each and **57% of the requested duty, not 13%**. They very nearly saturate the machine.
 >
 > **Both of my holds used `--resident 1`**, which is the one parameter that differs. So the collapse measured below is a property of a nearly-memoryless session, not of a hundred sessions as such — a conclusion about the stand-in, drawn from a stand-in that was never checked against the archive.
