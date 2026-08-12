@@ -25,14 +25,36 @@ use serde::{Deserialize, Serialize};
 
 use crate::ramp::RampReport;
 
-/// Where a neighbour stops being noise and starts setting the core count.
+/// How far two ramps' neighbours may differ and still be one machine.
 ///
-/// **Under-determined by the data and recorded as such.** The tenant figures on
-/// disk cluster at 0 and about 8.7 cores with nothing observed between, so any
-/// bar in that gap separates the same pairs. Half a core matches the gate
-/// scripts, which wait for the neighbour to fall under 0.5 before a hold, so
-/// one number governs both and a pair the gate admitted is not then refused.
-const TENANT_BUSY_CORES: f64 = 0.5;
+/// **Derived from the allowance this file already trusts, not chosen.** The
+/// relationship is graded rather than binary: fitting all 1085 census samples
+/// that carry both columns gives
+///
+/// ```text
+/// machine_cores = 0.937 * tenant_cores + 3.119     r = 0.912   r2 = 0.831
+/// ```
+///
+/// so the neighbour's cores pass through to the machine almost one for one — it
+/// unlocks cores that would otherwise be parked rather than competing for them —
+/// and its load explains **83%** of the variance in what this box delivers.
+///
+/// The conversion, so it can be redone rather than believed:
+/// [`SOLO_AGREEMENT_PERCENT`] is 5%, and 5% of a quiet box's 3.12 cores is
+/// 0.156, which at the 0.937 slope is **0.17 tenant cores**; 5% of a busy box's
+/// 11.55 is 0.578, which is **0.62**. Half a core sits between them.
+///
+/// **It refuses most pairs on this machine, and that is the correct output.**
+/// The browser's load swings far more than half a core, and *this box cannot
+/// produce comparable pairs while Chromium runs* is the same conclusion three
+/// separate measurements reached. A margin widened until pairs pass is a margin
+/// fitted to the data one wanted.
+///
+/// The previous version bucketed at the same number and refused only when the
+/// two sides fell on OPPOSITE sides of it — which admitted **9.25 cores** of
+/// difference, since 9.76 and 0.51 both counted as busy while their machines
+/// offered 12.05 and 6.59 cores.
+const TENANT_AGREEMENT_CORES: f64 = 0.5;
 
 /// How far two solo rungs may sit apart and still be one machine.
 ///
@@ -191,8 +213,13 @@ impl Comparison {
         // two ramps that agreed on a quiet machine.
         let tenant_mismatch = worst_tenant(left)
             .zip(worst_tenant(right))
-            .filter(|(l, r)| (l >= &TENANT_BUSY_CORES) != (r >= &TENANT_BUSY_CORES))
-            .map(|(l, r)| format!("{l:.2} against {r:.2} cores held by the neighbour"));
+            .filter(|(l, r)| (l - r).abs() > TENANT_AGREEMENT_CORES)
+            .map(|(l, r)| {
+                format!(
+                    "{l:.2} against {r:.2} cores held by the neighbour, {:.2} apart",
+                    (l - r).abs()
+                )
+            });
 
         Self {
             left_label: left.label.clone(),
