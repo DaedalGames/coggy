@@ -48,7 +48,7 @@ It does **not** invalidate the within-today comparisons, which are the ones take
 
 ## What this does not establish
 
-- **No cause.** A code change today is unlikely — `coggyd` and `cpu-spin` sources were untouched, and today's `sessionbench` changes add a sampler field and an abort check. But *unlikely* is not *excluded*, and nothing here tests it.
+- **No cause, but the code is now excluded rather than merely doubted.** `git log --since="2026-08-11" -- coggyd/ workloads/` returns **nothing**: the side that *produces* the work is byte-identical to the code behind the 15.5-core holds. Every change since is in `sessionbench`, which observes. So a regression in the daemon or the workload is ruled out, and what remains is the machine or the observer's own path.
 - **Not the documented slow state, necessarily.** That one is worth 2.2× and lasts about ninety minutes; this is 3–5× and has held for at least seventy minutes across eight holds.
 - **Not the plug.** Every hold today is on mains, recorded in each artifact.
 - **Thermal reads the same.** `doctor` reported 44.1 °C throughout today, as it did on earlier days — which is the reason that sensor is already recorded here as unable to name this box's states.
@@ -57,6 +57,7 @@ It does **not** invalidate the within-today comparisons, which are the ones take
 ## What to do with it
 
 1. **Do not compare today's hundred-session figures with the archive's.** They are not the same machine.
+0. **The daemon and the workload are eliminated by `git log`** — one command, no rebuild, and it should have been the first check rather than the fourth.
 2. **The next hundred-session hold on a future day is the test.** If it returns to 15, this was a state; if it stays at 4, something changed for good and the code is the place to look.
 3. **A reboot is the cheapest probe** and has not been tried.
 
