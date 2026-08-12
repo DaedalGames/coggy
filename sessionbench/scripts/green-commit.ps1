@@ -41,7 +41,14 @@ if ($code -ne 0) {
     exit 1
 }
 
+# `git add -A` sweeps the working tree, INCLUDING the message file if it sits
+# inside the repo — the first successful run committed its own `.msg.tmp`. Stage
+# everything, then unstage the message itself.
 git add -A
+$msgPath = (Resolve-Path $MessageFile).Path
+if ($msgPath.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) {
+    git reset --quiet -- $msgPath
+}
 git commit -S -F $MessageFile
 if ($LASTEXITCODE -ne 0) {
     "commit failed with $LASTEXITCODE"
