@@ -146,6 +146,25 @@ That is the fifth candidate eliminated in this sitting and the last one reachabl
 
 **That is a hypothesis this record cannot test.** Confirming it needs the workload to record its requested pause against its achieved one, which `cpu-spin` does not do, and adding it is a change to the thing being measured.
 
+## Measured: the sleep is accurate, and the workload asks for the wrong pause
+
+`cpu-spin` gained `--report-timing` (default off), which records the pause it asked for against the pause it got:
+
+| | solo | one session among a hundred |
+|---|---|---|
+| `computed_ms` | 28–32 | **90–131** |
+| `asked_ms` | 76–86 | 244–354 |
+| `slept_ms` | 77–87 | 257–365 |
+| **oversleep** | **1.01×** | **1.03–1.05×** |
+
+**The sleep is accurate in both regimes.** The workload sleeps within 5% of what it asks for even with a hundred processes running. What changes is what it *asks for*: `computed` goes from ~30 ms to ~130 ms.
+
+`computed` is `working.elapsed()` — **wall time across the spin** — so a session preempted mid-spin measures its own compute as four times longer, and the pause is `computed × (1 − duty)/duty`, so it then sleeps four times longer as a penalty for having been descheduled.
+
+**That is a positive feedback with a stable fixed point.** Contention inflates measured compute → the pause lengthens → demand falls → contention falls. The system settles where those balance, which is why the occupancy is a flat plateau from the second sample and why a hundred sessions sit at 3.3 cores on a box that is 70% idle.
+
+**Nothing is wrong with Windows.** The duty controller measures wall time and counts scheduling delay as work.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:

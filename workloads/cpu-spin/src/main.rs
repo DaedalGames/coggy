@@ -92,6 +92,28 @@ struct Args {
     /// a hard power-off with its duty travelling from 0.172 toward 0.271;
     /// holds at a fixed `--duty` have finished clean. Use this to pair against
     /// `--duty`, not to hold a machine for an hour.
+    /// Report what the pause was asked for against what it cost, on stderr.
+    ///
+    /// **OFF BY DEFAULT BECAUSE IT CHANGES THE THING BEING MEASURED.** It adds
+    /// two clock reads per unit and a line per report interval; with it off,
+    /// not one instruction differs from before it existed.
+    ///
+    /// WHY IT EXISTS. `computed` is `working.elapsed()` — WALL TIME across the
+    /// spin, so any preemption during the spin inflates it, and the pause is
+    /// 2.7x that at duty 0.27. On 2026-08-12 a hundred of these oversleep by
+    /// 10.7x while the box is 70% idle, and nine other causes were eliminated
+    /// by measurement: the daemon, the harness, the observer, `--resident`, the
+    /// pause mechanism, a job cap, timer resolution, and general wake latency
+    /// (an outside sleeper degrades 1.19x to 1.37x against these sessions'
+    /// 10.7x). What is left is this arithmetic, and nothing recorded whether
+    /// the pause was computed from an inflated input or the sleep overshot.
+    ///
+    /// STDERR RATHER THAN STDOUT, because stdout is the unit stream and [a unit
+    /// is a line](../../README.md#the-contract): a summary there would be
+    /// counted as work.
+    #[arg(long)]
+    report_timing: bool,
+
     #[arg(long, value_name = "MS", conflicts_with = "duty")]
     wait_ms: Option<u64>,
 }
@@ -110,6 +132,13 @@ fn main() -> std::io::Result<()> {
     // works, which is not a session.
     let duty = args.duty.clamp(0.01, 1.0);
 
+    // Aggregates for `--report-timing`, summed rather than sampled so a report
+    // covers every unit in its interval rather than whichever one it landed on.
+    let mut acc_computed = Duration::ZERO;
+    let mut acc_asked = Duration::ZERO;
+    let mut acc_slept = Duration::ZERO;
+    let mut acc_units: u64 = 0;
+
     for unit in 1..=args.units {
         let working = Instant::now();
         state = spin(state, args.iterations);
@@ -124,14 +153,58 @@ fn main() -> std::io::Result<()> {
         writeln!(stdout, "{unit} {state:016x}")?;
         stdout.flush()?;
 
-        match args.wait_ms {
-            Some(ms) => std::thread::sleep(Duration::from_millis(ms)),
-            None if duty < 1.0 => std::thread::sleep(computed.mul_f64((1.0 - duty) / duty)),
-            None => {}
+        let asked = match args.wait_ms {
+            Some(ms) => Duration::from_millis(ms),
+            None if duty < 1.0 => computed.mul_f64((1.0 - duty) / duty),
+            None => Duration::ZERO,
+        };
+        if args.report_timing {
+            // Two clock reads, and only when asked for.
+            let before = Instant::now();
+            if !asked.is_zero() {
+                std::thread::sleep(asked);
+            }
+            acc_slept += before.elapsed();
+            acc_computed += computed;
+            acc_asked += asked;
+            acc_units += 1;
+            if acc_units >= REPORT_UNITS {
+                let ms = |d: Duration| d.as_secs_f64() * 1000.0 / acc_units as f64;
+                eprintln!(
+                    "timing units {acc_units} computed_ms {:.3} asked_ms {:.3} slept_ms {:.3} oversleep {:.2}",
+                    ms(acc_computed),
+                    ms(acc_asked),
+                    ms(acc_slept),
+                    if acc_asked.is_zero() {
+                        0.0
+                    } else {
+                        acc_slept.as_secs_f64() / acc_asked.as_secs_f64()
+                    },
+                );
+                acc_computed = Duration::ZERO;
+                acc_asked = Duration::ZERO;
+                acc_slept = Duration::ZERO;
+                acc_units = 0;
+            }
+        } else if !asked.is_zero() {
+            std::thread::sleep(asked);
         }
     }
     Ok(())
 }
+
+/// Units between `--report-timing` lines.
+///
+/// **Sized so a report actually fires in the regime it exists to measure**, and
+/// 200 was not: at ~0.5 s a unit under a hundred sessions that is ninety-five
+/// seconds, so a 25-second hold emitted nothing and a 100-second probe was
+/// killed on the boundary having reported once or not at all. A check that
+/// cannot fire in the case it was built for has not been built.
+///
+/// At 50 it is about 25 s under a hundred sessions and about 5 s solo — several
+/// reports inside any hold this repository takes, and still one line per fifty
+/// units rather than per unit, so the reporting is not the measurement.
+const REPORT_UNITS: u64 = 50;
 
 /// A serial chain of splitmix64 rounds.
 ///
