@@ -224,6 +224,22 @@
 >
 > **What the hold did establish, from columns that work.** The machine ranged **4.60 to 14.38 cores inside a single artifact** — 20 samples below 8 and 99 at or above — which is the two-operating-points switch captured in one file for the first time, rather than inferred across sittings. The parallel census agrees: 153 of 205 polls at zero parked, the rest between 9 and 12.
 
+> **2026-08-12 18:03 — the idle base rate, and the box is unparked most of the time.** 492 samples over 25 minutes with nothing of mine running:
+>
+> | | |
+> |---|---|
+> | fully unparked (0 cores parked) | **84%** of samples |
+> | parked at 8 or more | **11%** |
+> | machine when parked >= 8 | **2.72 cores** |
+> | machine when parked < 8 | **12.15 cores** |
+> | `chrome-headless-shell` present | **5 processes in 439 of 492 samples** |
+>
+> **A prediction was registered before this ran and it failed.** The expectation was that an idler machine would park MORE than the 39%-unparked reading taken earlier while the agent was working. It parks far less. **The reason is the last row**: the tenant was running for 89% of the window, so "idle" was never idle in the sense that matters — the prediction was about load and this machine answers to the neighbour.
+>
+> **The 4.5x split sits inside one census with nothing of mine running**: 2.72 cores while parked against 12.15 while not. That is the same effect the 2x2 found, measured without any workload at all.
+>
+> **And it settles what the archive's high holds were.** This box is unparked most of the time, so the 15.3-15.5 job cores of 3 and 11 August were **normal** rather than lucky. Today's readings are the exception, and what made them exceptional is that the tenant happened to be away — the opposite of the reading this record opened with, where a parked box looked like the machine's resting state.
+
 ## What was measured
 
 | | |
