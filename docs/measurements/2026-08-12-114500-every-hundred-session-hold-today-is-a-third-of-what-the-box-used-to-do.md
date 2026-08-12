@@ -111,6 +111,26 @@ The same decomposition across today's session-count series:
 
 It also explains why a single-session check certified the confound as cleared: at 1.12× there is nothing to see, and the effect that dominates a hundred sessions is invisible at one.
 
+## The daemon is not in the path, and four more candidates are dead
+
+A hundred `cpu-spin --duty 0.27 --resident 1` started directly, output to `NUL`, **no daemon, no `sessionbench`, no job object**:
+
+| | cores each |
+|---|---|
+| under `coggyd`, today | 0.0334 – 0.0355 |
+| **bare processes, today** | **0.0391** |
+
+**The same collapse.** So this is the workload's behaviour on this machine, and nothing in the instrument or the daemon participates.
+
+Four candidates tested and eliminated in the same sitting:
+
+- **Timer resolution.** The effective floor here is **15.64 ms** — 100 × `Sleep(1 ms)` takes 1564 ms, and `Sleep(10 ms)` takes 15.3. But a 15 ms compute at `--duty 0.27` requests a **40 ms** pause, already clear of that floor, so granularity cannot produce either 80 ms or 458 ms. And raising it does not propagate: a helper holding `timeBeginPeriod(1)` left another process still measuring 15.67 ms, so the request is per-process on this build.
+- **A job CPU cap.** `sessionbench`'s job object is joined for membership and sets no limits — and the bare-process run has no job at all.
+- **The daemon's drain.** Ruled out by the bare run above; the sessions never write to a pipe anyone reads.
+- **`sessionbench`'s sampling.** Same reason.
+
+What remains is Windows' scheduling of a hundred short-cycle sleepers, on a box that is 70% idle while it happens. That is where the next measurement has to look, and none of tonight's instruments reaches it.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
