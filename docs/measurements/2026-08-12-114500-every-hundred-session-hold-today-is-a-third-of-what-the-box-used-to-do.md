@@ -267,6 +267,8 @@ That prices the outstanding measurement rather than merely deferring it. The ano
 > **The mistake was reading a residual instead of a census.** Machine-minus-job leaves an anonymous number, and an anonymous number invites a mechanism; the same fifteen seconds spent enumerating processes hands back a name. This is the third time tonight a subtraction was read as a discovery.
 >
 > **What survives, and it is sharper than what was withdrawn.** A hundred **sleepless** `--duty 1.0` processes hold **6.22 cores — 0.062 each**, where a solo one holds 0.99, with kernel time at **0.05 cores** total. Oversleep cannot explain that: this workload never pauses. So the collapse is not only a pause defect, and part of it is plain contention with a tenant taking half the box.
+>
+> **And for that regime the arithmetic closes.** The tenant holds 7.93 of 16, leaving about 8 cores for a hundred processes — **0.08 each**, against **0.062** measured. Ordinary core-sharing predicts the sleepless collapse to within a quarter, so there is no anomaly there to explain. **The open question is narrower than it was**: it belongs to the `--duty 0.27` holds, where the machine really did read 1.97 of 16 busy with the tenant absent.
 
 ## The cores are busy; the processes are not the ones using them
 
