@@ -270,6 +270,28 @@ That prices the outstanding measurement rather than merely deferring it. The ano
 >
 > **And for that regime the arithmetic closes.** The tenant holds 7.93 of 16, leaving about 8 cores for a hundred processes — **0.08 each**, against **0.062** measured. Ordinary core-sharing predicts the sleepless collapse to within a quarter, so there is no anomaly there to explain. **The open question is narrower than it was**: it belongs to the `--duty 0.27` holds, where the machine really did read 1.97 of 16 busy with the tenant absent.
 
+## The sleep is honest, and the spin is where the time goes
+
+One 30-second window, a hundred sessions at `--duty 0.27`, tenant censused at **0.000 cores**, twelve sessions reporting their own timing into it:
+
+| what the session believes | | what the kernel says | |
+|---|---|---|---|
+| computed | 50.19 ms | per-session CPU | **0.0341 cores** |
+| asked to sleep | 135.69 ms | machine busy | 4.481 of 16 |
+| actually slept | 138.87 ms | **11.5 cores idle** | |
+| **oversleep** | **1.023** | | |
+| **duty it thinks it achieved** | **0.2655** | **duty it achieved** | **0.0341** |
+
+**The pause is eliminated.** The sessions sleep 2.3% longer than they ask, and the earlier 10.73× oversleep does not reproduce. Their own arithmetic is self-consistent: 50.19 computing plus 138.87 sleeping is a duty of 0.2655, which is what `--duty 0.27` asks for.
+
+**So the whole gap is inside the spin.** Dividing the two columns, a session is on-CPU **12.8%** of the wall time it spends computing — while 11.5 cores are idle and no tenant is present.
+
+**These are two independent routes**, which is what makes the division worth trusting: the left column is the workload's own wall clock, the right is kernel process time, and neither can produce the other. They are not a rearrangement of one measurement.
+
+**What is left to explain is now a single sentence** — a runnable, CPU-bound process gets an eighth of a core on a machine with eleven idle ones — and it no longer involves the workload's design at all. That moves the question off `cpu-spin` and onto scheduling, which is where the next measurement belongs.
+
+**One defect in this artifact, fixed rather than noted.** `achieved_duty` held a ratio-to-requested (0.1263) while `predicted_duty_from_oversleep` held an absolute duty (0.2653) — two quantities under names that invite exactly the comparison that would be wrong. The script now names by unit and computes the decisive ratio itself instead of leaving it to a reader.
+
 ## The collapse survives a censused-empty machine
 
 Two 25-second hundred-session `--duty 0.27` holds, 38 seconds apart, gated on a **named** census of `chrome-headless-shell` rather than on `doctor` or a residual:
