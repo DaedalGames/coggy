@@ -165,6 +165,24 @@ That is the fifth candidate eliminated in this sitting and the last one reachabl
 
 **Nothing is wrong with Windows.** The duty controller measures wall time and counts scheduling delay as work.
 
+## The fixed-pause arm exposes an anomaly the feedback loop does not explain
+
+The same instrument on `--wait-ms 46`, one session among a hundred:
+
+```
+timing units 50 computed_ms 491.720 asked_ms 46.000 slept_ms 87.927 oversleep 1.91
+```
+
+**`computed` is 491 ms of wall time for roughly 26 ms of actual CPU** — the session is not running for 95% of its own spin.
+
+The two arms reach the same ~0.04 cores each by opposite routes. `--duty` **backs off**: inflated compute lengthens its pause, demand falls, contention falls, and `computed` settles near 130 ms. `--wait-ms` **cannot** back off, so it keeps asking, and `computed` reaches 491 ms.
+
+**But you cannot be descheduled for 95% of a CPU-bound spin on an idle box.** Contention needs competitors, and the machine reads 5.3 of 16 cores busy while this happens. The spin is pure arithmetic with no I/O and no allocation.
+
+**So the leading candidate is now throttling rather than contention.** Windows applies power throttling — EcoQoS — to background, windowless processes, running them at reduced speed on efficiency cores. That would produce exactly this signature: long wall time, little CPU counted against the process, and a machine that looks idle because the work is being done slowly rather than not at all. Every session in every hold here is started windowless by a background harness.
+
+**This record does not test it.** `PROCESS_POWER_THROTTLING_EXECUTION_SPEED` can be queried and set per process, and neither has been done.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
