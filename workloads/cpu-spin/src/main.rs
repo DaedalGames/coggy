@@ -111,6 +111,18 @@ struct Args {
     /// STDERR RATHER THAN STDOUT, because stdout is the unit stream and [a unit
     /// is a line](../../README.md#the-contract): a summary there would be
     /// counted as work.
+    ///
+    /// **THAT ONLY HELPS OUTSIDE THE DAEMON, and the flag is not free under it.**
+    /// `coggyd` drains stdout AND stderr into one scrollback, so under the
+    /// daemon these lines are captured — not discarded, which was the guess —
+    /// and counted like any other output: one line per fifty units is about 2%
+    /// on the unit rate. Measured 2026-08-12: a hundred sessions with the flag
+    /// on reported 1.676 units/s/session and no timing line reached any
+    /// artifact, because nothing exports the scrollback.
+    ///
+    /// So this flag answers the question outside the daemon and biases it
+    /// inside. Reading `computed` in a daemon-hosted hold needs the scrollback
+    /// exported or a channel that is not the session's output at all.
     #[arg(long)]
     report_timing: bool,
 
