@@ -377,7 +377,7 @@
 >
 > **The busy arm is a factor of thirteen apart, and it is reproducible.** 55% here; **52%** in the census taken during a hundred-session hold. Both windows where the agent's own work overlapped read 52-55%; both windows where the machine was otherwise idle read 2-4%. Two observations a side, split by the same variable.
 >
-> **So the agent's own activity appears to push this box TOWARD parked while the neighbour is busy** — the opposite of a workload demanding cores, and the same direction as [a hundred sessions failing to unpark it at any count](#). It points back at the concentration question rather than away from it: whatever the scheduler classifies, my processes seem to be counted on the side that argues for fewer cores.
+> **So the agent's own activity appears to push this box TOWARD parked while the neighbour is busy** — the opposite of a workload demanding cores, and the same direction as a hundred sessions failing to unpark it at any count. It points back at the concentration question rather than away from it: whatever the scheduler classifies, my processes seem to be counted on the side that argues for fewer cores.
 >
 > **Not yet a finding.** Two windows a side, the split is by "was the agent working", which is not a controlled variable, and both busy-arm windows contain different work (builds and gates here, a session hold there). What would settle it is the census run twice in one sitting with a fixed synthetic load present in one arm and absent in the other — the same within-window discipline that settled tenancy itself.
 
