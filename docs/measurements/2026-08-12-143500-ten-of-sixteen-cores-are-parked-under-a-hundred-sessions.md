@@ -71,6 +71,21 @@
 >
 > **What is still not established, and it is the direction.** Cores may park *because* the machine went idle, rather than the machine delivering less *because* cores parked. This correlation cannot distinguish them, and both readings are consistent with either. Settling it needs the parked state recorded *alongside* a controlled load rather than sampled beside it.
 
+> **2026-08-12 15:26 — the direction is settled: this box parks HARDER under load.** 161 consecutive samples, every one taken with 90 or more sessions runnable:
+>
+> | | under a hundred sessions | idle (353 samples) |
+> |---|---|---|
+> | parked mean | **9.56** | 5.48 |
+> | parked minimum | **7 — never reaches 0** | **0 for 39% of samples** |
+> | samples with >= 8 parked | **99%** | 38% |
+> | machine cores | 5.09 | 8.4 |
+>
+> **Idle, the box spends 39% of its time fully unparked. Under a hundred CPU-bound sessions it never once drops below 7 parked cores in eight minutes of sampling.** So cores are not parking because the machine went quiet — it is loudest here, and the parking is at its most persistent.
+>
+> **That refutes the idleness direction and leaves the causal one standing**: on this box the delivered core count falls when parking rises, parking rises under load, and nothing in the load can push it back. Whatever governs it is not reading the runnable-thread count, or is reading something that a hundred short-cycle sleepers present differently than a scheduler queue length would suggest.
+>
+> **The remaining caveat is stated before the follow-up, not after.** At `--duty 0.27` a session is runnable only about a quarter of the time, so the box does have brief gaps to park into. That cannot explain a floor of 7 — a gap-driven policy would unpark during the compute phase and produce the bimodal pattern the idle machine shows, not a pinned high level — but it is not eliminated. **The clean arm is `--duty 1.0`, where there is no gap at all**, and it follows immediately.
+
 ## What was measured
 
 | | |
