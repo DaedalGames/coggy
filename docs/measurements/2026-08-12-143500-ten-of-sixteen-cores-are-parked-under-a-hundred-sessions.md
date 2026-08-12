@@ -168,6 +168,27 @@
 >
 > **The measurement that would settle it** is the mirror image and has never been run: a `--duty 0.27` hundred held WHILE the tenant is present. Continuity predicts ~5 there and tenancy predicts ~14, and for the first time the two hypotheses disagree.
 
+> **2026-08-12 17:00 — the 2x2 closes, and one arm contains its own control.** The mirror-image cell, a gappy hundred held WHILE the tenant is present, is the first configuration where the two hypotheses predicted opposite answers:
+>
+> | | tenant absent | tenant present |
+> |---|---|---|
+> | `--duty 0.27` | machine **5.09** | machine **14.53 / 14.60** |
+> | `--duty 1.0` | machine **5.32 / 5.37** | machine **14.47** |
+>
+> **A 3.7x change in the sessions' own continuity moves the machine total by 5%. The presence of one browser moves it by 2.8x.** Continuity explains nothing; tenancy explains it.
+>
+> **And one arm varies the neighbour inside a single window**, which is stronger than a table assembled across a night. Three `--duty 0.27` holds minutes apart, same command, with the tenant leaving during the second:
+>
+> | attempt | job | rest | machine |
+> |---|---|---|---|
+> | 1 | 3.42 | 11.11 | **14.53** |
+> | 2 | 3.01 | **2.14** | **5.15** |
+> | 3 | 3.65 | 10.95 | **14.60** |
+>
+> The machine total follows the tenant and nothing else. **The job cores barely move** — 3.42, 3.01, 3.65 — because at duty 0.27 the sessions are limited by their own duty rather than by the machine. So the neighbour nearly triples what the box delivers and hands almost none of it to the job, which is [the "helps one session, robs a hundred" effect](2026-08-11-085752-the-neighbour-helps-one-session-and-robs-a-hundred.md) visible inside one arm and with a mechanism: **the neighbour keeps cores unparked, and a hundred self-limiting sessions cannot.**
+>
+> **A defect in the script that produced this, recorded because it will bite the next user of the switch**: `-RequireTenant` waits for a tenant ABOVE 5 cores while `--abort-rest-above` stays at 2.0, so every attempt aborts within ~30 s. The gate and the guard contradict each other by construction. Each attempt still yielded the machine total this arm needed, so the result stands, but the ceiling has to track the gate's own requirement.
+
 ## What was measured
 
 | | |

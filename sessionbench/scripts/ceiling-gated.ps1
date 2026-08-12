@@ -52,7 +52,17 @@ try {
         elseif ($t -lt 0.5) { $quiet = $true; break }
         Start-Sleep -Seconds 20
     }
-    if (-not $quiet) { "gave up: tenant never fell below 0.5 cores"; return }
+    if (-not $quiet) { "gave up: the gate's tenant condition was never met"; return }
+
+    # THE GUARD MUST NOT CONTRADICT THE GATE. With -RequireTenant the gate waits
+    # for a tenant ABOVE 5 cores, and a 2.0 abort ceiling then fires within ~30 s
+    # of every attempt on the very condition the gate demanded. On 2026-08-12 all
+    # three attempts aborted that way; they still yielded the machine totals that
+    # arm needed, which is luck rather than design.
+    if ($RequireTenant -and $AbortRestAbove -lt 12.0) {
+        "  raising abort ceiling from $AbortRestAbove to 12.0: -RequireTenant asks for a neighbour the old ceiling refuses"
+        $AbortRestAbove = 12.0
+    }
 
     # A PRE-HOLD GATE TESTS AN INSTANT AND THE HOLD NEEDS A MINUTE. On 2026-08-12
     # this gate cleared at 15:55:00 with the tenant under 0.5 cores and the hold
