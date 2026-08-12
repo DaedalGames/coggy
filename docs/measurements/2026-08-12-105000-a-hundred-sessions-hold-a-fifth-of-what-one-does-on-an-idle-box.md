@@ -10,6 +10,12 @@
 >
 > **The likely mechanism, now visible and still untested**: `--resident` sizes the buffer a unit touches, so compute per unit scales with it. At 1 MiB the compute is short and the pause dominates; at 20 MiB it is long enough to hold the duty. That is a testable claim and this record does not test it.
 
+> **2026-08-12 11:02 — that mechanism is refuted, and the withdrawal above blamed the wrong variable.** Both arms run back to back at 100 sessions, same window: `--resident 1` gives **4.675 cores** and `--resident 20` gives **4.811** — **2.9% apart**. `--resident` does not set compute per unit.
+>
+> **So the archive's 6.5× spread is the machine, not the parameter.** Those eleven holds also span `rest_cores_median` from 0.49 to 13.6 cores, and the four that reached 15.3–15.5 are the four taken on a quiet box. The withdrawal was correct that my result did not generalise; its explanation was a second conclusion drawn across sittings, made while correcting a conclusion drawn across sittings.
+>
+> **What is still unexplained**: the pattern is not monotonic in `rest`. A hold at `rest` 0.55 gave 4.76 cores and one at `rest` 0.49 gave 15.51, both quiet. Something separates them that neither `--resident`, the pause mechanism, nor the residual accounts for — and this box has documented states worth 2.2× thermally and 7.8× on the plug.
+
 **A single `cpu-spin --duty 0.27` session holds 0.248 cores. A hundred of them hold 0.036 each — 13% of solo — while the machine around them sits at 0.55 cores and the job totals 3.6 of sixteen. The fall is monotonic in session count, it survives replacing the adaptive pause with a fixed one, and core contention cannot explain it: the box is 70% idle throughout.**
 
 ## The curve
