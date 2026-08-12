@@ -1,0 +1,8 @@
+feat(sessionbench): refuse to commit on a red gate
+
+- a commit went in on a red gate today because the commit was chained after gate.ps1 in one shell block and the printed exit code was never read
+- the gate already reports every command's own status and exits non-zero if any failed, but a guarantee survives only if something acts on it and a human reading a number is not something
+- that is the same failure as piping a run through tr and losing its status, where the guard was correct and the caller discarded it
+- green-commit.ps1 runs the gate, tests its own exit code, and refuses to commit if it is non-zero
+- gate.ps1 was written because describing the procedure was not enough, and this exists because gate.ps1 is not enough alone for exactly the same reason
+- takes the message as a FILE rather than a string, because a shell here-string handed to pwsh is parsed by the shell and the first attempt died on it
