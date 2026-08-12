@@ -396,6 +396,24 @@
 >
 > **And the threshold gap is populated, but not where it would matter.** 72 samples fall strictly between 0 and 5 cores, which had been empty in every earlier survey — and they sit at **0.031 to 0.125**, hugging zero rather than spreading through the range. So `TENANT_BUSY_CORES = 0.5` still separates the same pairs, and these land on the idle side, which their 97% parked rate says is right. The constant remains under-determined and is now known to be under-determined for a better reason: the population is bimodal at 0 and ~8.7 with a tail just above zero, not a gap waiting to be filled.
 
+> **2026-08-12 21:26 — the busy arm was never unstable. It is a dose-response, and it indicts the threshold.** Pooling the busy samples of all five censuses:
+>
+> | tenant cores | parked | machine cores |
+> |---|---|---|
+> | 9.76 | **4%** | 12.05 |
+> | 8.71 | **4%** | 10.84 |
+> | 7.70 | 26% | 10.66 |
+> | 7.45 | 25% | 10.48 |
+> | 4.56 | **54%** | 6.59 |
+>
+> **Monotonic across every window: the more the neighbour holds, the less the box parks**, and the machine total follows continuously from 6.59 to 12.05 cores. The spread withdrawn an hour ago as unexplained instability was this relationship seen through a bucket — a graded quantity split into busy/not-busy, which then disagreed with itself window to window depending on how hard the browser happened to be working.
+>
+> **That is a better correction than the withdrawal it replaces.** The withdrawal was right that two points are not a reproduction; it was wrong to reach for the agent's activity, when the census already recorded the variable that explains it and nothing had pooled the windows.
+>
+> **And it indicts `TENANT_BUSY_CORES = 0.5` directly.** A ramp beside a 4.56-core neighbour and one beside a 9.76-core neighbour both classify as *busy* and pass `compare`, while running on machines offering **6.59 and 12.05 cores** — nearly a factor of two, which is most of the 2.8x the check exists to catch. The threshold is not merely under-determined, it is in the wrong place: a shared side of one bar does not mean a shared machine when the effect is graded.
+>
+> **The likely fix is a DIFFERENCE rather than a bar** — refuse a pair whose tenant loads differ by more than some margin, the way the solo-agreement check already works on rates. That has the same shape as a check this repository already trusts, and it needs the margin measured rather than chosen.
+
 ## What was measured
 
 | | |
