@@ -414,6 +414,20 @@
 >
 > **The likely fix is a DIFFERENCE rather than a bar** — refuse a pair whose tenant loads differ by more than some margin, the way the solo-agreement check already works on rates. That has the same shape as a check this repository already trusts, and it needs the margin measured rather than chosen.
 
+> **2026-08-12 21:30 — the neighbour's cores pass through to the machine almost one for one, across 1085 samples.** Fitting every census sample that carries both columns:
+>
+> ```
+> machine_cores = 0.937 * tenant_cores + 3.119     r = 0.912   r2 = 0.831
+> ```
+>
+> **A slope of 0.937 says the browser is not competing for cores, it is unlocking them** — nearly every core it holds is a core that would otherwise be parked. The intercept of **3.12** is what this box delivers with no neighbour at all, which is consistent with the ~5-core holds once the agent's own share is added.
+>
+> **r2 = 0.831 on 1085 samples: the neighbour's load explains 83% of the variance in what this machine delivers.** That is a stronger statement than the 2x2 that established the direction, and it is drawn from samples the censuses were already writing.
+>
+> **It also converts the outstanding threshold question from taste to arithmetic.** A tenant difference of 1 core costs 0.94 machine cores, 2 costs 1.87, 3 costs 2.81 — so a margin for a difference-based comparison check can be set against what the solo-agreement allowance already tolerates, rather than chosen and defended afterwards.
+>
+> **What this does not establish**: causation in the direction assumed. The fit is consistent with the neighbour unparking the box, and equally consistent with something unparking the box and letting the neighbour take more. The 2x2 and the arrival-lag data argue for the first — parking follows a departure within one sample — and the fit alone cannot distinguish them.
+
 ## What was measured
 
 | | |
