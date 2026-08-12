@@ -92,6 +92,23 @@ And the pause is always longer than requested. `--duty 0.27` asks for `compute �
 
 **This is the oversleep confound the repository records as cleared.** It was cleared from readings at one session, where a lone sleeper wakes on time — and it is the dominant term with a hundred of them. The clearing was correct about what it measured and never reached the regime where the effect lives.
 
+## Oversleep scales with the number of sleepers, and the state multiplies it
+
+The same decomposition across today's session-count series:
+
+| sessions | compute/unit | pause got | pause asked | oversleep |
+|---|---|---|---|---|
+| 1 | 26.6 ms | 80.4 ms | 71.7 ms | **1.12×** |
+| 10 | 27.3 ms | 126.2 ms | 73.8 ms | **1.71×** |
+| 30 | 21.6 ms | 235.1 ms | 58.3 ms | **4.03×** |
+| 100 | 15.8 ms | 458.6 ms | 42.7 ms | **10.73×** |
+
+**A lone session oversleeps by 12%; a hundred by nearly eleven times.** That is the whole self-limiting curve without invoking contention — the sessions ask for a 43 ms pause and get 459 ms, so they run a fifth as often on a box with eleven idle cores.
+
+**And it locates the state.** The same hundred sessions overslept **2× on 3 August and 10.7× today**, so the count sets the shape and the state sets the multiplier. Two factors, both measured here, neither named before.
+
+It also explains why a single-session check certified the confound as cleared: at 1.12× there is nothing to see, and the effect that dominates a hundred sessions is invisible at one.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
