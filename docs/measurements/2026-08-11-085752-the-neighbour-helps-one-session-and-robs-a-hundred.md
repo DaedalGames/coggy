@@ -1,5 +1,7 @@
 # The neighbour helps one session and robs a hundred
 
+> **2026-08-12 — this now has a mechanism: the neighbour keeps cores UNPARKED.** Windows parks cores on this box when nothing sustained runs. [A 2x2 gives 5.09-5.37 machine cores with `chrome-headless-shell` absent against 14.47-14.60 with it present](2026-08-12-143500-ten-of-sixteen-cores-are-parked-under-a-hundred-sessions.md), and three holds minutes apart read 14.53, 5.15 and 14.60 as it came and went. So the neighbour raises what the box delivers while taking a share of it — which is why one session gains and a hundred, already limited by their own duty, only lose the share. The correlation recorded below is that effect seen through throughput; the core count is the thing itself.
+
 **The same tenant that makes a lone session 34% faster costs a hundred sessions three quarters of their throughput.** Gate M1's work-rate condition divides the first by the second, so tenancy pushes both halves of the ratio the same way, and the verdict moves by roughly a factor of four with nothing in the run's own report saying which case it was.
 
 ## The two arms, measured separately

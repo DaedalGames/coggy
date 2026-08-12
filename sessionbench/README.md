@@ -263,6 +263,10 @@ Use `git subtree split` then, which preserves history. **Never symlinks:** on Wi
 
 ## Report format
 
+**Read `tenant_cores_median` before anything else in a hold.** It is not decoration: on this box a hold with it near zero and a hold with it near nine were taken on machines offering **5 and 14 cores**. Windows parks cores when nothing sustained is running and unparks when something is, so [a 2x2 gives 5.09-5.37 machine cores with the neighbour absent against 14.47-14.60 with it present](../docs/measurements/2026-08-12-143500-ten-of-sixteen-cores-are-parked-under-a-hundred-sessions.md), while a **3.7x change in the sessions' own duty moves that total by 5%**. Two holds whose tenant figures differ are not two measurements of one machine, and nothing else in the artifact will tell you — `rest_cores_median` is `machine - job`, a subtraction, and anonymous by construction.
+
+`tenant_processes` sits beside it so a zero can be told from an absence. A renamed or suffixed neighbour goes uncounted and the CPU figure silently reads 0.0, which is indistinguishable from a quiet machine; the count is what separates them, and it caught a real defect within an hour of landing.
+
 Machine-readable and human-readable are separate artifacts.
 
 Every run writes both, into its own directory under `bench-out/`:
