@@ -329,6 +329,16 @@
 >
 > **What this does not establish**: that timer resolution is the cause. It is one declared difference between two processes that behave differently, which is a lead rather than a mechanism — the same standing the parking correlation had before the 2x2. Testing it means making a workload raise the timer and re-running the ladder, and `unsafe_code = "forbid"` at the workspace root puts `timeBeginPeriod` out of reach of any crate inheriting the lints.
 
+> **2026-08-12 20:10 — the timer lead is weakened by re-reading the report it rested on.** Every `chrome-headless-shell.exe` mention in the full energy report sits in the **CPU-utilisation** section (PID 36476 at 44.72%), not a timer section, and the only millisecond figure in the whole document is **`15.6ms`** — the unraised default.
+>
+> **So the platform timer appears to sit at its floor while Chromium runs and the box is unparked.** If that figure is the platform timer resolution, the browser unparks this machine WITHOUT shortening the tick, and the mechanism promoted an hour ago is wrong.
+>
+> **What my earlier count actually measured**: 27 hits of the Korean word for *timer* and 23 for *chrome*, in one 12,000-character document, which I read as the same section. They are not. **Counting two terms in one file and concluding they co-occur is a co-location error**, and it survived because both counts were large enough to feel like evidence — the localisation fix corrected the search and not the inference built on it.
+>
+> **Status: weakened, not eliminated.** `ControlMask=0x4` says Chromium wants its timer-resolution requests honoured, which is not the same as currently making one. Confirming the 15.6ms figure IS the platform timer resolution, rather than something else the report mentions once, is what would close it — and that is a re-read rather than a run.
+>
+> **Which leaves the mechanism open again**: four candidates eliminated, the fifth weakened, and a browser that unparks a box sixty CPU-bound processes cannot.
+
 ## What was measured
 
 | | |
