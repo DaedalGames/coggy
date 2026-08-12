@@ -89,6 +89,15 @@ pub struct Occupancy {
     /// rather than the slow machine
     /// state](../../docs/measurements/2026-08-03-070018-a-solo-triple-spread-thirty-percent-and-the-column-said-why.md).
     pub rest_cores_median: f64,
+    /// Median cores held by the agent driving the run, over the same window.
+    ///
+    /// **`rest_cores_median` includes it, and this says how much.** Measured
+    /// 2026-08-12 at 0.18 cores idle and 1.58–1.99 while working — and the cost
+    /// is event-driven, spiking when a watcher fires, which is when a hold
+    /// begins. It is reported rather than subtracted so every figure already on
+    /// disk keeps its meaning, and so a reader can see the contamination rather
+    /// than receive a corrected number with no provenance.
+    pub observer_cores_median: f64,
     /// Mean cores below the median, summed over samples under it.
     ///
     /// **The one number that would have caught it**, and it has a floor rather
@@ -170,6 +179,14 @@ impl Occupancy {
             .collect();
         rest.sort_by(f64::total_cmp);
         let rest_median = rest[rest.len() / 2];
+        // Over the SAME window as `rest`, so the two can be subtracted without
+        // mixing moments — the error this repository has made more than once.
+        let mut observer: Vec<f64> = samples[from..]
+            .iter()
+            .map(|s| f64::from(s.observer_cpu_percent) / 100.0)
+            .collect();
+        observer.sort_by(f64::total_cmp);
+        let observer_median = observer[observer.len() / 2];
         cores.sort_by(f64::total_cmp);
         let median = cores[cores.len() / 2];
         let lost = cores.iter().map(|c| (median - c).max(0.0)).sum::<f64>() / cores.len() as f64;
@@ -178,6 +195,7 @@ impl Occupancy {
             mean_cores: cores.iter().sum::<f64>() / cores.len() as f64,
             lost_cores: lost,
             rest_cores_median: rest_median,
+            observer_cores_median: observer_median,
         })
     }
 }
