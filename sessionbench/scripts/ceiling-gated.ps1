@@ -16,7 +16,7 @@
 # 3.34-4.81. If they stay near 5 with the tenant absent AND the box unparked,
 # neither parking nor tenancy explains the ceiling and it is something else.
 [CmdletBinding()]
-param([int]$Sessions = 100, [int]$Seconds = 60, [int]$MaxWaitMinutes = 40, [int]$MaxAttempts = 4, [double]$AbortRestAbove = 2.0)
+param([int]$Sessions = 100, [int]$Seconds = 60, [int]$MaxWaitMinutes = 40, [int]$MaxAttempts = 4, [double]$AbortRestAbove = 2.0, [double]$Duty = 1.0, [switch]$RequireTenant)
 
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $bench = Join-Path $root 'target\release\sessionbench.exe'
@@ -44,7 +44,12 @@ try {
     while ((Get-Date) -lt $deadline) {
         $t = Tenant-Cores
         "  {0}  tenant {1:N2} cores" -f (Get-Date -Format 'HH:mm:ss'), $t
-        if ($t -lt 0.5) { $quiet = $true; break }
+        # -RequireTenant inverts the gate. The mirror-image test needs the
+        # NEIGHBOUR PRESENT, because continuity and tenancy predict opposite
+        # machine totals for a gappy workload beside a busy Chromium, and every
+        # run so far has varied them together.
+        if ($RequireTenant) { if ($t -gt 5.0) { $quiet = $true; break } }
+        elseif ($t -lt 0.5) { $quiet = $true; break }
         Start-Sleep -Seconds 20
     }
     if (-not $quiet) { "gave up: tenant never fell below 0.5 cores"; return }
@@ -56,11 +61,11 @@ try {
     # `--abort-rest-above` ends it mid-flight when the residual climbs, and the
     # attempt is retried rather than published.
     for ($try = 1; $try -le $MaxAttempts; $try++) {
-        "ATTEMPT {0}/{1} - cleared at {2}, holding {3} sessions at duty 1.0 for {4}s" -f `
+        "ATTEMPT {0}/{1} - cleared at {2}, holding {3} sessions at duty $Duty for {4}s" -f `
             $try, $MaxAttempts, (Get-Date -Format 'HH:mm:ss'), $Sessions, $Seconds
         & $bench hold --label "ceiling-gated-$try" --sessions $Sessions --interval 5 --duration $Seconds `
             --abort-rest-above $AbortRestAbove -- `
-            $spin --units 100000000 --duty 1.0 --resident 1
+            $spin --units 100000000 --duty $Duty --resident 1
         "  sessionbench exit = $LASTEXITCODE"
         # Re-wait for quiet before the next attempt rather than launching into a
         # box the previous attempt just told us is busy.

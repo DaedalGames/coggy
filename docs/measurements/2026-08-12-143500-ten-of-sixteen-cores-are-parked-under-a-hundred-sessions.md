@@ -150,6 +150,24 @@
 >
 > **What it cost**: four aborted attempts, and nearly a conclusion. All-attempts-aborted was about to be recorded as *this box cannot hold a quiet minute while Playwright runs*, which is a plausible claim, matches three earlier confounded holds, and was going to be wrong — the aborts were the instrument, not the box.
 
+> **2026-08-12 16:44 — the driver is the TENANT, not the workload's continuity. The finding above is withdrawn.** Three gated holds of a hundred sessions at `--duty 1.0`, 90 s each, with the abort predicate armed after the startup window:
+>
+> | attempt | job cores | rest | machine | tenant |
+> |---|---|---|---|---|
+> | 1 | 4.59 | 0.73 | **5.32** | absent |
+> | 2 | 4.55 | 0.82 | **5.37** | absent |
+> | 3 | **5.95** | 8.52 | **14.47** | **present** |
+>
+> **A sleepless hundred on a genuinely quiet box leaves the machine at ~5.3 cores** — the parked level. The same workload with Chromium present reaches **14.47**. So it is the tenant's continuous rasterisation that unparks this machine, and my sessions never did.
+>
+> **Every "sleepless unparks it" reading was tenanted.** The 12.36 from the parking-under-load run recorded `tenant_processes` 3-4; the 12.64 and 14.455 holds carried residuals of 7.57 and 9.60 and were written up above as *confounded by tenancy* on the job side while their MACHINE figure was quoted as clean. It was not clean — it was the confound. **The two arms of the continuity contrast were the same runs**, and tenancy was uncontrolled in both.
+>
+> **And the neighbour helps the job.** 5.95 cores with a tenant taking 8.52, against 4.55-4.59 with the machine otherwise empty. That is [the documented "neighbour helps one session"](2026-08-11-085752-the-neighbour-helps-one-session-and-robs-a-hundred.md) effect with a mechanism instead of a shrug: the neighbour unparks cores the workload cannot ask for.
+>
+> **What survives.** The parked count is real, bimodal, and worth 2.5-3.6x in delivered cores; the dwell maxima of 178-257 s still explain how a hold lands entirely in one state; and the box still delivers ~5 cores to a hundred sessions whatever their duty. **What does not**: that duty or continuity is the lever. `--duty 0.27` and `--duty 1.0` both give ~4.6-5.1 job cores when the box is quiet.
+>
+> **The measurement that would settle it** is the mirror image and has never been run: a `--duty 0.27` hundred held WHILE the tenant is present. Continuity predicts ~5 there and tenancy predicts ~14, and for the first time the two hypotheses disagree.
+
 ## What was measured
 
 | | |
