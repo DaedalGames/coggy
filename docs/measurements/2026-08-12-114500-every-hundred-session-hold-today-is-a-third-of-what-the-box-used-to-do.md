@@ -71,6 +71,27 @@ Units per core-second — work done per unit of CPU actually obtained, which is 
 
 What remains is a scheduling or wake question — the same hundred sessions obtain a fifth of the machine's time while eleven of sixteen cores sit idle.
 
+## The mechanism: they oversleep, and by how much is the state
+
+Decomposing a unit into the CPU it costs and the wall clock it occupies. A unit is one line; `cycle = 1 / units-per-session-per-second`; `compute = cores-each × cycle`.
+
+| hold | compute/unit | cycle/unit | implied pause |
+|---|---|---|---|
+| tickpair, 08-03 | 14.8 ms | 95 ms | ~80 ms |
+| slowstate-ratio, 08-03 | 17.0 ms | 111 ms | ~94 ms |
+| statepair2, 08-11 | 20.5 ms | 132 ms | ~112 ms |
+| m1-abs-1200, 08-11 | 13.4 ms | 189 ms | ~175 ms |
+| **resids1, 08-12** | **15.8 ms** | **474 ms** | **~458 ms** |
+| **resids20, 08-12** | **16.2 ms** | **458 ms** | **~442 ms** |
+
+**Compute per unit is constant at 13–20 ms across every state and every day.** What varies by five times is the *pause*.
+
+And the pause is always longer than requested. `--duty 0.27` asks for `compute × (1 − duty)/duty` — about **40 ms** after a 15 ms compute. The sessions get **80 ms** in the fast state and **458 ms** today: **they oversleep by 2× then and 11× now.**
+
+`--wait-ms` confirms it by a different route: a fixed **46 ms** request, a measured cycle of 543 ms against a 26 ms compute, so **517 ms actual — the same 11×**. A mechanism that inflates both an adaptive pause and a fixed one is in the sleep and wake path, not in the arithmetic that computes the pause.
+
+**This is the oversleep confound the repository records as cleared.** It was cleared from readings at one session, where a lone sleeper wakes on time — and it is the dominant term with a hundred of them. The clearing was correct about what it measured and never reached the regime where the effect lives.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
