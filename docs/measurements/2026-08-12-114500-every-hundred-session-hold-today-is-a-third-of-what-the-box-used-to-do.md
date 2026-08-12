@@ -270,6 +270,19 @@ That prices the outstanding measurement rather than merely deferring it. The ano
 >
 > **And for that regime the arithmetic closes.** The tenant holds 7.93 of 16, leaving about 8 cores for a hundred processes — **0.08 each**, against **0.062** measured. Ordinary core-sharing predicts the sleepless collapse to within a quarter, so there is no anomaly there to explain. **The open question is narrower than it was**: it belongs to the `--duty 0.27` holds, where the machine really did read 1.97 of 16 busy with the tenant absent.
 
+## A census during a duty-0.27 hold, and the tenant is in it too
+
+| hundred-session `--duty 0.27` window | machine busy | `chrome-headless-shell` | each session |
+|---|---|---|---|
+| tenant absent | 1.97 of 16 | — | **0.0197** |
+| tenant present | 14.89 of 16 | **9.99 cores** | **0.0299** |
+
+**The more contended window gave each session 52% more**, which is the wrong direction for contention.
+
+**It is not offered as a result.** The two windows are hours apart, so this varies time as well as tenancy — exactly the confound this repository has already paid for twice, and the correction for it is to vary tenancy inside one window rather than to explain the pair. What the census does establish is narrower and solid: **the tenant was present for both ad-hoc runs above**, at 7.93 and 9.99 cores, so neither was the idle box they were taken to be.
+
+**Which leaves the open question with one clean instance rather than a series** — the single window that read 1.97 of 16 busy with nothing else on the machine, where a hundred sessions still reached 7.3% of their requested duty. Replicating *that* window is the next measurement, and the census is now the instrument for confirming it is what it claims to be.
+
 ## The cores are busy; the processes are not the ones using them
 
 Per-core counters under a hundred bare `--duty 1.0` sessions — no sleep, no daemon:
