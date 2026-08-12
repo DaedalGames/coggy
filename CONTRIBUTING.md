@@ -73,7 +73,9 @@ The body is free-form: one bullet per durable change, each on a single line, omi
 
 Branch from `main`, which is the only branch this repository has. Before opening:
 
-- [ ] `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, and `cargo +1.88.0 check --all-targets --locked` all pass
+- [ ] `pwsh -NoProfile -File sessionbench/scripts/gate.ps1` prints **GATE GREEN** — it runs `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` and `cargo +1.88.0 check --all-targets --locked`, and reports each one's own exit code
+  - Run the four by hand if you prefer, but **read the exit codes rather than the output**. A commit went in on a failing test because an inline filter's first matches were `test result: ok` lines from earlier suites, while the status said otherwise one line above.
+  - And **do not pipe the script**: `| tr` or `| head` replaces its exit status with the pipe's last member, which is how a red run reports zero.
 - [ ] `cargo run -p sessionbench -- doctor` runs, and you read it
 - [ ] Performance claims carry a `sessionbench` artifact with its provenance block
 - [ ] Nothing in "What gets closed" applies
