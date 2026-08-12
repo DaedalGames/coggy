@@ -51,6 +51,26 @@
 >
 > **What is still not established**: the switch's period and what drives it. 26 samples over ~80 seconds is enough to show bimodality and not enough to time it, and nothing here relates the position to load, to the tenant, or to the clock.
 
+> **2026-08-12 15:16 — 353 samples over 18 minutes, and the picture closes.**
+>
+> | | |
+> |---|---|
+> | samples | 353 over 18.0 min, achieved interval **3.06 s** |
+> | parked distribution | **0: 39%**, 12: **27%**, everything else spread thin — **67% at the two extremes** |
+> | dwell means, across cuts of 4, 6, 8 and 10 | **18-35 s** |
+> | dwell **maxima** | **178-257 s** |
+> | machine cores, parked side vs unparked | **3.13 vs 11.28 — 3.6x** |
+>
+> **The bimodality survives.** The 37-sample read that looked like it was dissolving was itself the small sample, and this record came within one tick of withdrawing a correct claim. **The rule against asserting from few samples applies equally to retracting from them** — a shape that weakens at 37 and holds at 353 was never weakening.
+>
+> **The decisive figure is the maximum dwell, not the mean.** A mean of 25 s would average out inside any hold and could not produce two operating points. **A maximum of 178-257 s is several times longer than the 25-60 s holds taken all night**, so a hold can sit entirely inside one state — which is what makes a bimodal machine produce two reproducible numbers instead of one blended one.
+>
+> **The dwell figures are threshold-dependent and the conclusion is not.** Cuts at 4, 6, 8 and 10 give above-side means of 35, 25, 18 and 18 s and maxima of 257, 178, 178 and 178 s. The mean moves by a factor of two with the cut; every cut agrees the maximum is minutes rather than seconds. **That is the check the threshold sensitivity was run for** — a run-length statistic on a split series is a fact about the machine only where it survives its own cut.
+>
+> **And the two sides differ by 3.6x in delivered work**, 3.13 cores against 11.28, which is the same order as the 4.7x separating the two operating points.
+>
+> **What is still not established, and it is the direction.** Cores may park *because* the machine went idle, rather than the machine delivering less *because* cores parked. This correlation cannot distinguish them, and both readings are consistent with either. Settling it needs the parked state recorded *alongside* a controlled load rather than sampled beside it.
+
 ## What was measured
 
 | | |
