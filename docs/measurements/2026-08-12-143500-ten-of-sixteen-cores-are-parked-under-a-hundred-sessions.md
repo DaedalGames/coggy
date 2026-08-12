@@ -680,3 +680,11 @@ The census that ran alongside it reports the two arms again:
 
 The busy arm is stable across all three — a loaded box does not park, at 4% and 7%. **The quiet arm is not**: 89%, 83%, 44%, and the two that disagree most are the two with `quiet n = 18`. The 95-sample reading and the 18-sample reading are not the same quality of number, and nothing in the earlier appends said which was which. So the direction stands — quiet parks, busy does not — and **any specific quiet-side percentage in this record carries an error bar wide enough to hold 44 and 89 at once** until a census accumulates quiet samples in the hundreds. The busy arm gets there in one run because this box is busy; the quiet arm is rare here by construction, which is the same reason it is the harder one to measure.
 
+## 2026-08-13 01:10 — SUPERSEDED: this workload CAN unpark the box, at five sessions
+
+Four appends above say *this workload cannot unpark this box at any count*, and it is now false. It was true of every workload that existed when it was written — all of them one thread to a process. [Five processes of 27 threads take the box from 11 parked cores to 2](2026-08-13-011000-the-box-unparks-for-threads-not-for-processes.md), tenant absent, in the same window as a five-process one-thread arm that reaches 7.
+
+**The count ladders were not wrong, they were answering the wrong question.** Sixty processes asking for more than Chromium consumes leave the box parked because size is not what the policy reads. What the sentence should have said is that this workload could not unpark the box **by adding processes**, which is a fact about the arrangement rather than about the amount — and the flag that varies arrangement did not exist until tonight.
+
+The neighbour section above is affected the same way. *What the neighbour IS* is no longer the sharpest open question left; it is not a question at all, since 27 threads were picked to match `chrome-headless-shell` and reproduce its effect with no browser present.
+
