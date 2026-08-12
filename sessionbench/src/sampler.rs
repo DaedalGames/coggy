@@ -54,6 +54,11 @@ const OBSERVER_PROCESS: &str = "claude";
 /// Matched on a prefix for the same reason as the observer above.
 const TENANT_PROCESS: &str = "chrome-headless-shell";
 
+/// How many ticks between full process walks while a hold is running.
+///
+/// Six ticks is 30 s at the 5 s interval every hold here uses.
+const REDISCOVER_EVERY_TICKS: u32 = 6;
+
 /// What one tick of the instrument cost.
 ///
 /// A scaling benchmark has to know its own overhead, because the one failure it
@@ -335,6 +340,19 @@ pub struct Sampler {
     /// The agent's pids, found on a full walk and refreshed by pid after.
     observers: Vec<Pid>,
     tenants: Vec<Pid>,
+    /// Ticks since the last full walk, which is what re-finds a neighbour that
+    /// started after the sampler did.
+    ///
+    /// **A targeted refresh never notices a process it is not already tracking.**
+    /// The defender arm beside it handles the opposite case — a process that
+    /// EXISTED and vanished — by dropping `self.defender` and falling to the
+    /// full-walk arm on the next tick. That works because the defender is
+    /// expected to be there, so its absence is rare. **The tenant is absent 39%
+    /// of the time**, measured across two censuses, so the same event-driven
+    /// trigger would take the expensive path on two ticks in five, and the full
+    /// table cost 98 ms at one session, 150 ms at ten and eighty seconds at
+    /// twenty-five. Hence periodic rather than event-driven.
+    ticks_since_walk: u32,
     /// Why the sampling thread could not be raised above the sessions, when it
     /// could not. Carried into reports, since a starved sampler produces
     /// numbers that describe the observer.
@@ -357,6 +375,7 @@ impl Sampler {
             defender: None,
             observers: Vec::new(),
             tenants: Vec::new(),
+            ticks_since_walk: 0,
             unprioritised_reason: raise_current_thread().err(),
         };
         if let Some(reason) = &sampler.unprioritised_reason {
@@ -415,7 +434,21 @@ impl Sampler {
         self.sys.refresh_cpu_usage();
         let kind = ProcessRefreshKind::nothing().with_cpu().with_memory();
 
-        match (tracked, self.defender) {
+        // **WHY SIX.** A neighbour that arrives mid-hold is exactly what the
+        // tenant column exists to catch, and on 2026-08-12 it missed one for a
+        // whole ten-minute hold: `tenant_processes` read 0 in all 119 samples
+        // while five `chrome-headless-shell` processes ran and the residual
+        // stood at 10.4 cores. At a 5 s tick this walks once every 30 s, which
+        // is well inside the 178-257 s dwell maxima measured for this box's
+        // parked state, so an arrival is caught long before it can define the
+        // hold. The cost is one full walk a minute at most.
+        self.ticks_since_walk = self.ticks_since_walk.saturating_add(1);
+        let due = self.ticks_since_walk >= REDISCOVER_EVERY_TICKS;
+        if due {
+            self.ticks_since_walk = 0;
+        }
+
+        match (tracked.filter(|_| !due), self.defender) {
             (Some(pids), Some(defender)) => {
                 let mut list =
                     Vec::with_capacity(pids.len() + 1 + self.observers.len() + self.tenants.len());
