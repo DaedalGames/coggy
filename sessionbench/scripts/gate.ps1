@@ -33,8 +33,16 @@ $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $log = Join-Path $env:TEMP "coggy-gate-$stamp-$PID.log"
 "gate log: $log"
 
+# BUILD WHAT THE MEASUREMENTS RUN. `cargo test` builds the test profile; every
+# script here executes `target/release/*.exe`. On 2026-08-12 a fix to the abort
+# predicate was edited, gated GREEN, and relaunched against a release binary
+# built five hours earlier — three more runs aborted on the defect that had just
+# been fixed, and the gate said nothing because the gate was right about a
+# different binary. A passing test says the code is correct; only this step says
+# it is the code that is running.
 $steps = @(
     @{ Name = 'fmt'; Args = @('fmt', '--check') },
+    @{ Name = 'build'; Args = @('build', '--release') },
     @{ Name = 'clippy'; Args = @('clippy', '--all-targets', '--', '-D', 'warnings') },
     @{ Name = 'test'; Args = @('test') }
 )
