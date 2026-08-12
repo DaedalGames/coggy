@@ -16,6 +16,12 @@
 >
 > **What is still unexplained**: the pattern is not monotonic in `rest`. A hold at `rest` 0.55 gave 4.76 cores and one at `rest` 0.49 gave 15.51, both quiet. Something separates them that neither `--resident`, the pause mechanism, nor the residual accounts for — and this box has documented states worth 2.2× thermally and 7.8× on the plug.
 
+> **2026-08-12 11:06 — that "unexplained" pair is the pause flag, and the `--resident` verdict above is over-claimed.** Splitting the twelve large holds by mechanism: the 4.76 is the only `--wait-ms` hold and the 15.51 is `--duty`. Not a machine state — the flag. Fourth attribution error of the night in the same shape, this one caught before a run rather than after.
+>
+> **And the back-to-back `--resident` pair was taken at `rest` 9.9 and 8.9, where the machine already limits both arms to ~4.7 cores.** The archive's contrast sits at `rest` 0.5, where `--duty` holds reach 15.3–15.5. So the pair shows `--resident` is innocent **on a loud box** and says nothing about a quiet one — an invariant exercised only where it cannot break. The claim that `--resident` does not set compute per unit stands for that regime alone.
+>
+> **What the split does show, for `--duty` holds:** `rest` 13.6 → 2.4 cores; 8.5–10 → 4.3–7.5; 0.5–0.8 → **15.3–15.5**. A hundred sessions **do** saturate a quiet box. The one outlier, `rest` 3.24 → 3.635, is a hold whose own samples show the tenant arriving mid-way, so its median blends two machines.
+
 **A single `cpu-spin --duty 0.27` session holds 0.248 cores. A hundred of them hold 0.036 each — 13% of solo — while the machine around them sits at 0.55 cores and the job totals 3.6 of sixteen. The fall is monotonic in session count, it survives replacing the adaptive pause with a fixed one, and core contention cannot explain it: the box is 70% idle throughout.**
 
 ## The curve
