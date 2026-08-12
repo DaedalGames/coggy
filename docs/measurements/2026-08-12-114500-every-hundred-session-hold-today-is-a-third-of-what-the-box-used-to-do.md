@@ -262,6 +262,24 @@ A self-gating probe waited fifty minutes for a three-sample mean under 1.0 cores
 
 That prices the outstanding measurement rather than merely deferring it. The anomalous condition — a hundred-session hold whose `rest` stays under 2 — has been sought six times today and obtained twice by accident. **No gate rule, hold length or threshold reaches a machine that offers two sub-2.0 polls in fifty minutes**, so the remaining approaches are a genuinely idle machine, a different box, or reading the per-process throttling state directly rather than inferring it from timing.
 
+## The cores are busy; the processes are not the ones using them
+
+Per-core counters under a hundred bare `--duty 1.0` sessions — no sleep, no daemon:
+
+| | |
+|---|---|
+| every core's `% Processor Time` | **79–100%**, machine total **91.9%** |
+| the same processes' own CPU time | **6.21 cores** |
+| **unaccounted** | **~9 cores** |
+
+**The box is not idle while these run — it is nearly full.** But their own `TotalProcessorTime` accounts for barely a third of it. Something consumes the rest, and it is not user-mode work in `cpu-spin`.
+
+The clock also splits: cores 0–3 sit at **~94%** of nominal and cores 4–15 at **~119–122%**, which is a hybrid topology running two classes at different ratios rather than a uniform sixteen.
+
+**This reframes the phrase "on an idle box" used above.** That phrase came from `rest_cores_median` and `doctor`, both measured during *daemon* holds at `--duty 0.27`, where job plus rest reached only 5.2 of 16. The reading here is a different workload — a hundred sleepless processes — so it does not directly overturn those figures. **What it does is make the idleness claim testable rather than assumed**, and the same per-core read has never been taken during a daemon hold.
+
+**That is the measurement this record now needs**: per-core `% Processor Time` during a `--duty 0.27` hundred-session hold. If the cores are busy there too, then the sessions were never on an idle machine and the deschedule figures are ordinary contention with an unaccounted consumer; if the cores are genuinely idle, the anomaly stands and this section is about a different regime.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
