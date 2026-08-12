@@ -258,6 +258,20 @@
 >
 > **The episode count is stated because it is the real sample size.** The split rests on **five** absences rather than 206 independent observations, and each lag figure is four measurements. A 3-second series is autocorrelated, so counting rows would overstate the confidence by an order of magnitude.
 
+> **2026-08-12 18:58 — sessions do NOT hold the unparked state. Withdrawn.** A 17-minute hundred-session hold with the census running alongside, 334 samples:
+>
+> | | during the hold | idle reference |
+> |---|---|---|
+> | departure -> park | **0 samples, all 7 episodes** | 0 samples, 4 episodes |
+> | parked >= 8, tenant absent | **100%** (n=149) | 98% |
+> | parked >= 8, tenant present | **52%** (n=185) | 4% |
+>
+> **Seven departures, seven immediate parks**, indistinguishable from an idle machine. The claim that a hundred sessions can hold a state they cannot trigger rested on ONE five-minute hold where the tenant left and the machine total did not move; that hold caught something else. **The failure condition was written into the task before this ran**, which is the only reason the withdrawal is quick rather than argued.
+>
+> **The 52% row is not yet a claim.** The census counts tenant PROCESSES, not tenant load, and a browser that is present but idle produces exactly this reading. Presence is a proxy for the demand that drives parking, and a process count cannot tell a busy Chromium from a dormant one. What would separate them is the tenant's own CPU per sample, which the census records and which this pass did not use.
+>
+> **And the hold's own tenant column was unusable here** — `tenant_cores_median` read **-0.000** while the census saw the browser throughout. That is the frozen-discovery defect: the column is populated only at `Sampler::new()`, so a neighbour already running when the sampler starts is caught and one that arrives later is not. The census and the hold disagreed, and the census was right.
+
 ## What was measured
 
 | | |
