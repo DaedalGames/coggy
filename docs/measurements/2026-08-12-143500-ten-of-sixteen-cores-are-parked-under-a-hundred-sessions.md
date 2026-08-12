@@ -562,6 +562,17 @@
 >
 > **The durable finding is about the instrument.** `doctor` records an OS build string, and a build string is not a configuration fingerprint: the archive cannot tell two machines apart that report the same one. Every cross-day comparison in this repository rests on a field that did not notice the largest environmental change it has ever recorded.
 
+> **2026-08-12 23:18 — what those updates are, checked locally and uninformative.**
+>
+> | KB | description | installed by |
+> |---|---|---|
+> | KB5121003 | Security Update | `NT AUTHORITY\SYSTEM` |
+> | KB5123304 | Security Update | `NT AUTHORITY\SYSTEM` |
+>
+> **Neither supports nor undermines the candidate**, and that is worth recording rather than leaving the question looking unexamined. Windows files cumulative packages containing kernel and power-management changes under exactly this label, so the classification carries no signal about whether either touched core parking.
+>
+> **What it does add is that both were installed unattended by SYSTEM** — no prompt, no reboot anyone would have noticed. That is consistent with a machine whose behaviour changed between two mornings with nothing visible happening, and it is the best available explanation for why the change went unnoticed for a day while its effects were attributed to the workload, the daemon, the thermal state and the neighbour in turn.
+
 ## What was measured
 
 | | |
