@@ -464,6 +464,34 @@ mod tests {
         );
     }
 
+    /// The predicate itself, which the struct-literal tests above cannot reach.
+    ///
+    /// The bucket this replaced admitted **9.25 cores** of difference — 9.76
+    /// and 0.51 both counted as busy while their machines offered 12.05 and
+    /// 6.59 cores. These are the numbers that case is made of, so a regression
+    /// to a same-side test fails here rather than passing quietly.
+    #[test]
+    fn two_busy_neighbours_far_apart_are_not_one_machine() {
+        let differs = |l: f64, r: f64| (l - r).abs() > TENANT_AGREEMENT_CORES;
+        assert!(
+            differs(9.76, 0.51),
+            "the pair the bucket admitted: both busy, machines 12.05 against 6.59"
+        );
+        assert!(
+            differs(8.71, 0.0),
+            "and the absent/present case is subsumed"
+        );
+        assert!(
+            !differs(9.76, 9.80),
+            "two equally tenanted ramps must still pass"
+        );
+        assert!(!differs(0.0, 0.0), "and two quiet ones must still pass");
+        assert!(
+            !differs(0.031, 0.125),
+            "the 72 samples that hug zero are one machine, not two"
+        );
+    }
+
     /// An unrecorded state is not a matching one.
     #[test]
     fn a_state_only_one_side_recorded_cannot_read_as_agreement() {
