@@ -22,6 +22,14 @@
 >
 > **What the split does show, for `--duty` holds:** `rest` 13.6 → 2.4 cores; 8.5–10 → 4.3–7.5; 0.5–0.8 → **15.3–15.5**. A hundred sessions **do** saturate a quiet box. The one outlier, `rest` 3.24 → 3.635, is a hold whose own samples show the tenant arriving mid-way, so its median blends two machines.
 
+> **2026-08-12 11:16 — a fifth attempt, and the quiet-box test is unobtainable here.** A self-gating run polled silently, cleared on a three-sample mean under 1.5 cores, and ran both arms — and the **holds themselves read `rest` 10.11 and 10.73**. The tenant returned during them. Both arms landed near 4 cores, which is the null this run pre-registered.
+>
+> **What it adds:** a fourth loud-box pair. At `rest` 9–11 the arms agree across two independent pairs — 4.675/4.811 and 4.042/3.608 — so `--resident` is settled as irrelevant *in that regime* and untested in the other.
+>
+> **What it establishes about the design:** this box cannot hold a hundred sessions quietly for sixty seconds. The gate cleared honestly on the machine it saw; the binding quantity is **window remaining after clearance**, which nothing predicts, and a hundred-session hold needs a minute of it. The archive's four holds at 15.3–15.5 cores with `rest` 0.49–0.77 prove it is possible, and five attempts tonight did not reproduce their conditions.
+>
+> **The gating design is worth keeping regardless**: waiting inside the detached run meant no watcher event woke the agent, and the observer column confirms it at **0.311 and 0.303 cores** across both holds against 1.58–1.99 while working.
+
 **A single `cpu-spin --duty 0.27` session holds 0.248 cores. A hundred of them hold 0.036 each — 13% of solo — while the machine around them sits at 0.55 cores and the job totals 3.6 of sixteen. The fall is monotonic in session count, it survives replacing the adaptive pause with a fixed one, and core contention cannot explain it: the box is 70% idle throughout.**
 
 ## The curve
