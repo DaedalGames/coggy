@@ -428,6 +428,19 @@
 >
 > **What this does not establish**: causation in the direction assumed. The fit is consistent with the neighbour unparking the box, and equally consistent with something unparking the box and letting the neighbour take more. The 2x2 and the arrival-lag data argue for the first — parking follows a departure within one sample — and the fit alone cannot distinguish them.
 
+> **2026-08-12 21:53 — the fit predicts a window taken after it was derived.** A sixth census, 310 samples, 304 of them beside a busy neighbour:
+>
+> | | |
+> |---|---|
+> | mean tenant load | **8.02 cores** |
+> | mean machine cores | **10.57** |
+> | predicted by `0.937 x tenant + 3.119` | **10.63** |
+> | parked | **13%** |
+>
+> **0.6% out, out of sample.** The fit was derived from the five earlier censuses and this window was recorded afterwards, so it is a prediction rather than a restatement of the points it was drawn through — the difference between a curve fitted to data and a curve that forecasts.
+>
+> **And its parked rate falls where the dose-response says it should**, at 13% between the 25% seen at 7.45-7.70 tenant cores and the 4% seen at 8.71-9.76. The relationship holds on a sixth window without being tuned to it.
+
 ## What was measured
 
 | | |
