@@ -442,11 +442,7 @@ impl Sampler {
         // is well inside the 178-257 s dwell maxima measured for this box's
         // parked state, so an arrival is caught long before it can define the
         // hold. The cost is one full walk a minute at most.
-        self.ticks_since_walk = self.ticks_since_walk.saturating_add(1);
-        let due = self.ticks_since_walk >= REDISCOVER_EVERY_TICKS;
-        if due {
-            self.ticks_since_walk = 0;
-        }
+        let due = walk_due(&mut self.ticks_since_walk);
 
         match (tracked.filter(|_| !due), self.defender) {
             (Some(pids), Some(defender)) => {
@@ -669,9 +665,25 @@ fn desired_priority() -> thread_priority::ThreadPriority {
     thread_priority::ThreadPriority::Max
 }
 
+/// Advances the walk counter and says whether this tick must re-enumerate.
+///
+/// Split out so the cadence is testable without a `System`. The defect it
+/// guards is invisible to any test that builds one: a targeted refresh never
+/// notices a process it is not already tracking, so the tenant column read 0
+/// for a whole ten-minute hold while five of them ran.
+fn walk_due(ticks_since_walk: &mut u32) -> bool {
+    *ticks_since_walk = ticks_since_walk.saturating_add(1);
+    if *ticks_since_walk >= REDISCOVER_EVERY_TICKS {
+        *ticks_since_walk = 0;
+        true
+    } else {
+        false
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::machine_percent;
+    use super::{REDISCOVER_EVERY_TICKS, machine_percent, walk_due};
 
     /// One multiplication is the whole of the conversion, so this is what
     /// stands between the column and the scale it shipped with.
@@ -684,6 +696,30 @@ mod tests {
     /// The shipped shape, in its own numbers: nine sessions summing to 796 on a
     /// machine column reading 61.5 — a machine narrower than the work on it.
     /// Converted, the same reading clears the job with room to spare.
+    /// The cadence, in its own numbers. A neighbour that starts after the
+    /// sampler is invisible until a full walk, so this is what stands between
+    /// the tenant column and the ten-minute hold that read 0 while five
+    /// `chrome-headless-shell` processes ran.
+    #[test]
+    fn a_full_walk_falls_due_on_the_sixth_tick_and_then_restarts() {
+        let mut ticks = 0;
+        for tick in 1..REDISCOVER_EVERY_TICKS {
+            assert!(
+                !walk_due(&mut ticks),
+                "tick {tick} of {REDISCOVER_EVERY_TICKS} must stay on the cheap path"
+            );
+        }
+        assert!(walk_due(&mut ticks), "the sixth tick must re-enumerate");
+        assert_eq!(ticks, 0, "and the counter restarts, or it walks every tick");
+        // A second cycle, because a counter that fires once and sticks would
+        // pass everything above: the gate rework on 2026-08-12 survived two
+        // deliberate breaks for exactly that reason, both using a single pass.
+        for _ in 1..REDISCOVER_EVERY_TICKS {
+            assert!(!walk_due(&mut ticks));
+        }
+        assert!(walk_due(&mut ticks), "and again on the next sixth tick");
+    }
+
     #[test]
     fn a_job_can_no_longer_exceed_the_machine_it_runs_on() {
         let job = 796.0;
