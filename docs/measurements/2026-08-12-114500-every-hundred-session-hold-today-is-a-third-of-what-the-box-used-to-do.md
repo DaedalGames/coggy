@@ -244,6 +244,22 @@ At 43% this is simply saturation: a hundred sessions asking for more than sixtee
 
 > Instrumenting through the daemon remains impossible for a different reason, now measured: `coggyd` drains stdout and stderr into one scrollback, which nothing exports, and counts both — so the flag inside a hold biases the unit rate by about 2% and produces nothing readable.
 
+## The settling run gave up, and its census is the more useful result
+
+A self-gating probe waited fifty minutes for a three-sample mean under 1.0 cores, to take a before-and-during reading on a genuinely quiet box. It never fired. Because it wrote a transcript, the waiting is data:
+
+| over 246 polls, 13:07–13:57 | |
+|---|---|
+| machine, median | **12.18 cores** of 16 |
+| machine, min / max | 1.87 / 15.72 |
+| agent, median | 0.88 |
+| **polls under 1.0** | **0 of 246** |
+| **polls under 2.0** | **2 of 246** |
+
+**This box was busy for the whole fifty minutes.** So the windows found at 09:04 and 11:38 were rare events rather than a rhythm, and the question of whether its quiet is *brief* or *shallow* has a third answer over this span: **absent**.
+
+That prices the outstanding measurement rather than merely deferring it. The anomalous condition — a hundred-session hold whose `rest` stays under 2 — has been sought six times today and obtained twice by accident. **No gate rule, hold length or threshold reaches a machine that offers two sub-2.0 polls in fifty minutes**, so the remaining approaches are a genuinely idle machine, a different box, or reading the per-process throttling state directly rather than inferring it from timing.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
