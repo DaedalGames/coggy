@@ -381,6 +381,21 @@
 >
 > **Not yet a finding.** Two windows a side, the split is by "was the agent working", which is not a controlled variable, and both busy-arm windows contain different work (builds and gates here, a session hold there). What would settle it is the census run twice in one sitting with a fixed synthetic load present in one arm and absent in the other — the same within-window discipline that settled tenancy itself.
 
+> **2026-08-12 21:22 — the observer split is WITHDRAWN, and the threshold gap turns out to be populated near zero.** A fifth census, 315 samples:
+>
+> | | |
+> |---|---|
+> | tenant absent | **96%** parked (n=84) |
+> | present, **idle** | **97%** parked (n=29) |
+> | present, **busy** | **25%** parked (n=199) |
+> | `tenant_cores` strictly between 0 and 5 | **72 samples**, at 0.031-0.125 cores |
+>
+> **The busy arm is unstable across windows: 2-4%, 25%, 52%, 55%.** An hour ago two windows reading 52% and 55% were split from two reading 2-4% by whether the agent was working, and written up as reproducible. **This window was also worked through and reads 25%**, which is neither cluster. Two observations a side is not a reproduction, and the split is withdrawn — the honest statement is that the busy arm varies by an order of magnitude for reasons not yet identified.
+>
+> **What survives untouched is the pair the split was never about.** Absent and present-but-idle both park at 96-97%, now on 84 and 29 samples — the load-not-presence finding, with the idle arm no longer thin in any window.
+>
+> **And the threshold gap is populated, but not where it would matter.** 72 samples fall strictly between 0 and 5 cores, which had been empty in every earlier survey — and they sit at **0.031 to 0.125**, hugging zero rather than spreading through the range. So `TENANT_BUSY_CORES = 0.5` still separates the same pairs, and these land on the idle side, which their 97% parked rate says is right. The constant remains under-determined and is now known to be under-determined for a better reason: the population is bimodal at 0 and ~8.7 with a tail just above zero, not a gap waiting to be filled.
+
 ## What was measured
 
 | | |
