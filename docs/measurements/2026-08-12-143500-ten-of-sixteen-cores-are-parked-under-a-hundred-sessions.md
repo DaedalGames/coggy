@@ -308,6 +308,27 @@
 >
 > **Both defects that voided the first attempt are visible as fixed here.** Every rung reads `tenant 0.00`, where attempt 1 ran at 6.4-9.9 throughout; and `parked 12` beside `machine 2.54` is arithmetic that holds, where attempt 1's `parked 11` beside `machine 11.40` could not be true of one moment. **The skipped rung is the design working** — twelve minutes of waiting that produced no data beats a rung that measured the browser.
 
+> **2026-08-12 19:57 — what the browser has that sixty processes lack, queried in one window with both present.**
+>
+> ```
+> chrome   : ControlMask=0x4  StateMask=0x0
+> cpu-spin : ControlMask=0x0  StateMask=0x0
+> ```
+>
+> | candidate | verdict |
+> |---|---|
+> | process priority | **eliminated** — both `Normal` |
+> | raw thread count | **eliminated** — 60 sessions carry **180** threads against Chromium's 134, and the box declines to unpark for more threads than the browser has |
+> | job-object membership | **eliminated** — the ladder's processes were in no job and behaved identically to the job-managed hundred |
+> | EcoQoS execution-speed throttling | **eliminated** — bit `0x1` is set on neither |
+> | **timer resolution** | **the surviving lead** |
+>
+> **Chromium sets `0x4` — `IGNORE_TIMER_RESOLUTION` — with StateMask 0, an explicit request that its timer-resolution changes BE HONOURED. `cpu-spin` declares nothing.** So the browser shortens the system tick and this workload does not.
+>
+> **That fits the asymmetry rather than merely being available.** Core-parking decisions are evaluated on a timer, this box parks within one 3-second sample of a departure and takes 6-9 s to unpark, and [`timeBeginPeriod` is already recorded here as per-process on this build with a 15.64 ms floor](2026-08-12-114500-every-hundred-session-hold-today-is-a-third-of-what-the-box-used-to-do.md). A workload that never shortens the tick may never be re-evaluated often enough to earn cores back.
+>
+> **What this does not establish**: that timer resolution is the cause. It is one declared difference between two processes that behave differently, which is a lead rather than a mechanism — the same standing the parking correlation had before the 2x2. Testing it means making a workload raise the timer and re-running the ladder, and `unsafe_code = "forbid"` at the workspace root puts `timeBeginPeriod` out of reach of any crate inheriting the lints.
+
 ## What was measured
 
 | | |
