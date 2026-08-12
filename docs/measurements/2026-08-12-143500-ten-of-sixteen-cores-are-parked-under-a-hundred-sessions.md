@@ -86,6 +86,22 @@
 >
 > **The remaining caveat is stated before the follow-up, not after.** At `--duty 0.27` a session is runnable only about a quarter of the time, so the box does have brief gaps to park into. That cannot explain a floor of 7 — a gap-driven policy would unpark during the compute phase and produce the bimodal pattern the idle machine shows, not a pinned high level — but it is not eliminated. **The clean arm is `--duty 1.0`, where there is no gap at all**, and it follows immediately.
 
+> **2026-08-12 15:40 — the sleepless arm reverses it, and the original loop was right.** A hundred sessions at `--duty 1.0`, 113 samples, all with 90+ sessions alive:
+>
+> | | duty 0.27 (161 samples) | **duty 1.0 (113 samples)** |
+> |---|---|---|
+> | parked mean | 9.56, minimum 7 | **0.24** |
+> | samples at 0 parked | **0%** | **97%** |
+> | machine cores | 5.09 | **12.36** |
+>
+> **A sleepless load fully unparks this box. A gappy one does not.** So *parks harder under load*, written an hour ago from the 0.27 arm alone, is **withdrawn**: parking tracks the CONTINUITY of demand rather than its size, and a hundred runnable-but-sleeping sessions do not read as demand.
+>
+> **That reinstates the feedback loop this record withdrew at 14:45.** A `--duty 0.27` workload leaves gaps; the gaps invite parking; parking cuts the machine to ~5 cores; the starved sessions then present as even less demand. The loop was proposed on reasoning, withdrawn on three point samples, and is now supported by a controlled contrast with the load held fixed and only its continuity varied. **Being withdrawn once is not evidence against a claim** — what settled it was measuring the thing rather than arguing about it, in both directions.
+>
+> **And it completes the arithmetic the record opened with.** At 0.27 the sessions reach 12.7% of requested duty on a 5-core machine; at 1.0 the same hundred get 12.36 cores. The sessions were never being descheduled off idle cores — their own idleness was switching the cores off.
+>
+> **The grade on point sampling is the sharpest lesson here.** The three-sample duty-1.0 reading taken earlier gave 9, 10, 10 — and against this distribution those sit at the **97th, 100th and 100th percentiles**. Three consecutive samples landed in a 3% tail and became a published claim that stood for an hour. **A triple is not a small sample of this quantity; it is a sample of one moment**, and the parked count moves faster than the interval between reads.
+
 ## What was measured
 
 | | |
