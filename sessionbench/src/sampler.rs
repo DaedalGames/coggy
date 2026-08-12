@@ -394,6 +394,16 @@ impl Sampler {
         // method exists to avoid: the full table cost eighty seconds at
         // twenty-five sessions. This is per core, not per process.
         //
+        // **THAT BASELINE IS STATE-DEPENDENT, and the figures below were taken
+        // on an unparked box.** Recomputed from every hold on disk on
+        // 2026-08-12: the +23.7 to +23.9 ms readings all come from holds
+        // delivering 13.8-15.3 job cores, while holds on the same binaries
+        // delivering 3.5 run **+29 to +62 ms**. So a future change measured
+        // against the numbers below would be compared across the parked and
+        // unparked states — the confound that cost a whole night here. Take a
+        // matched pair in the same state, and check `median_cores` agrees
+        // before believing either side of it.
+        //
         // **Its own cost is measured, at a matched pair.** Tick slip against
         // the interval asked for, all at a hundred sessions on a 5 s tick:
         // +23.7 and +23.8 ms before this line existed, +23.9 after —
