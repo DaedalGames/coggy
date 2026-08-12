@@ -102,6 +102,22 @@
 >
 > **The grade on point sampling is the sharpest lesson here.** The three-sample duty-1.0 reading taken earlier gave 9, 10, 10 — and against this distribution those sit at the **97th, 100th and 100th percentiles**. Three consecutive samples landed in a 3% tail and became a published claim that stood for an hour. **A triple is not a small sample of this quantity; it is a sample of one moment**, and the parked count moves faster than the interval between reads.
 
+> **2026-08-12 15:51 — the machine-level prediction confirms; the job-level one is confounded and says so.** A daemon-backed `sessionbench hold`, 100 sessions, `--duty 1.0`, 60 s:
+>
+> | | |
+> |---|---|
+> | job `median_cores` | **5.07** |
+> | `rest_cores_median` | **7.57** |
+> | `observer_cores_median` | 0.09 |
+> | machine total | **12.64** |
+> | work rate | 2.023 units/session/s |
+>
+> **The box delivered 12.64 cores**, against ~5 in every `--duty 0.27` hold today, which is the unparking result reproduced in `sessionbench`'s own instrument rather than an ad-hoc counter.
+>
+> **But the job took only 5.07 of it, because a neighbour held 7.57.** So this run cannot say whether unparking restores THROUGHPUT: the work rate came back at 2.023 units/session/s, inside today's low band of 1.42-2.19, and tenancy alone accounts for that. **The column that would have let this be over-claimed is the one that catches it** — reading `rest_cores_median` before reaching for a throughput reference costs nothing and is already written.
+>
+> **What it establishes and what it does not.** Established: a sleepless hundred unparks this box, in the archive's own metric, with the observer at 0.09 cores and therefore not a factor. Not established: that the ceiling record's 15.3-15.5 job cores are recoverable, since no run tonight has had a sleepless load AND an absent tenant at the same time. That pairing is the outstanding measurement, and it needs the named census gate in front of it.
+
 ## What was measured
 
 | | |
