@@ -495,9 +495,9 @@ fn main() -> anyhow::Result<()> {
                 // which core its one session got, so a side that scatters as
                 // far as the gap has not measured the gap.
                 let percent =
-                    |v: Option<f64>| v.map_or_else(|| "—".to_string(), |x| format!("{x:.1}%"));
+                    |v: Option<f64>| sessionbench::format::or_dash(v, |x| format!("{x:.1}%"));
                 let cores =
-                    |v: Option<f64>| v.map_or_else(|| "—".to_string(), |x| format!("{x:.2} cores"));
+                    |v: Option<f64>| sessionbench::format::or_dash(v, |x| format!("{x:.2} cores"));
                 // **The spread is a health check and the number alone does not
                 // say so.** Asking whether 12.4 units/s is slow needs a
                 // remembered 21.8; asking whether six holds agree needs

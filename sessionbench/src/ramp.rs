@@ -1265,7 +1265,12 @@ mod tests {
         );
 
         // The rendering is the half a reader sees, so it is asserted here too.
-        let shown = |d: Option<u64>| d.map_or_else(|| "—".to_string(), |n| n.to_string());
+        // CALLS the shipped renderer rather than restating it. The previous
+        // version defined this closure itself, so a change to what ships would
+        // have left it green — the same defect found in `compare` the same day,
+        // where one deliberate break gave "ok" before extraction and "FAILED"
+        // after.
+        let shown = |d: Option<u64>| crate::format::or_dash(d, |n: u64| n.to_string());
         assert_eq!(shown(measured_none), "0");
         assert_eq!(shown(unmeasured), "—");
     }
