@@ -189,6 +189,23 @@
 >
 > **A defect in the script that produced this, recorded because it will bite the next user of the switch**: `-RequireTenant` waits for a tenant ABOVE 5 cores while `--abort-rest-above` stays at 2.0, so every attempt aborts within ~30 s. The gate and the guard contradict each other by construction. Each attempt still yielded the machine total this arm needed, so the result stands, but the ceiling has to track the gate's own requirement.
 
+> **2026-08-12 17:17 — the state outlives its cause, so naming the neighbour is not enough.** A five-minute hundred-session hold with the new `tenant_cores_median` column, 60 samples:
+>
+> | | |
+> |---|---|
+> | tenant cores, per sample | **0.00 to 9.26** |
+> | machine cores, per sample | **13.50 to 15.32** |
+> | correlation | **r = -0.641** |
+> | attribution | job 3.65 + tenant 8.71 + observer 0.42, **1.36 unattributed** |
+>
+> **The tenant fell to zero mid-hold and the machine stayed unparked at 13.5-15.3 cores for the whole run.** So the box does not follow the neighbour instantaneously: once unparked it stays unparked, which is what the dwell maxima of 178-257 s already said — **the state outlives its cause**.
+>
+> **The negative correlation is composition rather than opposition.** The total is pinned by the unparked core count, so when the tenant releases cores the job takes them: `machine ~= job + tenant`, and the two trade instead of adding. A hold that reads a low tenant is therefore not a hold on a quiet machine, and a hold that reads a high one is not necessarily worse off.
+>
+> **This is why the parked count is still needed, and the reasoning was pre-registered.** The prediction was that a machine swinging under a steady tenant would prove a second switch; what happened is the inverse — a steady machine under a swinging tenant — with the same implication. **`tenant_cores_median` records the CAUSE and cannot record the STATE**, and the state is what decides which machine a hold measured. That promotes the PDH work from a generalisation to the only instrument that sees it.
+>
+> **What the column did earn**: three quarters of a formerly anonymous 10.5-core residual is now named, leaving 1.36 unattributed where the whole figure used to be a shrug.
+
 ## What was measured
 
 | | |
