@@ -25,6 +25,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::ramp::RampReport;
 
+/// Where a neighbour stops being noise and starts setting the core count.
+///
+/// **Under-determined by the data and recorded as such.** The tenant figures on
+/// disk cluster at 0 and about 8.7 cores with nothing observed between, so any
+/// bar in that gap separates the same pairs. Half a core matches the gate
+/// scripts, which wait for the neighbour to fall under 0.5 before a hold, so
+/// one number governs both and a pair the gate admitted is not then refused.
+const TENANT_BUSY_CORES: f64 = 0.5;
+
 /// How far two solo rungs may sit apart and still be one machine.
 ///
 /// **This is the weakest number in the file.** Two percent was the first
@@ -104,6 +113,28 @@ pub struct Comparison {
     /// thing from the two matching: a pair that cannot be checked must not read
     /// as a pair that passed.
     pub power_mismatch: Option<String>,
+    /// Whether one ramp ran beside a busy neighbour and the other did not.
+    ///
+    /// **The second mismatch a solo rung cannot see, and larger than the
+    /// thermal state.** This box delivers **5.09-5.37 machine cores with
+    /// `chrome-headless-shell` absent against 14.47-14.60 with it present**,
+    /// while a 3.7x change in the sessions' own duty moves that total by 5%.
+    /// Two censuses split **97-100% parked while the neighbour is absent
+    /// against 2-4% while it is busy**, and a busy neighbour is present **61%**
+    /// of the time — so roughly two runs in five are taken on a machine
+    /// offering a third of the cores of the other three.
+    ///
+    /// Blind to the fingerprint for the same reason the plug is: a lone session
+    /// at duty 0.27 asks for a quarter of one core and reads the same on a
+    /// five-core box as on a fourteen-core one.
+    ///
+    /// Taken as the MAXIMUM across rungs rather than a median, because a
+    /// neighbour present for one rung of ten still corrupts that rung and the
+    /// redline is fitted across all of them.
+    ///
+    /// `None` when either side recorded no tenant figure, which is every
+    /// artifact predating the column.
+    pub tenant_mismatch: Option<String>,
     /// Whether the two ran different commands.
     ///
     /// The solo rung is a machine fingerprint only for ramps sharing a
@@ -147,6 +178,22 @@ impl Comparison {
                 format!("{first} against {second}")
             });
 
+        // MAX across rungs, not a median: see the field's own note.
+        let worst_tenant = |r: &RampReport| -> Option<f64> {
+            r.steps
+                .iter()
+                .filter_map(|s| s.occupancy.as_ref())
+                .map(|o| o.tenant_cores_median)
+                .fold(None::<f64>, |acc, v| Some(acc.map_or(v, |a: f64| a.max(v))))
+        };
+        // Same `zip` as the power check, and for the same reason: an unrecorded
+        // tenancy stays an absence instead of defaulting to zero and reading as
+        // two ramps that agreed on a quiet machine.
+        let tenant_mismatch = worst_tenant(left)
+            .zip(worst_tenant(right))
+            .filter(|(l, r)| (l >= &TENANT_BUSY_CORES) != (r >= &TENANT_BUSY_CORES))
+            .map(|(l, r)| format!("{l:.2} against {r:.2} cores held by the neighbour"));
+
         Self {
             left_label: left.label.clone(),
             right_label: right.label.clone(),
@@ -155,6 +202,7 @@ impl Comparison {
             solo_gap_percent: solo_gap_percent(left.solo_units_per_sec, right.solo_units_per_sec),
             machine_mismatch,
             power_mismatch,
+            tenant_mismatch,
             command_differs: left.command != right.command,
             left_redline: left.redline.as_ref().map(|r| r.sessions),
             right_redline: right.redline.as_ref().map(|r| r.sessions),
@@ -182,6 +230,7 @@ impl Comparison {
     pub fn comparable(&self) -> bool {
         self.machine_mismatch.is_none()
             && self.power_mismatch.is_none()
+            && self.tenant_mismatch.is_none()
             && self.solo_gap_percent.abs() <= SOLO_AGREEMENT_PERCENT
             && self
                 .worst_solo_spread()
@@ -209,10 +258,20 @@ impl Comparison {
         // BEFORE every solo-based branch below, and the order is load-bearing:
         // a mains/battery pair can agree on its solo rungs to 2.6% and still be
         // 7.8x apart where it saturates, so reaching a solo verdict first would
-        // print "comparable" for the one mismatch the fingerprint is blind to.
+        // print "comparable" for a mismatch the fingerprint is blind to. The
+        // neighbour check below is the second of those; the count is left out
+        // deliberately, because a sentence counting this list went stale once.
         if let Some(mismatch) = &self.power_mismatch {
             return format!(
                 "**Different power state** — {mismatch}. A solo rung cannot see this: two quiet holds of one workload agreed to 2.6% across it while the state is worth 7.8x under saturation, which is where a redline is read."
+            );
+        }
+        // Also before the solo branches, for the same reason: the fingerprint
+        // agrees at the baseline whatever the neighbour is doing, because one
+        // session at duty 0.27 never makes the box leave its lowest state.
+        if let Some(mismatch) = &self.tenant_mismatch {
+            return format!(
+                "**Different neighbour** — {mismatch}. A solo rung cannot see this either: this machine delivers 5.09-5.37 cores with the neighbour absent against 14.47-14.60 with it present, while a 3.7x change in the sessions' own duty moves that total by 5%."
             );
         }
         if let Some(spread) = self.worst_solo_spread()
@@ -296,6 +355,7 @@ mod tests {
             solo_gap_percent: solo_gap_percent(74.11, 74.90),
             machine_mismatch: None,
             power_mismatch: None,
+            tenant_mismatch: None,
             left_redline: Some(27),
             right_redline: Some(26),
             command_differs: false,
@@ -321,6 +381,7 @@ mod tests {
     fn a_power_state_refuses_a_pair_its_baselines_would_have_passed() {
         let crossed = Comparison {
             power_mismatch: Some("mains against battery".into()),
+            tenant_mismatch: None,
             ..agreeing_pair()
         };
         assert!(
@@ -340,6 +401,39 @@ mod tests {
             crossed.verdict().contains("Different power state"),
             "the verdict must say which check refused it, got: {}",
             crossed.verdict()
+        );
+    }
+
+    /// The neighbour, in the same shape as the power test above.
+    ///
+    /// This box delivers 5.09-5.37 machine cores with the neighbour absent
+    /// against 14.47-14.60 with it present, and a busy one is there 61% of the
+    /// time — so a pair whose baselines agree can still be two machines. The
+    /// control is what makes the refusal mean something rather than passing for
+    /// an unrelated reason.
+    #[test]
+    fn a_busy_neighbour_refuses_a_pair_its_baselines_would_have_passed() {
+        let tenanted = Comparison {
+            tenant_mismatch: Some("8.77 against 0.00 cores held by the neighbour".into()),
+            ..agreeing_pair()
+        };
+        assert!(
+            agreeing_pair().comparable(),
+            "the control must pass, or this test proves nothing"
+        );
+        assert!(
+            !tenanted.comparable(),
+            "a tenanted/quiet pair must be refused"
+        );
+        assert_eq!(
+            tenanted.redline_delta(),
+            None,
+            "and its redlines must not subtract"
+        );
+        assert!(
+            tenanted.verdict().contains("Different neighbour"),
+            "the verdict must say which check refused it, got: {}",
+            tenanted.verdict()
         );
     }
 
