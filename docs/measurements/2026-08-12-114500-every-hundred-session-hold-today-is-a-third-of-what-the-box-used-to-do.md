@@ -227,6 +227,12 @@ At 43% this is simply saturation: a hundred sessions asking for more than sixtee
 
 **A pure-arithmetic loop cannot be descheduled 88% of the time on an idle box.** That is the whole question in one number, measured consistently, from artifacts that existed before this was looked for.
 
+**One assumption in that derivation is known to be false, and it matters.** `cycle = computed + pause` ignores the write and flush between the spin and the sleep — and the write is not free: a `--duty 1.0` process redirected to `NUL` manages only 0.24 cores, so it is syscall-bound. If the write costs `W`, then `computed = (cycle − W)/3.7` and every figure above over-attributes `W` to the spin, inflating the deschedule fraction.
+
+**What keeps it standing is a second route.** The instrumented probe *measures* `computed` directly rather than deriving it, and reports **90–131 ms** among a hundred sessions against a derived **128.2 ms** for `resids1`. Two routes that could have disagreed, agreeing — though the probe ran bare and the hold ran under the daemon, so they are not the same I/O path and the agreement is suggestive rather than conclusive.
+
+**The clean version is one run away**: `--report-timing` on a session inside a daemon-hosted hold, which measures `computed` in the regime the table is about. Nothing here does that.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
