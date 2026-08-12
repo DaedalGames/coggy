@@ -18,6 +18,17 @@
 //! against the perf counter's 11 seconds apart — agreement for a count measured
 //! to swing 0 to 12 within seconds.
 //!
+//! **It costs about 300 ms a tick, measured as a matched pair.** Two 150-second
+//! holds in the same machine state, 28 intervals each, slipped **+353.0 and
+//! +347.5 ms** against a pre-WMI baseline of +35 to +64 ms in the same regime —
+//! agreement to 1.6%, so this is a measurement rather than the single-hold hint
+//! that prompted it. That is **6% of a 5-second tick and five to ten times the
+//! whole prior sampler cost**, spent to distinguish cores taken elsewhere from
+//! cores switched off. Worth it at 5 s; **at the 1 s interval the census
+//! scripts use it would be a third of the budget**, and the rule this
+//! repository carries is that the observer becoming the bottleneck is the one
+//! failure that does not announce itself.
+//!
 //! **Read the distribution, never a mean.** Idle, this count is bimodal: 0 in
 //! 39% of samples and 12 in 27%. A mean over it describes no state the machine
 //! is ever in.

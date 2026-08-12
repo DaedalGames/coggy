@@ -468,6 +468,14 @@ impl Sampler {
         // method exists to avoid: the full table cost eighty seconds at
         // twenty-five sessions. This is per core, not per process.
         //
+        // **AND THE BASELINE IS NOW OBSOLETE BY AN ORDER OF MAGNITUDE.** The
+        // parked-core query added on 2026-08-12 costs about **300 ms a tick**,
+        // measured as a matched pair: two 150-second holds in one machine state
+        // slipped +353.0 and +347.5 ms where the same regime ran +35 to +64
+        // before it. Every figure below predates that and describes a sampler
+        // that no longer exists; compare a future change against a fresh pair,
+        // not against these.
+        //
         // **THAT BASELINE IS STATE-DEPENDENT, and the figures below were taken
         // on an unparked box.** Recomputed from every hold on disk on
         // 2026-08-12: the +23.7 to +23.9 ms readings all come from holds
