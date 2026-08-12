@@ -1,5 +1,15 @@
 # A hundred sessions hold a fifth of what one does, on an idle box
 
+> **2026-08-12 10:58 — the headline is withdrawn: this is a `--resident 1` result and the gate uses `--resident 20`.** Reading the eleven hundred-session holds already on disk, the same `--duty 0.27` command spans **2.396 to 15.525 job cores** — and the four highest all ran `--resident 20` on a quiet box, holding **15.34, 15.36, 15.51 and 15.53 cores**, which is 0.155 each and **57% of the requested duty, not 13%**. They very nearly saturate the machine.
+>
+> **Both of my holds used `--resident 1`**, which is the one parameter that differs. So the collapse measured below is a property of a nearly-memoryless session, not of a hundred sessions as such — a conclusion about the stand-in, drawn from a stand-in that was never checked against the archive.
+>
+> **What survives.** Session count still matters at `--resident 1`: 92%, 66%, 31%, 13% at 1, 10, 30, 100 is monotonic and real for that workload. The fixed-pause discriminator still shows the pause is not the mechanism. And the arithmetic refuting sleep granularity and core contention stands.
+>
+> **What does not.** The claim that a hundred sessions do not saturate this box, and everything downstream of it — including the reading that gate M1's work-rate ratio partly measures the workload backing off. **At the gate's own `--resident 20` the sessions reach 15.5 of 16 cores when the box is quiet**, which is what the gate assumes. The M1 concern raised below is withdrawn until measured at the workload the gate uses.
+>
+> **The likely mechanism, now visible and still untested**: `--resident` sizes the buffer a unit touches, so compute per unit scales with it. At 1 MiB the compute is short and the pause dominates; at 20 MiB it is long enough to hold the duty. That is a testable claim and this record does not test it.
+
 **A single `cpu-spin --duty 0.27` session holds 0.248 cores. A hundred of them hold 0.036 each — 13% of solo — while the machine around them sits at 0.55 cores and the job totals 3.6 of sixteen. The fall is monotonic in session count, it survives replacing the adaptive pause with a fixed one, and core contention cannot explain it: the box is 70% idle throughout.**
 
 ## The curve
