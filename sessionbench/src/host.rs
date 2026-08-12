@@ -41,6 +41,17 @@ try {
   "engine`t$($status.AMEngineVersion)"
 } catch { "error`tGet-MpComputerStatus: $($_.Exception.Message)" }
 try {
+  # NOT Sort-Object InstalledOn. Some rows carry an InstalledOn this machine's
+  # locale cannot parse -- on 2026-08-12 that threw "String was not recognized
+  # as a valid DateTime" while still returning rows, so the order was a hope
+  # rather than a property and "the newest few" meant nothing. Sorting on the
+  # KB NUMBER is locale-free and monotonic with release order.
+  $kb = Get-HotFix -ErrorAction Stop |
+        Sort-Object { $_.HotFixID.Substring(2) -as [int] } -Descending |
+        Select-Object -First 6 -ExpandProperty HotFixID
+  "updates`t$($kb -join ',')"
+} catch { "error`tGet-HotFix: $($_.Exception.Message)" }
+try {
   $prefs = Get-MpPreference -ErrorAction Stop
   foreach ($item in @($prefs.ExclusionPath))    { if ($item) { "exclusion_path`t$item" } }
   foreach ($item in @($prefs.ExclusionProcess)) { if ($item) { "exclusion_process`t$item" } }
@@ -88,6 +99,24 @@ pub struct HostFacts {
     pub on_battery: Option<bool>,
     pub charge_percent: Option<u8>,
     pub power_plan: Option<String>,
+    /// The most recent installed updates, newest first.
+    ///
+    /// **The second axis to break every cross-day comparison here, and the
+    /// build string did not notice it.** On 2026-08-12 this box began parking
+    /// cores: six quiet hundred-session holds, tenant absent in all of them,
+    /// gave **16.11 and 16.00 machine cores on 3 and 11 August against 4.52 to
+    /// 5.37 on the 12th**. Every one of those artifacts records the same
+    /// `os_version`, `11 (26200)` — and two updates installed that day, which
+    /// nothing in this struct could see.
+    ///
+    /// So a build string is not a configuration fingerprint: the archive could
+    /// not tell two machines apart that reported the same one. This is the same
+    /// argument [`HostFacts::on_battery`] carries, written after the same kind
+    /// of day.
+    ///
+    /// Six is a compromise. The whole list would bloat every artifact; the
+    /// newest few are what differ between two runs days apart.
+    pub updates: Vec<String>,
     /// The ACPI thermal zone in degrees Celsius, and how fast the cores are
     /// actually clocking as a percentage of their nominal rate.
     ///
@@ -268,6 +297,13 @@ impl HostFacts {
                 "on_battery" => facts.on_battery = parse_bool(value),
                 "charge" => facts.charge_percent = value.parse().ok(),
                 "power_plan" => facts.power_plan = Some(value.to_string()),
+                "updates" => {
+                    facts.updates = value
+                        .split(',')
+                        .filter(|s| !s.is_empty())
+                        .map(str::to_string)
+                        .collect();
+                }
                 "thermal_c" => facts.thermal_c = value.parse().ok(),
                 "processor_performance" => facts.processor_performance = value.parse().ok(),
                 "processor_performance_cores" => {
