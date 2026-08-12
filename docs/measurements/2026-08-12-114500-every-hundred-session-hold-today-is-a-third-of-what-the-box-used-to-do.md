@@ -183,6 +183,23 @@ The two arms reach the same ~0.04 cores each by opposite routes. `--duty` **back
 
 **This record does not test it.** `PROCESS_POWER_THROTTLING_EXECUTION_SPEED` can be queried and set per process, and neither has been done.
 
+## A hundred sessions that never sleep still cannot have the machine
+
+`--duty 1.0` has no pause at all — no feedback loop, no inflated `computed`, no oversleep:
+
+| | cores total | cores each |
+|---|---|---|
+| **100 × `--duty 1.0`, no sleep** | **6.21 of 16** | **0.0621** |
+| 1 × `--duty 1.0` (archive) | 0.99 | 0.99 |
+
+**Each of a hundred holds 6% of a core doing pure arithmetic, while one holds a full core.** No I/O, no allocation, no pause, and ten of sixteen cores unused.
+
+**So the sleep mechanism explains the duty arm's backoff and is not the cause of the ceiling.** Something limits these processes to a fraction of the machine whether or not they sleep, and the earlier sections' feedback loop rides on top of it rather than producing it.
+
+That is the throttling signature with a control attached: **one is unthrottled at 0.99 cores and a hundred are not.** Whatever applies it is sensitive to the number of processes, which is what makes it look like contention while the machine sits idle.
+
+**What this still does not name**: the mechanism that limits them. `GetProcessInformation` for `ProcessPowerThrottling` returned false on both a child and the caller here, so the per-process throttling state remains unread, and EcoQoS is a hypothesis rather than a finding.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
