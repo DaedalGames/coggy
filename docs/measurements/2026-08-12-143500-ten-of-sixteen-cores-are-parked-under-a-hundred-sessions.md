@@ -587,6 +587,18 @@
 >
 > **The instrument lesson sharpens.** `doctor` records `os_version` as `11 (26200)` and drops the revision — so even a field designed to catch this would have missed it. Recording the update IDs is what closes the gap, and it is now in every artifact.
 
+> **2026-08-13 00:05 — the new column validates against the quantity it explains.** The first three holds to carry `parked_fraction`:
+>
+> | `parked_fraction` | machine cores |
+> |---|---|
+> | 1.00 | 3.60 |
+> | 0.81 | 5.90 |
+> | 0.56 | 6.47 |
+>
+> **Monotonic, and in the direction the mechanism requires** — the more of a hold that ran with half the box parked, the fewer cores it was given. Three points is not a fit and is not offered as one; what it establishes is that the column moves with the thing it was added to explain, which is the cheapest check available on a new instrument and the one most easily skipped.
+>
+> **What every artifact before these three cannot do**: distinguish a machine that was busy elsewhere from one that was switched off. Both read as a low `machine_cpu_percent`, and separating them cost this evening four hours and three reversals.
+
 ## What was measured
 
 | | |
