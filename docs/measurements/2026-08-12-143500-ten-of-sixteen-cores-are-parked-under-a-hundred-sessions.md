@@ -655,3 +655,28 @@ It also reframes every hold taken tonight. The readings are correct; the phrase 
 | Timing side | `sessionbench/scripts/oversleep-in-window.ps1`, 12 of 100 sessions with `--report-timing` |
 | Tenant gate | named per-process census of `chrome-headless-shell`, not `doctor` and not a residual |
 | Machine | 16 logical / 31 GiB / Windows 11, mains, 0 survivors after teardown |
+
+## 2026-08-13 00:52 — the concentration test needs the gate, and the quiet arm is an n=18 reading
+
+`cpu-spin --threads` shipped, so the concentration question was runnable. The first attempt ran it without the ladder's gate and learned nothing:
+
+| | reading |
+| --- | --- |
+| tenant at start | 5 processes present |
+| parked before | 0 of 16 |
+| parked during 5 procs x 27 threads | 0 at all eight samples |
+| machine during | 14.93 cores |
+| threads per process | 29, so the shape was achieved |
+
+The workload did what it was asked. The box was already at zero parked cores with the tenant present, so a treatment whose only possible effect is unparking had nothing left to unpark. **A control already sitting at the outcome's ceiling cannot fail**, which is why the dose ladder gates each rung on a quiet machine — and the ad-hoc run skipped the one part that makes the ladder a measurement. The gated version now takes `-Threads` and records it per rung, so a concentration arm and a count arm cannot be confused in one artifact.
+
+The census that ran alongside it reports the two arms again:
+
+| census | n | quiet n | quiet parked>=8 | busy parked>=8 | busy machine | busy tenant |
+| --- | --- | --- | --- | --- | --- | --- |
+| 23:43 | 291 | 95 | 89% | — | 11.78 | 8.22 |
+| 00:19 | 71 | 18 | 83% | 4% | 13.51 | 8.83 |
+| 00:48 | 318 | 18 | 44% | 7% | 12.52 | 8.61 |
+
+The busy arm is stable across all three — a loaded box does not park, at 4% and 7%. **The quiet arm is not**: 89%, 83%, 44%, and the two that disagree most are the two with `quiet n = 18`. The 95-sample reading and the 18-sample reading are not the same quality of number, and nothing in the earlier appends said which was which. So the direction stands — quiet parks, busy does not — and **any specific quiet-side percentage in this record carries an error bar wide enough to hold 44 and 89 at once** until a census accumulates quiet samples in the hundreds. The busy arm gets there in one run because this box is busy; the quiet arm is rare here by construction, which is the same reason it is the harder one to measure.
+
