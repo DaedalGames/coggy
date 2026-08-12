@@ -549,6 +549,19 @@
 >
 > **And the question is narrower than when this record opened.** Not why a hundred sessions get few cores, but **why this box began parking cores at all between 11 and 12 August** — with every environmental candidate the artifacts record already eliminated: OS build, power plan, Defender engine, core count, elevation, the plug, the thermal sensor, session attrition, and eighteen instrument commits.
 
+> **2026-08-12 22:48 — two Windows updates installed on 12 August, invisible to every artifact.**
+>
+> ```
+> KB5121003   installed 2026-08-12
+> KB5123304   installed 2026-08-12
+> ```
+>
+> **The day the parking behaviour changed, and the OS build string did not move**: every hold in both regimes records `11 (26200)`. The machine changed underneath the only version field the host block carries.
+>
+> **This is a candidate, not a cause.** The install timestamp is date-only, so it cannot be ordered against the first low hold, and a correlation with a day is exactly what this evening has spent itself punishing. What makes it worth recording is that it is the first candidate with a plausible mechanism to survive the eliminations the artifacts already made — updates routinely carry power and scheduler policy, and nothing else that changed between the days does.
+>
+> **The durable finding is about the instrument.** `doctor` records an OS build string, and a build string is not a configuration fingerprint: the archive cannot tell two machines apart that report the same one. Every cross-day comparison in this repository rests on a field that did not notice the largest environmental change it has ever recorded.
+
 ## What was measured
 
 | | |
