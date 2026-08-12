@@ -12,6 +12,8 @@
 >
 > **The likely mechanism, now visible and still untested**: `--resident` sizes the buffer a unit touches, so compute per unit scales with it. At 1 MiB the compute is short and the pause dominates; at 20 MiB it is long enough to hold the duty. That is a testable claim and this record does not test it.
 
+> **2026-08-12 22:28 — the refutation below is itself withdrawn, and the original `--resident` reading was right.** The back-to-back pair that refuted it ran at `rest` ~ 9, where the machine holds both arms near 4.7 cores and no lever can show itself. Restricted to QUIET holds across the whole archive, `--resident 20` gives the job **15.34 and 15.51** cores against **4.76, 3.12, 4.59 and 4.55** for `--resident 1` — a **3.3x lever**, from ten `--resident 20` holds that were on disk throughout. [The correction is in the parking record](2026-08-12-143500-ten-of-sixteen-cores-are-parked-under-a-hundred-sessions.md). **An invariant exercised only where it cannot break has not been exercised**, and that is what the pair below did.
+
 > **2026-08-12 11:02 — that mechanism is refuted, and the withdrawal above blamed the wrong variable.** Both arms run back to back at 100 sessions, same window: `--resident 1` gives **4.675 cores** and `--resident 20` gives **4.811** — **2.9% apart**. `--resident` does not set compute per unit.
 >
 > **So the archive's 6.5× spread is the machine, not the parameter.** Those eleven holds also span `rest_cores_median` from 0.49 to 13.6 cores, and the four that reached 15.3–15.5 are the four taken on a quiet box. The withdrawal was correct that my result did not generalise; its explanation was a second conclusion drawn across sittings, made while correcting a conclusion drawn across sittings.
