@@ -55,6 +55,9 @@ const OBSERVER_PROCESS: &str = "claude";
 /// Matched on a prefix for the same reason as the observer above.
 const TENANT_PROCESS: &str = "chrome-headless-shell";
 
+/// Parked cores at which the machine is offering half of itself or less.
+const PARKED_HALF_THE_BOX: u32 = 8;
+
 /// How many ticks between full process walks while a hold is running.
 ///
 /// Six ticks is 30 s at the 5 s interval every hold here uses.
@@ -130,6 +133,21 @@ pub struct Occupancy {
     /// already on disk keeps its meaning, and a reader sees the neighbour rather
     /// than receiving a corrected number with no provenance.
     pub tenant_cores_median: f64,
+    /// Share of this window's samples with eight or more cores parked.
+    ///
+    /// **A FRACTION, not a median, because the series is bimodal.** Idle, this
+    /// box's parked count sits at 0 in 39% of samples and 12 in 27% — a median
+    /// picks whichever side happened to win and a mean describes no state the
+    /// machine is ever in. A fraction says how much of the hold ran on the
+    /// smaller machine, which is the question a reader has.
+    ///
+    /// Eight of sixteen is half the box and sits in the gap the distribution
+    /// leaves; every reading here has been near 0 or near 12, so the threshold
+    /// separates the same samples anywhere between.
+    ///
+    /// `None` when no sample could read the counter, which is a different fact
+    /// from none being parked.
+    pub parked_fraction: Option<f64>,
     /// Mean cores below the median, summed over samples under it.
     ///
     /// **The one number that would have caught it**, and it has a floor rather
@@ -228,6 +246,15 @@ impl Occupancy {
             .collect();
         tenant.sort_by(f64::total_cmp);
         let tenant_median = tenant[tenant.len() / 2];
+        // Same window again, and counted rather than averaged for the reason
+        // the field's own note gives.
+        let read: Vec<u32> = samples[from..]
+            .iter()
+            .filter_map(|s| s.parked_cores)
+            .collect();
+        let parked_fraction = (!read.is_empty()).then(|| {
+            read.iter().filter(|p| **p >= PARKED_HALF_THE_BOX).count() as f64 / read.len() as f64
+        });
         cores.sort_by(f64::total_cmp);
         let median = cores[cores.len() / 2];
         let lost = cores.iter().map(|c| (median - c).max(0.0)).sum::<f64>() / cores.len() as f64;
@@ -238,6 +265,7 @@ impl Occupancy {
             rest_cores_median: rest_median,
             observer_cores_median: observer_median,
             tenant_cores_median: tenant_median,
+            parked_fraction,
         })
     }
 }
