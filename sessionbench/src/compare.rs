@@ -66,6 +66,33 @@ fn tenancy_differs(left: f64, right: f64) -> bool {
     (left - right).abs() > TENANT_AGREEMENT_CORES
 }
 
+/// How far two ramps' parked fractions may sit apart and still be one machine.
+///
+/// **Tenancy is a trigger; parking is the state.** The neighbour guard above
+/// catches the only cause of unparking that existed when it was written, and
+/// that stopped being true the night `cpu-spin` grew `--threads`: five
+/// processes of 27 threads take this box from 11 parked cores to 2 with no
+/// browser anywhere, so a pair whose sides differ in thread shape agrees on
+/// tenancy at 0.00 and ran on machines a factor apart.
+///
+/// Calibrated on the six holds that carry the column, which is every one there
+/// has ever been — parked fraction against the machine cores delivered:
+/// 1.00 gave 3.60 and 5.41, 0.81 gave 5.90, 0.56 gave 6.47, 0.38 gave 6.08,
+/// and 0.00 gave 9.12. The full sweep is worth about 1.7x, so a quarter of it
+/// is worth roughly a core — the same order as the neighbour allowance beside
+/// it, which is deliberate: both guards are asking one question, which is
+/// whether the two sides were offered the same machine.
+const PARKING_AGREEMENT_FRACTION: f64 = 0.25;
+
+/// Whether two ramps' parked cores put them on different machines.
+///
+/// Named for the same reason [`tenancy_differs`] is: a test that restates the
+/// comparison asserts its own arithmetic and survives the predicate being
+/// reverted.
+fn parking_differs(left: f64, right: f64) -> bool {
+    (left - right).abs() > PARKING_AGREEMENT_FRACTION
+}
+
 /// How far two solo rungs may sit apart and still be one machine.
 ///
 /// **This is the weakest number in the file.** Two percent was the first
@@ -167,6 +194,8 @@ pub struct Comparison {
     /// `None` when either side recorded no tenant figure, which is every
     /// artifact predating the column.
     pub tenant_mismatch: Option<String>,
+    /// Set when the two sides ran with different numbers of cores parked.
+    pub parking_mismatch: Option<String>,
     /// Whether the two ran different commands.
     ///
     /// The solo rung is a machine fingerprint only for ramps sharing a
@@ -231,6 +260,30 @@ impl Comparison {
                 )
             });
 
+        // MAX across rungs, mirroring the neighbour check: the question is
+        // whether either side ever ran on a narrowed machine, and a ramp that
+        // was heavily parked at any rung did.
+        let worst_parking = |r: &RampReport| -> Option<f64> {
+            r.steps
+                .iter()
+                .filter_map(|s| s.occupancy.as_ref())
+                .filter_map(|o| o.parked_fraction)
+                .fold(None::<f64>, |acc, v| Some(acc.map_or(v, |a: f64| a.max(v))))
+        };
+        // `zip` again, and now it carries more weight than in the two checks
+        // above: this column is younger than most of the archive, so an absence
+        // is the COMMON case rather than the exceptional one. Defaulting it to
+        // zero would read every archived ramp as fully unparked.
+        let parking_mismatch = worst_parking(left)
+            .zip(worst_parking(right))
+            .filter(|(l, r)| parking_differs(*l, *r))
+            .map(|(l, r)| {
+                format!(
+                    "{l:.2} against {r:.2} of the box parked, {:.2} apart",
+                    (l - r).abs()
+                )
+            });
+
         Self {
             left_label: left.label.clone(),
             right_label: right.label.clone(),
@@ -240,6 +293,7 @@ impl Comparison {
             machine_mismatch,
             power_mismatch,
             tenant_mismatch,
+            parking_mismatch,
             command_differs: left.command != right.command,
             left_redline: left.redline.as_ref().map(|r| r.sessions),
             right_redline: right.redline.as_ref().map(|r| r.sessions),
@@ -268,6 +322,7 @@ impl Comparison {
         self.machine_mismatch.is_none()
             && self.power_mismatch.is_none()
             && self.tenant_mismatch.is_none()
+            && self.parking_mismatch.is_none()
             && self.solo_gap_percent.abs() <= SOLO_AGREEMENT_PERCENT
             && self
                 .worst_solo_spread()
@@ -309,6 +364,11 @@ impl Comparison {
         if let Some(mismatch) = &self.tenant_mismatch {
             return format!(
                 "**Different neighbour** — {mismatch}. A solo rung cannot see this either: this machine delivers 5.09-5.37 cores with the neighbour absent against 14.47-14.60 with it present, while a 3.7x change in the sessions' own duty moves that total by 5%."
+            );
+        }
+        if let Some(mismatch) = &self.parking_mismatch {
+            return format!(
+                "**Different machine width** — {mismatch}. The neighbour check above cannot see this one: a workload with the browser's thread shape unparks this box with no browser running, taking it from 11 parked cores to 2 while both sides report a neighbour of 0.00."
             );
         }
         if let Some(spread) = self.worst_solo_spread()
@@ -393,6 +453,7 @@ mod tests {
             machine_mismatch: None,
             power_mismatch: None,
             tenant_mismatch: None,
+            parking_mismatch: None,
             left_redline: Some(27),
             right_redline: Some(26),
             command_differs: false,
@@ -419,6 +480,7 @@ mod tests {
         let crossed = Comparison {
             power_mismatch: Some("mains against battery".into()),
             tenant_mismatch: None,
+            parking_mismatch: None,
             ..agreeing_pair()
         };
         assert!(
@@ -448,10 +510,32 @@ mod tests {
     /// time — so a pair whose baselines agree can still be two machines. The
     /// control is what makes the refusal mean something rather than passing for
     /// an unrelated reason.
+    /// A pair that BOTH sides agree is quiet, and which the neighbour guard
+    /// therefore waves through, while one side ran on a box 1.7x wider.
+    ///
+    /// This calls [`parking_differs`] rather than restating it, which is the
+    /// only reason it can fail for its own reason.
+    #[test]
+    fn a_parked_box_and_an_unparked_one_are_not_one_machine() {
+        assert!(
+            parking_differs(1.00, 0.00),
+            "a fully parked box and a fully unparked one are not comparable"
+        );
+        assert!(
+            parking_differs(0.81, 0.38),
+            "0.43 apart is wider than the allowance and worth about a core"
+        );
+        assert!(
+            !parking_differs(0.56, 0.38),
+            "0.18 apart is inside the allowance and must not refuse a sound pair"
+        );
+    }
+
     #[test]
     fn a_busy_neighbour_refuses_a_pair_its_baselines_would_have_passed() {
         let tenanted = Comparison {
             tenant_mismatch: Some("8.77 against 0.00 cores held by the neighbour".into()),
+            parking_mismatch: None,
             ..agreeing_pair()
         };
         assert!(
