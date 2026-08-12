@@ -272,6 +272,24 @@
 >
 > **And the hold's own tenant column was unusable here** — `tenant_cores_median` read **-0.000** while the census saw the browser throughout. That is the frozen-discovery defect: the column is populated only at `Sampler::new()`, so a neighbour already running when the sampler starts is caught and one that arrives later is not. The census and the hold disagreed, and the census was right.
 
+> **2026-08-12 19:23 — it is the neighbour's LOAD, not its presence, and the answer survives every threshold.** 307 samples on an idle machine, now recording the tenant's own cores:
+>
+> | tenant state | parked >= 8 |
+> |---|---|
+> | absent | **100%** (n=48) |
+> | present, load **below** the cut | **75 / 80 / 83 / 78%** at cuts of 0.5, 1, 2 and 5 cores |
+> | present, load **above** the cut | **4 / 3 / 3 / 2%** |
+>
+> **A present-but-idle browser parks this box almost exactly like an absent one.** So presence was the wrong predicate, and the earlier puzzle — 52% parked while the tenant was PRESENT during a hold against 4% when idle — dissolves: the browser was there and not working.
+>
+> **The threshold sweep is the check that makes this safe to build on.** Moving the cut by a factor of ten changes the below-side figure from 75% to 83% and the above-side from 4% to 2%, so the split is a fact about the machine rather than about where the line was drawn — the same discipline that turned a threshold-dependent dwell mean into a threshold-independent maximum above.
+>
+> **The honest weakness is n on the below side**: 4 to 9 samples, because this browser is almost always busy when it exists (median load **10.03 cores**). The direction is clean and the magnitude is thin, and a run that deliberately idles the tenant would fix that.
+>
+> **What it changes.** Every predicate written as *tenant present* is measuring the wrong thing — including `parking-under-load.ps1` and the census's own `tenant_processes` split. `ceiling-gated.ps1` already gates on the tenant's measured cores rather than its existence and needs no change. And a `compare` check should refuse on `tenant_cores_median`, a load figure, rather than on presence.
+>
+> **The census's achieved interval is now 3.92 s against the 1.0 asked for**, because measuring the tenant's rate inserts a one-second read. The parameter has been wrong twice in this script for two unrelated reasons, so the timestamps are the only trustworthy source of it.
+
 ## What was measured
 
 | | |
