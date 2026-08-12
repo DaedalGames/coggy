@@ -557,7 +557,18 @@ pub fn hold(
         // an injection's baseline arm wants the transition it is measuring
         // across, and its tenanted arm wants the baseline plus the injection
         // it expects. Neither is knowable here.
-        if let Some(ceiling) = abort_rest_above {
+        //
+        // NOT ON THE FIRST SAMPLE. `cpu_percent` is a delta between two refreshes,
+        // so the first one has no predecessor to difference against and reads ~0
+        // whatever the job is doing. `rest` is `machine - cpu`, so that zero makes
+        // the whole machine look like a neighbour: on 2026-08-12 four consecutive
+        // attempts aborted at 5-6 s reporting 11.5-14.7 cores held outside a job
+        // that already owned 101 processes and 540 MiB. The guard was firing on
+        // the load it exists to protect, and the tell was `occupancy 0.00 cores`
+        // printed beside a machine at 14.7. That zero is an ABSENCE, not a value.
+        if let Some(ceiling) = abort_rest_above
+            && !samples.is_empty()
+        {
             let rest = f64::from(sample.machine_cpu_percent - sample.cpu_percent) / 100.0;
             if rest > ceiling {
                 // The figure travels with the verdict. `Some(rest)` beside a

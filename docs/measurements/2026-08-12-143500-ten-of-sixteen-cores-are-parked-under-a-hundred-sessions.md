@@ -136,6 +136,20 @@
 >
 > **The instrument for it already exists and was not used here.** `--abort-rest-above` makes a hold refuse itself mid-flight when the residual climbs, which turns an invaded window into a discarded run rather than a published number. Building a guard and then running without it is the more useful half of this entry: the three confounded holds above are all runs that could have refused themselves.
 
+> **2026-08-12 16:06 — the guard fired on the load it protects, and the tell was a zero.** Four consecutive attempts aborted at 5-6 seconds reporting **11.5 to 14.7 cores held outside the job**, seconds after the tenant censused at 0.00. The first sample of one of them:
+>
+> ```
+> procs=101   rss=540 MB   cpu=0.00018%   machine=1470.5% (14.7 cores)
+> ```
+>
+> **The sessions were there — 101 processes, 540 MiB.** What was missing was their CPU, because `cpu_percent` is a delta between two refreshes and the first sample has no predecessor to difference against. `rest` is `machine - cpu`, so `14.7 - 0` made the measurement's own hundred sessions read as a neighbour.
+>
+> **That is the absence-wearing-a-zero rule**, in the one place where every consumer subtracts the field. The printed line said `occupancy 0.00 cores median ·· 14.61 cores held outside the job`, which cannot be true of a job holding 101 live `--duty 1.0` processes, and the two halves of that sentence disagree on their face.
+>
+> **Fixed by refusing to evaluate the predicate on a sample with no baseline** rather than by a time-based grace period. A grace window would have hidden the same defect behind a tuned constant, and the defect is not that the job is slow to start — it is that the first reading is not a measurement.
+>
+> **What it cost**: four aborted attempts, and nearly a conclusion. All-attempts-aborted was about to be recorded as *this box cannot hold a quiet minute while Playwright runs*, which is a plausible claim, matches three earlier confounded holds, and was going to be wrong — the aborts were the instrument, not the box.
+
 ## What was measured
 
 | | |
