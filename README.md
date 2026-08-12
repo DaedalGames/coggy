@@ -43,7 +43,7 @@ See [sessionbench/README.md](sessionbench/README.md) for the metric definition, 
 | [sessionbench/README.md](sessionbench/README.md) | The benchmark: metric, axes, comparison set, report format |
 | [workloads/README.md](workloads/README.md) | What a workload is and what it must promise |
 | [CLAUDE.md](CLAUDE.md) | How to approach the work: reuse before building, measure before optimizing |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute: setup, conventions, what gets closed |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute: setup, conventions, what gets closed — and the commit gate, which is [one script](sessionbench/scripts/gate.ps1) rather than four commands to read the output of |
 | [docs/PLAN.md](docs/PLAN.md) | What is true: architecture, scope boundary, constraints |
 | [docs/measurements/](docs/measurements/README.md) | Every run that decided something, oldest to newest, with what it could not establish |
 
