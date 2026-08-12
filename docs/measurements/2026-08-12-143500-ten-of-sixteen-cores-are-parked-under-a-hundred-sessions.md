@@ -352,6 +352,19 @@
 >
 > **The tally after five rounds**: process priority, raw thread count, job-object membership, EcoQoS execution-speed throttling and timer resolution are all eliminated. One structural difference remains untested — **concentration**, 27 threads per process against 3, and 5 processes against 60 — which is the only candidate a scheduler classifying per process would still see, and the only one with no cheap query behind it. `cpu-spin` is single-threaded, so testing it needs a workload that does not yet exist.
 
+> **2026-08-12 20:17 — the load split replicates, and the base rate prices every measurement on this box.** An independent 402-sample census:
+>
+> | | this census | the earlier one |
+> |---|---|---|
+> | tenant absent | **97%** parked (n=151) | 100% |
+> | present, **idle** | **60%** (n=5) | 75-83% |
+> | present, **busy** | **4%** (n=246) | 2-4% |
+> | **busy neighbour present** | **61% of the window** | not measured |
+>
+> **Two independent windows agree within a few points on all three arms**, which is a replication rather than a re-analysis of one dataset. The idle arm stays thin at 5 samples in both, so its 60-83% spread is the weak leg either way.
+>
+> **The new figure is the last row.** A busy neighbour is present **61%** of the time, so roughly two runs in five land on a machine offering ~5 cores and three in five on one offering ~14 — decided by a browser. That is why the archive's hundred-session holds fall into two clusters rather than scattering, and why any future comparison needs the tenancy gate rather than luck.
+
 ## What was measured
 
 | | |
