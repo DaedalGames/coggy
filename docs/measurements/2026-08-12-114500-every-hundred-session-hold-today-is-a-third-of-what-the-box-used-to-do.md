@@ -103,6 +103,8 @@ The same decomposition across today's session-count series:
 | 30 | 21.6 ms | 235.1 ms | 58.3 ms | **4.03×** |
 | 100 | 15.8 ms | 458.6 ms | 42.7 ms | **10.73×** |
 
+**Per session that is an achieved duty of 0.155 in the fast state and 0.033 in the slow one, against 0.27 requested** — the figure the sessions actually run at, which is what a hundred of them multiply into 15.5 or 3.3 cores.
+
 **A lone session oversleeps by 12%; a hundred by nearly eleven times.** That is the whole self-limiting curve without invoking contention — the sessions ask for a 43 ms pause and get 459 ms, so they run a fifth as often on a box with eleven idle cores.
 
 **And it locates the state.** The same hundred sessions overslept **2× on 3 August and 10.7× today**, so the count sets the shape and the state sets the multiplier. Two factors, both measured here, neither named before.
