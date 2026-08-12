@@ -21,6 +21,24 @@ use crate::tree::{Attribution, ProcessSample, SessionTree};
 /// Windows Defender's scanning service.
 const DEFENDER_PROCESS: &str = "MsMpEng.exe";
 
+/// The agent driving the benchmark, whose cost lands in the residual.
+///
+/// **`rest_cores_median` is everything outside the session's job, which has
+/// always included the operator.** Measured 2026-08-12: during a hold's first
+/// five seconds the harness cost 0.064 cores and the agent cost 1.58, and three
+/// baselines taken in a nine-minute window with the machine's ten-core tenant
+/// entirely absent read 2.29, 2.71 and 2.17 against a floor near 0.85.
+///
+/// **It is worse than a constant offset because the cost is event-driven**: it
+/// spikes when a watcher fires, which is exactly when a hold begins. So the
+/// contamination correlates with the measurement rather than averaging out.
+///
+/// This is NOT subtracted from `machine_cpu_percent`. Redefining that column
+/// would make it mean something different from every artifact already on disk,
+/// and would hide the quantity rather than measure it — so it is recorded
+/// beside it and any analysis subtracts knowingly.
+const OBSERVER_PROCESS: &str = "claude";
+
 /// What one tick of the instrument cost.
 ///
 /// A scaling benchmark has to know its own overhead, because the one failure it
@@ -205,6 +223,20 @@ pub struct Sample {
     /// `None` when Defender is not running, which is itself worth recording.
     pub defender_cpu_percent: Option<f32>,
     pub defender_rss_bytes: Option<u64>,
+    /// CPU held by the agent driving the run, in whole-machine percent.
+    ///
+    /// Sampled in the same tick as [`Sample::machine_cpu_percent`], because a
+    /// subtraction across two moments is the error this repository has made
+    /// more than once.
+    pub observer_cpu_percent: f32,
+    /// How many processes that figure came from.
+    ///
+    /// **Travels with the figure so a zero can be told from a miss.** The
+    /// observer is matched by name, which is fragile: a renamed or relaunched
+    /// agent goes uncounted and `observer_cpu_percent` silently reads 0.0 —
+    /// the passing value. A count of 0 says "found nothing" where the percent
+    /// alone would say "cost nothing".
+    pub observer_processes: usize,
     pub available_memory_bytes: u64,
     pub output_bytes: u64,
     /// Lines the session has written, which is its own count of work done.
@@ -236,6 +268,8 @@ pub struct Sampler {
     logical_cores: f32,
     /// Defender's pid, so it can be refreshed by name only once.
     defender: Option<Pid>,
+    /// The agent's pids, found on a full walk and refreshed by pid after.
+    observers: Vec<Pid>,
     /// Why the sampling thread could not be raised above the sessions, when it
     /// could not. Carried into reports, since a starved sampler produces
     /// numbers that describe the observer.
@@ -256,6 +290,7 @@ impl Sampler {
             // the whole machine column to nothing.
             logical_cores: 1.0,
             defender: None,
+            observers: Vec::new(),
             unprioritised_reason: raise_current_thread().err(),
         };
         if let Some(reason) = &sampler.unprioritised_reason {
@@ -306,9 +341,10 @@ impl Sampler {
 
         match (tracked, self.defender) {
             (Some(pids), Some(defender)) => {
-                let mut list = Vec::with_capacity(pids.len() + 1);
+                let mut list = Vec::with_capacity(pids.len() + 1 + self.observers.len());
                 list.extend_from_slice(pids);
                 list.push(defender);
+                list.extend_from_slice(&self.observers);
                 self.sys
                     .refresh_processes_specifics(ProcessesToUpdate::Some(&list), true, kind);
                 // Defender restarting changes its pid, and a targeted refresh
@@ -327,6 +363,21 @@ impl Sampler {
                     .iter()
                     .find(|(_, p)| p.name().eq_ignore_ascii_case(DEFENDER_PROCESS))
                     .map(|(pid, _)| *pid);
+                // Matched on a PREFIX rather than an exact name, because the
+                // agent's executable carries a suffix on some platforms and an
+                // exact match would report zero cost rather than no match.
+                self.observers = self
+                    .sys
+                    .processes()
+                    .iter()
+                    .filter(|(_, p)| {
+                        p.name()
+                            .to_string_lossy()
+                            .to_ascii_lowercase()
+                            .starts_with(OBSERVER_PROCESS)
+                    })
+                    .map(|(pid, _)| *pid)
+                    .collect();
             }
         }
     }
@@ -335,6 +386,11 @@ impl Sampler {
     pub fn sample(&self, tree: &mut SessionTree, output: &Output, elapsed: Duration) -> Sample {
         let members = tree.sample(&self.sys);
         let defender = self.defender.and_then(|pid| self.sys.process(pid));
+        let observers: Vec<_> = self
+            .observers
+            .iter()
+            .filter_map(|pid| self.sys.process(*pid))
+            .collect();
 
         Sample {
             t_ms: elapsed.as_millis() as u64,
@@ -348,6 +404,8 @@ impl Sampler {
             machine_cpu_percent: machine_percent(self.sys.global_cpu_usage(), self.logical_cores),
             defender_cpu_percent: defender.map(|p| p.cpu_usage()),
             defender_rss_bytes: defender.map(|p| p.memory()),
+            observer_cpu_percent: observers.iter().map(|p| p.cpu_usage()).sum(),
+            observer_processes: observers.len(),
             available_memory_bytes: self.sys.available_memory(),
             output_bytes: output.total(),
             work_units: output.units(),
