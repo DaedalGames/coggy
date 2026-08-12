@@ -486,6 +486,29 @@
 >
 > **An eighth census confirms the fit and adds nothing.** Tenant 9.49 predicted 12.01 machine cores against a measured 12.21, +1.7% — which is another sample of today's state, and today's state already has seven. Recorded so the count is honest rather than to strengthen anything: the boundary this needs to cross is the day, and no run taken now can cross it.
 
+> **2026-08-12 22:28 — the day boundary is `--resident`, and it was in every artifact the whole time.** The best hold of each day, read with its argv:
+>
+> | day | best job | workload |
+> |---|---|---|
+> | 08-03 | 15.53 | `--duty 0.27 --resident 20` |
+> | 08-11 | 15.51 | `--duty 0.27 --resident 20` |
+> | **08-12** | **5.95** | `--duty 1.0 --resident 1` |
+>
+> **All thirty of today's holds ran `--resident 1`. Every 15.5-core hold ran `--resident 20`.** Split across all 37, on QUIET holds only (`rest` < 1.5) where the machine caps nobody:
+>
+> | | job cores |
+> |---|---|
+> | `--resident 20` | **15.34, 15.51** |
+> | `--resident 1` | **4.76, 3.12, 4.59, 4.55** |
+>
+> **A 3.3x lever, on a quiet box.**
+>
+> **And this was raised and withdrawn earlier the same day.** A back-to-back pair gave 4.675 against 4.811 and `--resident` was declared irrelevant — but that pair ran at `rest` ~ 9, where the machine holds both arms near 4.7 and no lever can show itself. The refutation was right about its regime and generalised past it, which is the invariant-exercised-only-where-it-cannot-break error. **The ten `--resident 20` holds that overturn it were on disk throughout.**
+>
+> **So the ceiling never collapsed.** Today's holds ran a different workload, and every reading in this record that compares today against 3 or 11 August compares two workloads as well as two days. The parking findings stand as measurements of the machine; what they cannot carry is the ceiling question, which was a workload difference.
+>
+> **What is still real and unaffected**: parking follows the neighbour's load, the dose-response, the arrival and departure lags, and that this workload cannot unpark the box at any count — all measured within today at fixed `--resident 1`.
+
 ## What was measured
 
 | | |
