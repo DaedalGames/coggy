@@ -212,11 +212,11 @@ function Get-Cores {
         Start-Sleep -Milliseconds 500
         $c = Get-Counter '\Process(*)\% Processor Time' -ErrorAction SilentlyContinue
     }
-    if ($null -eq $c) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0 } }
+    if ($null -eq $c) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0; Agent = 0.0 } }
     $s = $c.CounterSamples
     $total = ($s | Where-Object { $_.InstanceName -eq '_total' }).CookedValue
     $idle = ($s | Where-Object { $_.InstanceName -eq 'idle' }).CookedValue
-    if ($null -eq $total -or $null -eq $idle) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0 } }
+    if ($null -eq $total -or $null -eq $idle) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0; Agent = 0.0 } }
     $mine = { $_.InstanceName -like 'sessionbench*' -or $_.InstanceName -like 'cpu-spin*' -or
         $_.InstanceName -like 'coggyd*' -or $_.InstanceName -like 'file-write*' -or
         $_.InstanceName -like 'stdout-storm*' }
@@ -244,14 +244,45 @@ function Get-Cores {
     # return divides by 100. So -25 is a quarter of a core, and writing -0.25
     # here would have meant a four-hundredth of one, a hundred times tighter
     # than intended and still rejecting the drift this exists to allow.
-    if ($machine -lt -25) { return [pscustomobject]@{ Tenant = -1.0; Machine = -2.0 } }
+    if ($machine -lt -25) { return [pscustomobject]@{ Tenant = -1.0; Machine = -2.0; Agent = 0.0 } }
     if ($machine -lt 0) { $machine = 0.0 }
 
     $busy = $s |
         Where-Object { $_.InstanceName -notin @('_total', 'idle') -and $_.CookedValue -gt 50 } |
         Where-Object { -not (& $mine) }
     $tenant = if ($null -eq $busy) { 0.0 } else { ($busy | Measure-Object CookedValue -Sum).Sum / 100 }
-    [pscustomobject]@{ Tenant = $tenant; Machine = ($machine / 100) }
+    # THE AGENT'S OWN SHARE, so the gate can judge THE MACHINE rather than the
+    # machine-plus-operator.
+    #
+    # The counter this reads is machine-wide and therefore already includes the
+    # agent driving the run. That would be harmless if the agent's cost were
+    # steady, and it is not: measured 2026-08-12 at 0.18 cores idle and
+    # 1.58-1.99 while working. THE GATE POLLS WHILE THE AGENT IS IDLE AND THE
+    # HOLD RUNS WHILE IT MAY NOT BE, so a clearance is granted on a figure the
+    # hold will never see. Four baselines admitted that way read 1.36-2.18
+    # against polls of 0.81-0.97.
+    #
+    # Subtracting it makes the gate answer the question it means to ask. It
+    # cannot make the gate MORE permissive in the dangerous direction either:
+    # the agent is the one tenant whose presence during the hold is not the
+    # machine's fault, and every other process still counts in full.
+    #
+    # A FAILED READ RETURNS 0.0 RATHER THAN A SENTINEL, deliberately: unlike the
+    # counters above, being unable to find the agent means subtracting nothing,
+    # which leaves the gate exactly as strict as it was before this existed.
+    # A COUNTER RATHER THAN `Get-Process`, because a Process object's `CPU` is
+    # CUMULATIVE SECONDS and cannot answer "how much is it holding right now".
+    # Matched by name the same way the sampler does it.
+    $agent = 0.0
+    $ac = $null
+    try {
+        $ac = (Get-Counter '\Process(claude*)\% Processor Time' -ErrorAction Stop).CounterSamples
+    } catch { $ac = $null }
+    if ($ac) {
+        $agent = (($ac | Where-Object { $_.InstanceName -ne '_total' } | Measure-Object -Property CookedValue -Sum).Sum) / 100
+        if ($null -eq $agent) { $agent = 0.0 }
+    }
+    [pscustomobject]@{ Tenant = $tenant; Machine = ($machine / 100); Agent = [math]::Max(0.0, $agent) }
 }
 
 # Returns @{rate; rest}, or $null when the rate could not be read. The caller
@@ -391,15 +422,19 @@ try {
             # repository refuses to leave lying around, and a census sitting at
             # zero beside a live machine figure is the evidence for all of the
             # above.
-            $recent += $m
+            # THE MACHINE WITHOUT THE OPERATOR. See Get-Cores for why: the gate
+            # polls while the agent is idle and the hold runs while it may not
+            # be, so judging the pair grants clearances the hold cannot honour.
+            $bare = [math]::Max(0.0, $m - $cores.Agent)
+            $recent += $bare
             if ($recent.Count -gt 3) { $recent = $recent[-3..-1] }
             $mean = ($recent | Measure-Object -Average).Average
             if ($recent.Count -ge 3 -and $mean -lt $QuietMachineBelow) {
                 $run = 2
-                "{0:HH:mm:ss} quiet: mean {1:N2} over {2} polls (this one {3:N2} machine-wide, census {4:N2})" -f (Get-Date), $mean, $recent.Count, $m, $t
+                "{0:HH:mm:ss} quiet: mean {1:N2} over {2} polls (this one {3:N2} machine less {4:N2} agent, census {5:N2})" -f (Get-Date), $mean, $recent.Count, $m, $cores.Agent, $t
             }
             else {
-                "{0:HH:mm:ss} not quiet: mean {1:N2} over {2} polls (this one {3:N2} machine-wide, census {4:N2})" -f (Get-Date), $mean, $recent.Count, $m, $t
+                "{0:HH:mm:ss} not quiet: mean {1:N2} over {2} polls (this one {3:N2} machine less {4:N2} agent, census {5:N2})" -f (Get-Date), $mean, $recent.Count, $m, $cores.Agent, $t
             }
         }
         if ($run -lt 2) { Start-Sleep -Seconds $PollSeconds }
