@@ -558,16 +558,23 @@ pub fn hold(
         // across, and its tenanted arm wants the baseline plus the injection
         // it expects. Neither is knowable here.
         //
-        // NOT ON THE FIRST SAMPLE. `cpu_percent` is a delta between two refreshes,
-        // so the first one has no predecessor to difference against and reads ~0
-        // whatever the job is doing. `rest` is `machine - cpu`, so that zero makes
-        // the whole machine look like a neighbour: on 2026-08-12 four consecutive
-        // attempts aborted at 5-6 s reporting 11.5-14.7 cores held outside a job
-        // that already owned 101 processes and 540 MiB. The guard was firing on
-        // the load it exists to protect, and the tell was `occupancy 0.00 cores`
-        // printed beside a machine at 14.7. That zero is an ABSENCE, not a value.
+        // NOT DURING STARTUP. `cpu_percent` is a delta between two refreshes, so
+        // the job reads ~0 until attribution settles, and `rest` is `machine -
+        // cpu` — that understatement lands entirely in `rest` and makes the
+        // measurement's own load look like a neighbour. On 2026-08-12 four
+        // attempts aborted at 5-6 s claiming 11.5-14.7 cores held outside a job
+        // that already owned 101 processes and 540 MiB; skipping only the very
+        // first sample moved that to 10 s and `occupancy 0.04`, still nothing
+        // like a hundred `--duty 1.0` sessions. The tell throughout was an
+        // occupancy near zero printed beside a machine near saturation, two
+        // halves of one line that cannot both be true.
+        //
+        // So it waits out [`observe::STARTUP_WINDOW`] rather than a count of
+        // samples. That constant is the one this repository already measured for
+        // the same problem on the work-rate side; inventing a second grace period
+        // here would be a tuned constant beside a measured one.
         if let Some(ceiling) = abort_rest_above
-            && !samples.is_empty()
+            && started.elapsed() >= crate::observe::STARTUP_WINDOW
         {
             let rest = f64::from(sample.machine_cpu_percent - sample.cpu_percent) / 100.0;
             if rest > ceiling {
