@@ -336,11 +336,11 @@ function Get-Cores {
     # -1 in BOTH fields for unreadable: not a quiet machine, and it must not
     # fire. The branch testing it comes FIRST at the call site, and that order is
     # load-bearing -- a negative sentinel passes every `-lt` test there is.
-    if ($null -eq $c) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0 } }
+    if ($null -eq $c) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0; Agent = 0.0 } }
     $s = $c.CounterSamples
     $total = ($s | Where-Object { $_.InstanceName -eq '_total' }).CookedValue
     $idle = ($s | Where-Object { $_.InstanceName -eq 'idle' }).CookedValue
-    if ($null -eq $total -or $null -eq $idle) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0 } }
+    if ($null -eq $total -or $null -eq $idle) { return [pscustomobject]@{ Tenant = -1.0; Machine = -1.0; Agent = 0.0 } }
     $mine = { $_.InstanceName -like 'sessionbench*' -or $_.InstanceName -like 'cpu-spin*' -or
         $_.InstanceName -like 'coggyd*' -or $_.InstanceName -like 'file-write*' -or
         $_.InstanceName -like 'stdout-storm*' }
@@ -371,7 +371,7 @@ function Get-Cores {
     # drift is single digits.
     $machine = $total - $idle - $ours
     if ($null -ne $total -and $null -ne $idle -and $machine -lt -25) {
-        return [pscustomobject]@{ Tenant = -1.0; Machine = -2.0 }
+        return [pscustomobject]@{ Tenant = -1.0; Machine = -2.0; Agent = 0.0 }
     }
     if ($machine -lt 0) { $machine = 0.0 }
     # The census: only instances over half a core, which is what names WHICH
@@ -380,7 +380,29 @@ function Get-Cores {
         Where-Object { $_.InstanceName -notin @('_total', 'idle') -and $_.CookedValue -gt 50 } |
         Where-Object { -not (& $mine) }
     $tenant = if ($null -eq $busy) { 0.0 } else { ($busy | Measure-Object CookedValue -Sum).Sum / 100 }
-    [pscustomobject]@{ Tenant = $tenant; Machine = ($machine / 100) }
+    # THE AGENT'S OWN SHARE, mirroring inject-tenant.ps1 (a0c9566). The counter
+    # is machine-wide and includes the agent driving the run, whose cost is 0.18
+    # cores idle and 1.58-1.99 working — and a waiter polls while it is idle for
+    # a run that may start while it is not.
+    #
+    # THIS SCRIPT IS THE REASON THE RULE EXISTS. On 2026-08-11 a gate fix landed
+    # in one of these two files and this one kept the same blind counter (#88),
+    # so the shape is fixed in both on the same day this time.
+    #
+    # A counter rather than `Get-Process`, because a Process object's `CPU` is
+    # cumulative seconds and cannot say what is held right now. A failed read
+    # returns 0.0 rather than a sentinel: subtracting nothing leaves the waiter
+    # exactly as strict as it was before this existed.
+    $agent = 0.0
+    $ac = $null
+    try {
+        $ac = (Get-Counter '\Process(claude*)\% Processor Time' -ErrorAction Stop).CounterSamples
+    } catch { $ac = $null }
+    if ($ac) {
+        $agent = (($ac | Where-Object { $_.InstanceName -ne '_total' } | Measure-Object -Property CookedValue -Sum).Sum) / 100
+        if ($null -eq $agent) { $agent = 0.0 }
+    }
+    [pscustomobject]@{ Tenant = $tenant; Machine = ($machine / 100); Agent = [math]::Max(0.0, $agent) }
 }
 
 # Parsed once, here, rather than trusting the binder — see the parameter.
@@ -436,6 +458,8 @@ while ((Get-Date) -lt $deadline) {
     $cores = Get-Cores
     $t = $cores.Tenant
     $m = $cores.Machine
+    # THE MACHINE WITHOUT THE OPERATOR, mirroring inject-tenant.ps1 (a0c9566).
+    $bare = [math]::Max(0.0, $m - $cores.Agent)
     $polls++
     # A heartbeat whatever happens, because the branches below only speak when
     # the run counter moves — so an unbroken hour of load produced NO lines at
@@ -457,17 +481,17 @@ while ((Get-Date) -lt $deadline) {
         "{0:HH:mm:ss} COUNTER UNREADABLE — not a tenancy event, resetting" -f (Get-Date)
         $run = 0
     }
-    elseif ($t -lt $FireBelow -and $m -ge $FireBelowMachine) {
+    elseif ($t -lt $FireBelow -and $bare -ge $FireBelowMachine) {
         # Quiet to the census and NOT to the machine: the exact state that voided
         # two of three injection attempts, and it used to fire silently.
         $inInterruption = $false
         $run = 0
-        "{0:HH:mm:ss} no big process but {1:N2} cores busy machine-wide (bar {2:N2}) — not quiet, resetting" -f (Get-Date), $m, $FireBelowMachine
+        "{0:HH:mm:ss} no big process but {1:N2} cores busy machine-wide, less {2:N2} agent (bar {3:N2}) — not quiet, resetting" -f (Get-Date), $m, $cores.Agent, $FireBelowMachine
     }
     elseif ($t -lt $FireBelow) {
         $inInterruption = $false
         $run++
-        "{0:HH:mm:ss} quiet {1}/{2} at {3:N2} cores ({4:N2} machine-wide)" -f (Get-Date), $run, $ConsecutiveQuiet, $t, $m
+        "{0:HH:mm:ss} quiet {1}/{2} at {3:N2} cores ({4:N2} machine-wide less {5:N2} agent)" -f (Get-Date), $run, $ConsecutiveQuiet, $t, $m, $cores.Agent
         if ($run -ge $ConsecutiveQuiet) {
             "{0:HH:mm:ss} WINDOW OPEN — quiet held for {1}s, starting" -f (Get-Date), ($run * $PollSeconds)
             break
