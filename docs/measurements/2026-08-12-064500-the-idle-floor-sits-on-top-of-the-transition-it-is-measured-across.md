@@ -31,6 +31,12 @@ Only three of eight are the tenant. **Half are the machine's own idle floor**, s
 >
 > **What the ungated five do show is worth keeping separately**: between 08:48 and 08:53 this machine went 0.52 → 3.43 → 13.18 → 13.02 → 14.19 → 9.11 cores. That is the tenant's range inside five minutes, and it is why a gate clearance says nothing about the thirty seconds that follow it.
 
+> **2026-08-12 10:15: the first uncontaminated baselines, and the finding survives at lower numbers.** Every baseline above was taken under a watcher that streamed clearances — and [each such event wakes the agent into the hold it announced](2026-08-12-092000-the-clearance-notification-wakes-the-observer-into-the-hold-it-announced.md). A run watched **only on exit**, with the new `observer_cpu_percent` column recording the contamination per sample, gives four baselines at **1.85, 1.50, 1.36 and 2.18** — mean **1.72** against the previous run's **2.39**.
+>
+> **The column confirms why.** It reads **0.18–0.19 cores on every sample of all four holds**, against 1.79–1.99 measured on a hold taken while the agent was actively working. That figure was predicted before the run: near zero if the observer theory was right, and unchanged if something else arrives when a hold starts.
+>
+> **The floor still straddles the transition.** The cleanest baseline is **1.36**, which is the lower edge of the 1.36–1.46 interval, and the guard sits at 1.3. So the claim holds with the contamination removed — the machine's own idle residual lands on the boundary the experiment must start below — and the numbers it holds at are lower than the eleven contaminated baselines suggested. **Those eleven cannot be corrected**, since no artifact of theirs carries the column; they are superseded rather than adjusted.
+
 ## Why no guard tuning fixes this
 
 The 1.3 bar is not mis-set. It is placed just below the transition on purpose, because crossing that transition is the thing being measured. Moving it up admits baselines *above* the transition, which measures nothing. Moving it down refuses nearly everything the machine offers.
