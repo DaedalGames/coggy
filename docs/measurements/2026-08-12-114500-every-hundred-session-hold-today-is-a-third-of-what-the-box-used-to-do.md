@@ -57,9 +57,9 @@ It does **not** invalidate the within-today comparisons, which are the ones take
 ## What to do with it
 
 1. **Do not compare today's hundred-session figures with the archive's.** They are not the same machine.
-0. **The daemon and the workload are eliminated by `git log`** — one command, no rebuild, and it should have been the first check rather than the fourth.
-2. **The next hundred-session hold on a future day is the test.** If it returns to 15, this was a state; if it stays at 4, something changed for good and the code is the place to look.
-3. **A reboot is the cheapest probe** and has not been tried.
+2. **The daemon and the workload are already eliminated by `git log`** — one command, no rebuild, and it should have been the first check rather than the fourth.
+3. **The next hundred-session hold on a future day is the test.** If it returns to 15, this was a state that passed. If it stays at 4, the remaining suspects are the machine and `sessionbench`'s own observing path — which can be separated by running one hold from the 08-11 binary, since the daemon it drives is unchanged.
+4. **A reboot is the cheapest probe** and has not been tried.
 
 ## Provenance
 
