@@ -42,7 +42,24 @@ try {
         # The load must be asserted, not assumed: a sample taken after the
         # sessions died would read an idle box and be counted as evidence.
         $alive = @(Get-Process cpu-spin -ErrorAction SilentlyContinue).Count
-        $tenant = @(Get-Process chrome-headless-shell -ErrorAction SilentlyContinue).Count
+        # PRESENCE IS THE WRONG PREDICATE. Measured 2026-08-12 over 307 samples:
+        # a tenant that EXISTS but holds under a core leaves the box parked in
+        # 75-83% of samples, against 2-4% when it is busy and 100% when it is
+        # gone. So a process count cannot tell an idle neighbour from a working
+        # one, and the two have opposite effects on how many cores this machine
+        # offers. Two reads a second apart give the rate that decides it.
+        $tprocs = @(Get-Process chrome-headless-shell -ErrorAction SilentlyContinue)
+        $tenant = $tprocs.Count
+        $tenantCores = $null
+        if ($tprocs.Count -gt 0) {
+            $ta = ($tprocs | ForEach-Object { $_.TotalProcessorTime.TotalSeconds } | Measure-Object -Sum).Sum
+            Start-Sleep -Milliseconds 1000
+            $tq = @(Get-Process chrome-headless-shell -ErrorAction SilentlyContinue)
+            if ($tq.Count -gt 0) {
+                $tb = ($tq | ForEach-Object { $_.TotalProcessorTime.TotalSeconds } | Measure-Object -Sum).Sum
+                $tenantCores = [math]::Round([math]::Max(0.0, $tb - $ta), 3)
+            }
+        }
         $parked = if ($null -ne $park -and $park.Count -gt 0) { @($park | Where-Object { $_.CookedValue -gt 0 }).Count } else { $null }
         [ordered]@{
             at = (Get-Date -Format 'o')
@@ -51,6 +68,9 @@ try {
             machine_cores = if ($null -ne $busy) { [math]::Round($busy * 16 / 100, 3) } else { $null }
             sessions_alive = $alive
             tenant_processes = $tenant
+            # Null when no tenant exists, so an absent neighbour cannot read as
+            # an idle one — they park the box alike but are different facts.
+            tenant_cores = $tenantCores
         } | ConvertTo-Json -Compress | Out-File -FilePath $jsonl -Append -Encoding utf8
         if ($n % 20 -eq 0) { "{0}  parked {1}  machine {2:N2}  sessions {3}" -f (Get-Date -Format 'HH:mm:ss'), $parked, $busy, $alive }
         $n++
