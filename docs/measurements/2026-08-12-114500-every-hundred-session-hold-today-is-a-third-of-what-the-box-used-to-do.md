@@ -262,6 +262,12 @@ A self-gating probe waited fifty minutes for a three-sample mean under 1.0 cores
 
 That prices the outstanding measurement rather than merely deferring it. The anomalous condition — a hundred-session hold whose `rest` stays under 2 — has been sought six times today and obtained twice by accident. **No gate rule, hold length or threshold reaches a machine that offers two sub-2.0 polls in fifty minutes**, so the remaining approaches are a genuinely idle machine, a different box, or reading the per-process throttling state directly rather than inferring it from timing.
 
+> **Withdrawn the same day: the unaccounted cores were the tenant, and they are ordinary user-mode work.** Enumerating *every* process over one window rather than subtracting the job from the machine: 156 processes sum to **14.92 cores** against **14.78** on the machine counter — agreement to 1% — and `chrome-headless-shell` alone holds **7.93**. Interrupt and DPC together come to **0.10 cores**, so nothing exotic was needed.
+>
+> **The mistake was reading a residual instead of a census.** Machine-minus-job leaves an anonymous number, and an anonymous number invites a mechanism; the same fifteen seconds spent enumerating processes hands back a name. This is the third time tonight a subtraction was read as a discovery.
+>
+> **What survives, and it is sharper than what was withdrawn.** A hundred **sleepless** `--duty 1.0` processes hold **6.22 cores — 0.062 each**, where a solo one holds 0.99, with kernel time at **0.05 cores** total. Oversleep cannot explain that: this workload never pauses. So the collapse is not only a pause defect, and part of it is plain contention with a tenant taking half the box.
+
 ## The cores are busy; the processes are not the ones using them
 
 Per-core counters under a hundred bare `--duty 1.0` sessions — no sleep, no daemon:
