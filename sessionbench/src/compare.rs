@@ -56,6 +56,16 @@ use crate::ramp::RampReport;
 /// offered 12.05 and 6.59 cores.
 const TENANT_AGREEMENT_CORES: f64 = 0.5;
 
+/// Whether two ramps' neighbours put them on different machines.
+///
+/// **A named function so a test can CALL it.** The first test written for this
+/// restated the comparison as a local closure, and reverting the real predicate
+/// to its previous shape left that test green — it asserted arithmetic it had
+/// written itself. Only a deliberate break exposed it.
+fn tenancy_differs(left: f64, right: f64) -> bool {
+    (left - right).abs() > TENANT_AGREEMENT_CORES
+}
+
 /// How far two solo rungs may sit apart and still be one machine.
 ///
 /// **This is the weakest number in the file.** Two percent was the first
@@ -213,7 +223,7 @@ impl Comparison {
         // two ramps that agreed on a quiet machine.
         let tenant_mismatch = worst_tenant(left)
             .zip(worst_tenant(right))
-            .filter(|(l, r)| (l - r).abs() > TENANT_AGREEMENT_CORES)
+            .filter(|(l, r)| tenancy_differs(*l, *r))
             .map(|(l, r)| {
                 format!(
                     "{l:.2} against {r:.2} cores held by the neighbour, {:.2} apart",
@@ -472,7 +482,7 @@ mod tests {
     /// to a same-side test fails here rather than passing quietly.
     #[test]
     fn two_busy_neighbours_far_apart_are_not_one_machine() {
-        let differs = |l: f64, r: f64| (l - r).abs() > TENANT_AGREEMENT_CORES;
+        let differs = super::tenancy_differs;
         assert!(
             differs(9.76, 0.51),
             "the pair the bucket admitted: both busy, machines 12.05 against 6.59"
