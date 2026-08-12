@@ -240,6 +240,24 @@
 >
 > **And it settles what the archive's high holds were.** This box is unparked most of the time, so the 15.3-15.5 job cores of 3 and 11 August were **normal** rather than lucky. Today's readings are the exception, and what made them exceptional is that the tenant happened to be away — the opposite of the reading this record opened with, where a parked box looked like the machine's resting state.
 
+> **2026-08-12 18:37 — the mechanism, from an observation nobody intervened in.** 590 samples over 30 minutes, machine otherwise idle, split by whether the neighbour was present in the SAME sample:
+>
+> | | |
+> |---|---|
+> | parked >= 8 while tenant **absent** | **98%** (n=206) |
+> | parked >= 8 while tenant **present** | **4%** (n=384) |
+> | distinct absence **episodes** | **5** |
+> | arrival -> unpark | 2-3 samples, **6-9 s** |
+> | departure -> park | 0 samples, **immediate** |
+>
+> **This is the strongest form of evidence available here**, because the variable moved on its own rather than because it was moved, inside one window, with no comparison across sittings. 98% against 4% is the 2x2 confirmed without any intervention.
+>
+> **The lags reverse the expectation registered before the run.** A fast unpark and a slow park were predicted — a response and a timeout. Measured: **parking within one sample of the neighbour leaving, unparking taking 6-9 s.** This policy releases cores eagerly and returns them reluctantly, which is the opposite of how a demand-following governor is usually described.
+>
+> **And it reconciles the hysteresis reading that looked contradictory.** In the five-minute hold above the tenant left and the box stayed unparked; here, idle, it parks instantly. The difference is that a hundred sessions were running there. **So the sessions can HOLD the unparked state once something else has triggered it, and cannot trigger it themselves** — which is why they read as irrelevant in the 2x2 and as load-bearing in the hold.
+>
+> **The episode count is stated because it is the real sample size.** The split rests on **five** absences rather than 206 independent observations, and each lag figure is four measurements. A 3-second series is autocorrelated, so counting rows would overstate the confidence by an order of magnitude.
+
 ## What was measured
 
 | | |
