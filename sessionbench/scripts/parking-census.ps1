@@ -6,11 +6,14 @@
 # 15.3-15.5. Nothing from those days records a parked count, because nothing was
 # reading the counter. This builds that history going forward.
 #
-# It is deliberately cheap: two counter reads every 30 s and nothing else, so it
-# can run alongside ordinary work without being the neighbour under study. It
-# writes one JSONL line per poll, so an interrupted run keeps everything it saw.
+# SAMPLE FAST. The first version polled every 30 s, which is useless here: the
+# parked count swings from 0 to 12 within seconds, so a 30-second poll aliases a
+# fast signal into a sequence of unrelated instants and reports each as a level.
+# That is exactly how this record's withdrawn claims were made. One read a second
+# is still cheap, and the mean over a window is the quantity that means anything.
+# It writes one JSONL line per poll, so an interrupted run keeps everything it saw.
 [CmdletBinding()]
-param([int]$Minutes = 20, [int]$IntervalSeconds = 30)
+param([int]$Minutes = 20, [double]$IntervalSeconds = 1)
 
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -19,6 +22,7 @@ New-Item -ItemType Directory -Force -Path $out | Out-Null
 $jsonl = Join-Path $out 'parking.jsonl'
 
 $deadline = (Get-Date).AddMinutes($Minutes)
+$n = 0
 while ((Get-Date) -lt $deadline) {
     $park = (Get-Counter '\Processor Information(0,*)\Parking Status' -ErrorAction SilentlyContinue).CounterSamples |
         Where-Object { $_.InstanceName -notmatch '_total' }
@@ -35,7 +39,11 @@ while ((Get-Date) -lt $deadline) {
         machine_cores = if ($null -ne $busy) { [math]::Round($busy * 16 / 100, 3) } else { $null }
         tenant_processes = $tenant
     } | ConvertTo-Json -Compress | Out-File -FilePath $jsonl -Append -Encoding utf8
-    "{0}  parked {1}/{2}  machine {3:N2}  tenant procs {4}" -f (Get-Date -Format 'HH:mm:ss'), $parked, $total, $(if ($null -ne $busy) { $busy * 16 / 100 } else { -1 }), $tenant
+    # One console line a second would be noise; the JSONL is the artifact.
+    if ($n % 30 -eq 0) {
+        "{0}  parked {1}/{2}  machine {3:N2}  tenant procs {4}" -f (Get-Date -Format 'HH:mm:ss'), $parked, $total, $(if ($null -ne $busy) { $busy * 16 / 100 } else { -1 }), $tenant
+    }
+    $n++
     Start-Sleep -Seconds $IntervalSeconds
 }
 "census complete: $jsonl"
