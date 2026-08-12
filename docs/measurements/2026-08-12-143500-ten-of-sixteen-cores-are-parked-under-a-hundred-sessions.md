@@ -573,6 +573,20 @@
 >
 > **What it does add is that both were installed unattended by SYSTEM** — no prompt, no reboot anyone would have noticed. That is consistent with a machine whose behaviour changed between two mornings with nothing visible happening, and it is the best available explanation for why the change went unnoticed for a day while its effects were attributed to the workload, the daemon, the thermal state and the neighbour in turn.
 
+> **2026-08-12 23:24 — the KB article names a power-management change, and it is the mechanism this needed.** KB5121003 is the August 2026 cumulative for Windows 11 25H2, taking the build to **26200.9168**, and its notes list under Power/battery:
+>
+> > *"sleep, display, and power setting changes now apply correctly across all power plans"*
+>
+> **That is a change that switches core parking on.** This box runs a VENDOR scheme, SAMSUNG MODE, whose parking values are hidden and have never been readable here. If power settings previously did not apply correctly and now do, values that were always present but inert begin taking effect — with no visible action, no reinstall, and no change to the scheme's name.
+>
+> **It fits every constraint the artifacts imposed.** The scheme name is identical across both regimes; the build string did not move because only the REVISION changed, 26200.**9168**, which the host block does not capture; nothing was reinstalled; and the switch happened overnight between two mornings with the update applied unattended by SYSTEM.
+>
+> **And KB5123304 is retired as a candidate**: it is the bundled servicing-stack update that ships alongside the cumulative, not a separate change.
+>
+> **What would confirm it** is reading the parking values inside SAMSUNG MODE and finding them non-default — which needs an attribute change to expose hidden settings and is a configuration change to this machine, not a measurement. **What this is**: a named mechanism from the vendor's own release notes that survives every elimination the archive made, which is as far as evidence goes without touching the box.
+>
+> **The instrument lesson sharpens.** `doctor` records `os_version` as `11 (26200)` and drops the revision — so even a field designed to catch this would have missed it. Recording the update IDs is what closes the gap, and it is now in every artifact.
+
 ## What was measured
 
 | | |
