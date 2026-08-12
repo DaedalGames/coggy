@@ -56,6 +56,22 @@ struct Args {
     #[arg(long, default_value_t = 4_000_000)]
     iterations: u64,
 
+    /// Threads spinning inside one process.
+    ///
+    /// **Exists to vary CONCENTRATION, not total work.** On 2026-08-12 this box
+    /// unparked for a browser holding 5 processes of ~27 threads and refused to
+    /// unpark for sixty single-threaded sessions asking for more — six other
+    /// candidates were eliminated and thread topology is what is left. A
+    /// scheduler classifying per PROCESS sees one substantial application
+    /// against many small ones, and nothing here could produce the first shape.
+    ///
+    /// The units are DIVIDED across threads, never multiplied: a session emits
+    /// the same total however many threads run it, so every rate in the archive
+    /// keeps its meaning. `--iterations` then describes one thread's work per
+    /// unit rather than the process's.
+    #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=256))]
+    threads: u32,
+
     /// Memory held resident for the whole run.
     #[arg(long, default_value_t = 80, value_name = "MIB")]
     resident: usize,
@@ -133,11 +149,56 @@ struct Args {
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    let mut held = vec![0u8; args.resident * BYTES_PER_MIB];
-    touch(&mut held, 0);
+    // ONE counter for every thread. `session.rs` reads a gap below the highest
+    // ordinal it has seen as dropped output, so per-thread ranges would restart
+    // from one and report loss on a session that lost nothing.
+    let ordinals = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    // Divided, not multiplied. The remainder goes to thread 0 so the total is
+    // exactly `--units` whatever the thread count.
+    let per = args.units / args.threads;
+    let remainder = args.units % args.threads;
 
-    let mut stdout = std::io::stdout().lock();
-    let mut state = 0x243F_6A88_85A3_08D3_u64;
+    std::thread::scope(|scope| {
+        for t in 1..args.threads {
+            let ordinals = std::sync::Arc::clone(&ordinals);
+            let args = &args;
+            scope.spawn(move || {
+                // Seeded per thread, or every thread computes the same chain and
+                // an optimizer may notice.
+                let seed = 0x243F_6A88_85A3_08D3_u64 ^ (u64::from(t) << 32);
+                // Only thread 0 holds the resident buffer, so `--resident` stays
+                // a per-SESSION figure rather than multiplying with the count.
+                run(args, seed, per, &ordinals, None)
+            });
+        }
+        run(
+            &args,
+            0x243F_6A88_85A3_08D3_u64,
+            per + remainder,
+            &ordinals,
+            Some(args.resident * BYTES_PER_MIB),
+        )
+    })
+}
+
+/// One thread's share of the run.
+///
+/// `resident_bytes` is `Some` for exactly one thread, which owns the memory the
+/// session holds; the others spin without it.
+fn run(
+    args: &Args,
+    seed: u64,
+    units: u32,
+    ordinals: &std::sync::atomic::AtomicU64,
+    resident_bytes: Option<usize>,
+) -> std::io::Result<()> {
+    let mut held = resident_bytes.map(|bytes| {
+        let mut held = vec![0u8; bytes];
+        touch(&mut held, 0);
+        held
+    });
+
+    let mut state = seed;
     let mut last_touch = Instant::now();
 
     // Clamped rather than rejected: a duty of zero is a session that never
@@ -151,12 +212,17 @@ fn main() -> std::io::Result<()> {
     let mut acc_slept = Duration::ZERO;
     let mut acc_units: u64 = 0;
 
-    for unit in 1..=args.units {
+    for _ in 1..=units {
         let working = Instant::now();
         state = spin(state, args.iterations);
         let computed = working.elapsed();
-        if last_touch.elapsed() >= TOUCH_INTERVAL {
-            touch(&mut held, unit as usize);
+        // Ordinals come from the shared counter, so the sequence a reader sees
+        // is dense and monotonic whatever the thread count.
+        let unit = ordinals.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        if let Some(held) = held.as_mut()
+            && last_touch.elapsed() >= TOUCH_INTERVAL
+        {
+            touch(held, unit as usize);
             last_touch = Instant::now();
         }
 
@@ -170,8 +236,13 @@ fn main() -> std::io::Result<()> {
         // the running maximum would report as loss on a session that lost
         // nothing. Any threaded version needs a single `AtomicU64` handing out
         // ordinals, not a per-thread range.
-        writeln!(stdout, "{unit} {state:016x}")?;
-        stdout.flush()?;
+        // Locked per line rather than for the whole run: holding it across a
+        // sleep would serialise the threads this flag exists to run in parallel.
+        {
+            let mut stdout = std::io::stdout().lock();
+            writeln!(stdout, "{unit} {state:016x}")?;
+            stdout.flush()?;
+        }
 
         let asked = match args.wait_ms {
             Some(ms) => Duration::from_millis(ms),
