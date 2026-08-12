@@ -339,6 +339,19 @@
 >
 > **Which leaves the mechanism open again**: four candidates eliminated, the fifth weakened, and a browser that unparks a box sixty CPU-bound processes cannot.
 
+> **2026-08-12 20:15 — timer resolution is ELIMINATED, from the report's own Platform Timer Resolution section.**
+>
+> ```
+> default platform timer resolution : 15.6ms (15625000ns)
+> current timer resolution (100ns)  : 156250   ->  15.625 ms
+> ```
+>
+> **The current platform timer equals the default while Chromium runs and the box is unparked.** So the browser unparks this machine with the tick at its floor, and the candidate promoted an hour ago is not merely weakened but wrong.
+>
+> **What makes this conclusive where the earlier read was not**: the section states the DEFAULT and the CURRENT value separately and they are equal. A lone `15.6ms` was ambiguous — a description of the default, or a measurement of now, and no way to tell. **Two numbers that happen to match say something one number cannot.**
+>
+> **The tally after five rounds**: process priority, raw thread count, job-object membership, EcoQoS execution-speed throttling and timer resolution are all eliminated. One structural difference remains untested — **concentration**, 27 threads per process against 3, and 5 processes against 60 — which is the only candidate a scheduler classifying per process would still see, and the only one with no cheap query behind it. `cpu-spin` is single-threaded, so testing it needs a workload that does not yet exist.
+
 ## What was measured
 
 | | |
