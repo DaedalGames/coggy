@@ -50,6 +50,27 @@ Reading the per-sample series rather than the medians:
 
 That rules out the explanations a median cannot distinguish: a short hold catching a rise, a long hold catching a fall, or a mixture of the two states within one hold. Every sample in each hold belongs to one plateau.
 
+## The sessions run less often, not slower
+
+Units per core-second — work done per unit of CPU actually obtained, which is the sessions' efficiency rather than their share:
+
+| hold | job cores | units/core-second |
+|---|---|---|
+| tickpair, 08-03 | 15.53 | 67.6 |
+| slowstate-ratio, 08-03 | 15.34 | 58.9 |
+| statepair2, 08-11 | 15.51 | 48.8 |
+| m1-abs-1200, 08-11 | 7.12 | 74.4 |
+| **resids1, 08-12** | 3.34 | **63.2** |
+| **resids20, 08-12** | 3.55 | 61.6 |
+| obs100, 08-12 | 3.64 | 38.9 |
+| waitms100, 08-12 | 4.76 | 38.6 |
+
+**Efficiency is the same in both states.** Today's `resids` pair sits at 62–63 units per core-second, inside the 49–74 that the fast holds span. A session that gets a core does the same work with it whichever state the box is in.
+
+**So the sessions are running less often, not slower**, and the whole 4.7× gap is occupancy. That eliminates in one table every explanation that would cost work per cycle: cache pressure, memory bandwidth, frequency scaling, and thermal throttling would each show as *fewer units per core-second*, and none does.
+
+What remains is a scheduling or wake question — the same hundred sessions obtain a fifth of the machine's time while eleven of sixteen cores sit idle.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
@@ -63,7 +84,7 @@ It does **not** invalidate the within-today comparisons, which are the ones take
 ## What this does not establish
 
 - **No cause, but the code is now excluded rather than merely doubted.** `git log --since="2026-08-11" -- coggyd/ workloads/` returns **nothing**: the side that *produces* the work is byte-identical to the code behind the 15.5-core holds. Every change since is in `sessionbench`, which observes. So a regression in the daemon or the workload is ruled out, and what remains is the machine or the observer's own path.
-- **Not the documented slow state, necessarily.** That one is worth 2.2× and lasts about ninety minutes; this is 3–5× and has held for at least seventy minutes across eight holds.
+- **Not the documented slow state, necessarily.** That one is worth 2.2× and lasts about ninety minutes; this is 3–5× and has held for at least seventy minutes across eight holds. **And that state was characterised on a solo rate**, where this one leaves per-core efficiency untouched — so they may not be the same phenomenon at all.
 - **Not the plug.** Every hold today is on mains, recorded in each artifact.
 - **Thermal reads the same.** `doctor` reported 44.1 °C throughout today, as it did on earlier days — which is the reason that sensor is already recorded here as unable to name this box's states.
 - **Seventeen holds, three days.** The 08-03 and 08-11 groups each contain both high and low readings, so the day alone does not predict the value either.
