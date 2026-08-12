@@ -290,6 +290,24 @@
 >
 > **The census's achieved interval is now 3.92 s against the 1.0 asked for**, because measuring the tenant's rate inserts a one-second read. The parameter has been wrong twice in this script for two unrelated reasons, so the timestamps are the only trustworthy source of it.
 
+> **2026-08-12 19:46 — this workload cannot unpark this box at any count, and that is a fact about the instrument.** Each rung gated on a quiet neighbour and refused if one arrived:
+>
+> | sessions | parked median | >= 8 | machine | tenant |
+> |---|---|---|---|---|
+> | 0 | 12 | **100%** | 2.54 | 0.00 |
+> | 1 | 10 | **100%** | 4.93 | 0.00 |
+> | 5 | 9 | **100%** | 5.09 | 0.00 |
+> | 20 | *skipped, no quiet window* | | | |
+> | 60 | 10 | **100%** | **5.09** | 0.00 |
+>
+> **Nine to twelve cores stay parked in every sample from zero to sixty sessions**, and the machine plateaus at **5.09 cores from five sessions onward** — sixty sleepless processes receive exactly what five do.
+>
+> **Against Chromium at ~10 cores unparking the same box to 14+, the difference is not demand.** Sixty processes asking for sixty cores get five; one browser asking for ten gets fourteen. Whatever the policy responds to, this workload does not have it.
+>
+> **The consequence is about `sessionbench`, not this laptop.** Its own workload cannot unpark the machine it benchmarks, so **every figure in the archive was taken in the low state unless something unrelated happened to be running** — which makes a browser a hidden input to the whole comparison set. That is why the 15.3-15.5 holds of 3 and 11 August look exceptional: they are the ones that happened to coincide with a busy neighbour.
+>
+> **Both defects that voided the first attempt are visible as fixed here.** Every rung reads `tenant 0.00`, where attempt 1 ran at 6.4-9.9 throughout; and `parked 12` beside `machine 2.54` is arithmetic that holds, where attempt 1's `parked 11` beside `machine 11.40` could not be true of one moment. **The skipped rung is the design working** — twelve minutes of waiting that produced no data beats a rung that measured the browser.
+
 ## What was measured
 
 | | |
