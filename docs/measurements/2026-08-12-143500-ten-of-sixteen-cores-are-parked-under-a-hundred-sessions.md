@@ -474,6 +474,18 @@
 >
 > **So the night's work characterised the smaller effect.** What changed between 11 and 12 August, such that a hundred sessions can no longer take more than six cores on a machine still capable of delivering fourteen, is the question this record opened with and it is still open — now with the collapse located in the job's share rather than the machine's total, which is a different search.
 
+> **2026-08-12 22:21 — the sessions are all there, so the collapse is not attrition.** Across all 37 hundred-session holds, on every day:
+>
+> | day | `fewest_running` | `peak_processes` |
+> |---|---|---|
+> | 08-03 | **100** | 101 |
+> | 08-11 | **100** | 101 |
+> | 08-12 | **100** | 101 |
+>
+> **Every hold kept every session.** Nothing dies, nothing fails to start, and the session mode is unchanged — so a hundred identical processes, spawned the same way on the same binary lineage, took **15.5 cores on 11 August and take 5.9 today**. The cheapest explanation is eliminated.
+>
+> **An eighth census confirms the fit and adds nothing.** Tenant 9.49 predicted 12.01 machine cores against a measured 12.21, +1.7% — which is another sample of today's state, and today's state already has seven. Recorded so the count is honest rather than to strengthen anything: the boundary this needs to cross is the day, and no run taken now can cross it.
+
 ## What was measured
 
 | | |
