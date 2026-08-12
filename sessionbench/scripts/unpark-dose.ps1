@@ -39,6 +39,13 @@ function TenantCores {
 }
 
 try {
+    # THE PRECONDITION IS NOT A GATE. This was launched on 2026-08-12 from a box
+    # verified at 12 of 16 parked with the tenant absent, and the neighbour was
+    # back at 9.44 cores before the first rung finished — every rung ran at 6.4
+    # to 9.9 tenant cores and the run answered nothing. Read without the tenant
+    # column it looked like a clean dose-response: 11 parked at zero sessions, 0
+    # parked at every load. That reading is Chromium arriving, not sessions
+    # unparking. So each rung is REFUSED unless the tenant is quiet during it.
     foreach ($n in $Rungs) {
         for ($i = 0; $i -lt $n; $i++) {
             Start-Process $spin -ArgumentList '--units','100000000','--duty','1.0','--resident','1' `
@@ -53,6 +60,10 @@ try {
         $tc = TenantCores
         $alive = @(Get-Process cpu-spin -ErrorAction SilentlyContinue).Count
         $hi = @($pk | Where-Object { $_ -ge 8 }).Count
+        # Voided rather than dropped: a rung that ran with a neighbour is a fact
+        # about the neighbour, and deleting it would leave the artifact looking
+        # like a clean ladder with rungs missing.
+        $void = ($tc -ge 0.5)
         [ordered]@{
             sessions = $n
             sessions_alive = $alive
@@ -61,11 +72,13 @@ try {
             parked_ge8_pct = if ($pk.Count) { [math]::Round(100.0 * $hi / $pk.Count, 0) } else { $null }
             machine_cores = [math]::Round($m * 16 / 100, 3)
             tenant_cores = [math]::Round($tc, 3)
+            void_tenant_present = $void
             at = (Get-Date -Format 'o')
         } | ConvertTo-Json -Compress | Out-File -FilePath $jsonl -Append -Encoding utf8
-        "  sessions {0,3} (alive {1,3})  parked median {2,2}  >=8 in {3,3}%  machine {4,6:N2}  tenant {5,5:N2}" -f `
+        "  sessions {0,3} (alive {1,3})  parked median {2,2}  >=8 in {3,3}%  machine {4,6:N2}  tenant {5,5:N2}{6}" -f `
             $n, $alive, $(if ($pk.Count) { ($pk | Sort-Object)[[int]($pk.Count/2)] } else { -1 }), `
-            $(if ($pk.Count) { [math]::Round(100.0*$hi/$pk.Count,0) } else { -1 }), ($m*16/100), $tc
+            $(if ($pk.Count) { [math]::Round(100.0*$hi/$pk.Count,0) } else { -1 }), ($m*16/100), $tc, `
+            $(if ($void) { "   VOID: neighbour present" } else { "" })
         Get-Process cpu-spin -ErrorAction SilentlyContinue | Stop-Process -Force
         Start-Sleep -Seconds 4
     }
