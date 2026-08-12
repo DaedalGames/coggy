@@ -206,6 +206,24 @@
 >
 > **What the column did earn**: three quarters of a formerly anonymous 10.5-core residual is now named, leaving 1.36 unattributed where the whole figure used to be a shrug.
 
+> **2026-08-12 17:31 — the new tenant column misses a neighbour that arrives mid-hold, and its own count field caught it.** A ten-minute hundred-session hold, 119 samples:
+>
+> | | |
+> |---|---|
+> | `tenant_cores_median` | **0.000** |
+> | `tenant_processes` | **0 in every sample** |
+> | `rest_cores_median` | **10.411** |
+> | machine, per sample | **4.60 to 14.38** |
+> | `chrome-headless-shell` running afterwards | **5 processes** |
+>
+> **The tenant was there and the column read zero.** Discovery only runs on the full-table refresh, and a hold calls `refresh` with a tracked PID set on every tick, so the list is frozen at `Sampler::new()`. The observer read 2 throughout because it exists before the sampler does; the neighbour arrived later and was never enumerated. **The column misses exactly the case it was built for.**
+>
+> **`tenant_processes` is what made this visible within the hour.** Without it the artifact would have published `tenant_cores_median: 0.00` beside a 10.4-core residual, reading as *the machine was quiet and something unknown held ten cores* — the anonymous-residual failure wearing the name of the column that exists to prevent it. A zero with a count beside it cannot lie that way.
+>
+> **The fix is not obvious and must not be rushed.** Re-enumerating per tick is the thing the tracked-refresh path exists to avoid: the full table cost **eighty seconds at twenty-five sessions** and made the instrument the bottleneck it was measuring. Periodic re-discovery needs its own cost measurement before it lands.
+>
+> **What the hold did establish, from columns that work.** The machine ranged **4.60 to 14.38 cores inside a single artifact** — 20 samples below 8 and 99 at or above — which is the two-operating-points switch captured in one file for the first time, rather than inferred across sittings. The parallel census agrees: 153 of 205 polls at zero parked, the rest between 9 and 12.
+
 ## What was measured
 
 | | |
