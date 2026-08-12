@@ -458,6 +458,22 @@
 >
 > **And the archive is the control this needed all along** — 37 hundred-session holds with occupancy, spanning 4.52 to 16.11 machine cores. Eleven sit under 7. The question the fit cannot answer is what puts the box in one regime or the other, which is where this record started.
 
+> **2026-08-12 22:18 — the archive splits by DAY, and the collapsed quantity is the JOB's share, not the machine's.** All 37 hundred-session holds with occupancy, grouped:
+>
+> | day | n | job cores | rest |
+> |---|---|---|---|
+> | 08-03 | 3 | 2.40 - **15.34** | 0.77 - 13.60 |
+> | 08-11 | 4 | 4.34 - **15.51** | 0.49 - 10.24 |
+> | **08-12** | **30** | 0.00 - **5.95** | 0.55 - 14.70 |
+>
+> **Every high hold on 3 and 11 August reached a machine total of 16.00-16.11. Today's highest is 14.70.** And the job's own share fell from 15.5 to a ceiling of **5.95 across thirty holds**, while `rest` still reaches 14.70 — so the box still delivers cores today; they stop reaching the sessions.
+>
+> **That is a second phenomenon, and the larger one.** Parking moves the machine TOTAL between about 5 and 14 and is now well characterised. It cannot explain this: on 11 August the job took **15.51 cores with `rest` at 0.49**, a quiet box handing everything to the workload, where today's best quiet hold gives the job **4.6**.
+>
+> **Neither the plug nor the thermal sensor separates the groups**: no hold in either was on battery, and the low group sits at a single thermal reading of 44.1 while the high group spans 39.1-63.1 — the sensor moves between days and not within them, which was already recorded.
+>
+> **So the night's work characterised the smaller effect.** What changed between 11 and 12 August, such that a hundred sessions can no longer take more than six cores on a machine still capable of delivering fourteen, is the question this record opened with and it is still open — now with the collapse located in the job's share rather than the machine's total, which is a different search.
+
 ## What was measured
 
 | | |
