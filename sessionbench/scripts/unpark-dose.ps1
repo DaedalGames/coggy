@@ -12,7 +12,14 @@
 # count, and the mechanism is about what the neighbour IS rather than what it
 # consumes — which would be the sharpest open question left.
 [CmdletBinding()]
-param([int[]]$Rungs = @(0, 1, 5, 20, 60), [int]$Seconds = 25, [int]$MaxWaitMinutes = 12)
+param(
+    [int[]]$Rungs = @(0, 1, 5, 20, 60),
+    [int]$Seconds = 25,
+    [int]$MaxWaitMinutes = 12,
+    # Threads per process. The concentration arm runs 5 rungs of 27 to match
+    # the browser's shape; the default of 1 keeps the original ladder.
+    [int]$Threads = 1
+)
 
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $spin = Join-Path $root 'target\release\cpu-spin.exe'
@@ -54,7 +61,7 @@ try {
         while ((Get-Date) -lt $wait -and (TenantCores) -ge 0.5) { Start-Sleep -Seconds 15 }
         if ((TenantCores) -ge 0.5) { "  sessions {0,3}  SKIPPED: no quiet window" -f $n; continue }
         for ($i = 0; $i -lt $n; $i++) {
-            Start-Process $spin -ArgumentList '--units','100000000','--duty','1.0','--resident','1' `
+            Start-Process $spin -ArgumentList '--units','100000000','--duty','1.0','--resident','1','--threads',$Threads `
                 -WindowStyle Hidden -RedirectStandardOutput 'NUL' | Out-Null
         }
         Start-Sleep -Seconds 6
@@ -82,6 +89,7 @@ try {
         $void = ($tc -ge 0.5)
         [ordered]@{
             sessions = $n
+            threads = $Threads
             sessions_alive = $alive
             samples = $pk.Count
             parked_median = if ($pk.Count) { ($pk | Sort-Object)[[int]($pk.Count/2)] } else { $null }
