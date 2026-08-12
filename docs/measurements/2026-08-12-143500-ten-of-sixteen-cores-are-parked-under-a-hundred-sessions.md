@@ -365,6 +365,22 @@
 >
 > **The new figure is the last row.** A busy neighbour is present **61%** of the time, so roughly two runs in five land on a machine offering ~5 cores and three in five on one offering ~14 — decided by a browser. That is why the archive's hundred-session holds fall into two clusters rather than scattering, and why any future comparison needs the tenancy gate rather than luck.
 
+> **2026-08-12 21:10 — the idle arm settles, and the busy arm splits by whether I was working.** A fourth census, 138 samples, taken while the agent ran builds and gate runs:
+>
+> | | this window | windows with the machine otherwise idle |
+> |---|---|---|
+> | tenant absent | 100% parked (n=38) | 97-100% |
+> | tenant present, **idle** | **100%** parked (**n=15**) | 60-83% (n=5) |
+> | tenant present, **busy** | **55%** parked (n=83) | **2-4%** |
+>
+> **The idle arm is now unambiguous.** Fifteen samples at 100% parked, where every earlier window had five and spread 60-83%. A present-but-idle browser parks this box exactly like an absent one, which is the load-not-presence finding with the thin leg finally filled.
+>
+> **The busy arm is a factor of thirteen apart, and it is reproducible.** 55% here; **52%** in the census taken during a hundred-session hold. Both windows where the agent's own work overlapped read 52-55%; both windows where the machine was otherwise idle read 2-4%. Two observations a side, split by the same variable.
+>
+> **So the agent's own activity appears to push this box TOWARD parked while the neighbour is busy** — the opposite of a workload demanding cores, and the same direction as [a hundred sessions failing to unpark it at any count](#). It points back at the concentration question rather than away from it: whatever the scheduler classifies, my processes seem to be counted on the side that argues for fewer cores.
+>
+> **Not yet a finding.** Two windows a side, the split is by "was the agent working", which is not a controlled variable, and both busy-arm windows contain different work (builds and gates here, a session hold there). What would settle it is the census run twice in one sitting with a fixed synthetic load present in one arm and absent in the other — the same within-window discipline that settled tenancy itself.
+
 ## What was measured
 
 | | |
