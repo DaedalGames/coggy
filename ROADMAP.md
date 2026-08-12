@@ -24,7 +24,7 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 
 ## Where This Stands
 
-**10 of 31**, and the bottleneck is not code — M1's work-rate condition is 3–4% short at every session weight, the sizing that follows is half a core, and the hour has never been attempted at the duty the gate is stated in.
+**10 of 31**, and the bottleneck is not code — M1's work-rate condition is 3–4% short at every session weight **in the holds it was measured in, which were taken beside a busy neighbour** — and a factor of four short on a quiet box, because the shortfall is the machine's delivered core count rather than the daemon, the sizing that follows is half a core, and the hour has never been attempted at the duty the gate is stated in.
 
 **The third obstacle is the measuring window itself, and it is newly measured rather than newly true.** A run whose verdict is a ratio needs a machine that is both quiet and rested, and those are different things: this box spends hours [quiet and running at half speed](docs/measurements/2026-08-03-094550-the-slow-state-caught-on-a-quiet-machine.md), and hours quiet-looking while a third party takes eleven to thirteen cores. One session at the gate's own workload runs about 18.9 units/s rested and 9.1 in the slow state, and **under a tenant it runs a band rather than a point** — 11.95 to 17.10, mean 14.741, across 48 solo mains holds, where an earlier figure of 13.8 came from nine. **So a crowded rested box outruns a quiet slow one and no single reading names the state.** What sets the tenanted figure is now located: [a lone session's rate steps 33% when something else crosses about 1.4 cores](docs/measurements/2026-08-11-103621-the-step-is-at-one-and-a-half-cores.md), with flat shelves either side, so a hold at 2 cores held and one at 12 read much the same. Every hold now prints the cores held outside the job beside its rate, which is what makes the pair readable; `doctor` answers only the first half and answered it wrongly in both directions on the day this was found.
 
@@ -32,7 +32,7 @@ There are no dates. Duration estimates exist, and an estimate is not a promise.
 |---|---|---|
 | [M0 · attribution](#current-priority-m0--attribution) | **5 / 6** | gate G0 frozen |
 | [M1 · daemon](#m1--headless-daemon) — what it builds | **3 / 6** | three deferred to M2 on purpose |
-| M1 — its gate | **2 / 4** | work rate 3–4% short at every weight; the hour untried at this duty |
+| M1 — its gate | **2 / 4** | work rate 3–4% short at every weight *beside a neighbour*, ~4× short on a quiet box; the hour untried at this duty |
 | [M2 · harness contract](#m2--harness-contract) | 0 / 5 | blocked on M1 |
 | [M3 · governor](#m3--resource-governor) | 0 / 5 | |
 | [M4 · audit surface](#m4--audit-surface) | 0 / 5 | |
