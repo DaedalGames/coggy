@@ -37,7 +37,24 @@ while ((Get-Date) -lt $deadline) {
     $park = (Get-Counter '\Processor Information(0,*)\Parking Status' -ErrorAction SilentlyContinue).CounterSamples |
         Where-Object { $_.InstanceName -notmatch '_total' }
     $busy = (Get-Counter '\Processor Information(0,_Total)\% Processor Time' -ErrorAction SilentlyContinue).CounterSamples[0].CookedValue
-    $tenant = @(Get-Process chrome-headless-shell -ErrorAction SilentlyContinue).Count
+    # PRESENCE IS NOT LOAD, and the difference decides the open question. On
+    # 2026-08-12 the box sat parked in 52% of tenant-PRESENT samples during a
+    # hold and 4% when idle — machine 5.17 against 14.73 with the browser
+    # present either way — so presence alone does not set the state and load
+    # must. This column could not answer that, because it counted processes and
+    # nothing else. Two reads a second apart give the rate rather than a total.
+    $tp = @(Get-Process chrome-headless-shell -ErrorAction SilentlyContinue)
+    $tenant = $tp.Count
+    $tenantCores = $null
+    if ($tp.Count -gt 0) {
+        $a = ($tp | ForEach-Object { $_.TotalProcessorTime.TotalSeconds } | Measure-Object -Sum).Sum
+        Start-Sleep -Milliseconds 1000
+        $tq = @(Get-Process chrome-headless-shell -ErrorAction SilentlyContinue)
+        if ($tq.Count -gt 0) {
+            $b = ($tq | ForEach-Object { $_.TotalProcessorTime.TotalSeconds } | Measure-Object -Sum).Sum
+            $tenantCores = [math]::Round([math]::Max(0.0, $b - $a), 3)
+        }
+    }
     # An unreadable counter must not look like an unparked machine: report null,
     # which no comparison can silently accept, rather than a number.
     $parked = if ($null -ne $park -and $park.Count -gt 0) { @($park | Where-Object { $_.CookedValue -gt 0 }).Count } else { $null }
@@ -48,6 +65,10 @@ while ((Get-Date) -lt $deadline) {
         cores_total = $total
         machine_cores = if ($null -ne $busy) { [math]::Round($busy * 16 / 100, 3) } else { $null }
         tenant_processes = $tenant
+        # Null when no tenant exists, so an absent neighbour cannot read as a
+        # quiet one — the same guard as tenant_processes beside the CPU figure
+        # in the sampler.
+        tenant_cores = $tenantCores
     } | ConvertTo-Json -Compress | Out-File -FilePath $jsonl -Append -Encoding utf8
     # One console line a second would be noise; the JSONL is the artifact.
     if ($n % 30 -eq 0) {
