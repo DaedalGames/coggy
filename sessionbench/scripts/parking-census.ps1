@@ -12,6 +12,16 @@
 # That is exactly how this record's withdrawn claims were made. One read a second
 # is still cheap, and the mean over a window is the quantity that means anything.
 # It writes one JSONL line per poll, so an interrupted run keeps everything it saw.
+#
+# THE ACHIEVED INTERVAL IS NOT THE REQUESTED ONE. `Get-Counter` carries its own
+# ~1 s floor and this loop makes two calls, so asking for 1 s delivers about 3.1.
+# Every line carries its own timestamp, so the achieved interval is recoverable
+# from the artifact rather than assumed from the parameter — which is the same
+# reason a hold reports the duty it achieved rather than the flag it was given.
+#
+# WHAT IT FOUND, so the next reader does not re-derive it: the parked count here
+# is BIMODAL, sitting at 0 or 12 in 21 of 26 samples. A mean over it describes no
+# state the machine is ever in. Report the distribution, not the average.
 [CmdletBinding()]
 param([int]$Minutes = 20, [double]$IntervalSeconds = 1)
 

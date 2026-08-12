@@ -34,6 +34,23 @@
 >
 > **What would measure it**: the parked count sampled at 1 Hz or faster across a full hold, reported as a mean with its spread, on both arms. The 30-second census now running polls too slowly to characterise something moving this fast, and will show the same aliasing.
 
+> **2026-08-12 15:20 — sampled properly, the parked count is BIMODAL rather than noisy.** 26 consecutive samples:
+>
+> ```
+> parked       mean 5.88   sd 5.54   min 0   max 12
+> distribution 0 x11   4 x2   5 x1   10 x2   12 x10
+> ```
+>
+> **Twenty-one of twenty-six samples sit at either 0 or 12**, with almost nothing between. So the mean of 5.88 describes no state this machine is ever in — it is the average of a switch, and reporting it as a level would be a third version of the same mistake.
+>
+> **This is the shape that explains two operating points 4.7x apart.** A box alternating between roughly sixteen usable cores and roughly four is not a box with a variable speed; it is two machines taking turns. It also explains why every point sample tonight looked like a confident level: each one caught the switch in one position, and 12 and 0 are both common enough to be sampled repeatedly.
+>
+> **And it retro-fits the earlier readings without needing them to be wrong.** *12 of 16 at idle* and *0 under a hundred sessions* are both real observations of a bimodal quantity; what was wrong was the word *state* attached to each.
+>
+> **The instrument does not sample as fast as it asks.** The census requests 1 s and delivers **3.1 s** (min 3.0, max 3.1), because `Get-Counter` carries its own ~1 s floor and the loop makes two calls. That is recorded rather than fixed: 3.1 s resolves a switch this coarse, and the artifact now states its achieved interval instead of its requested one — the same reason a hold reports achieved duty rather than the flag it was given.
+>
+> **What is still not established**: the switch's period and what drives it. 26 samples over ~80 seconds is enough to show bimodality and not enough to time it, and nothing here relates the position to load, to the tenant, or to the clock.
+
 ## What was measured
 
 | | |
