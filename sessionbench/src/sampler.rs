@@ -113,6 +113,17 @@ pub struct Occupancy {
     /// disk keeps its meaning, and so a reader can see the contamination rather
     /// than receive a corrected number with no provenance.
     pub observer_cores_median: f64,
+    /// Cores held by the named neighbour, over the same window as
+    /// `rest_cores_median`.
+    ///
+    /// **This is the column that says which machine a hold measured.** On
+    /// 2026-08-12 a hundred sessions met a box delivering 5.1 cores with this
+    /// process absent and 14.5 with it present, and three holds minutes apart
+    /// read 14.53, 5.15 and 14.60 as it came and went. Reported rather than
+    /// subtracted, for the same reason as the observer above: every figure
+    /// already on disk keeps its meaning, and a reader sees the neighbour rather
+    /// than receiving a corrected number with no provenance.
+    pub tenant_cores_median: f64,
     /// Mean cores below the median, summed over samples under it.
     ///
     /// **The one number that would have caught it**, and it has a floor rather
@@ -202,6 +213,15 @@ impl Occupancy {
             .collect();
         observer.sort_by(f64::total_cmp);
         let observer_median = observer[observer.len() / 2];
+        // Same window again. A neighbour that arrives mid-hold is exactly what
+        // this exists to expose, so it must not be averaged over a different
+        // stretch than the residual it explains.
+        let mut tenant: Vec<f64> = samples[from..]
+            .iter()
+            .map(|s| f64::from(s.tenant_cpu_percent) / 100.0)
+            .collect();
+        tenant.sort_by(f64::total_cmp);
+        let tenant_median = tenant[tenant.len() / 2];
         cores.sort_by(f64::total_cmp);
         let median = cores[cores.len() / 2];
         let lost = cores.iter().map(|c| (median - c).max(0.0)).sum::<f64>() / cores.len() as f64;
@@ -211,6 +231,7 @@ impl Occupancy {
             lost_cores: lost,
             rest_cores_median: rest_median,
             observer_cores_median: observer_median,
+            tenant_cores_median: tenant_median,
         })
     }
 }
