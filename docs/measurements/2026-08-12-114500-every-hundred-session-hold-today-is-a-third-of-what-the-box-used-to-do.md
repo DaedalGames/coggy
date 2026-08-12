@@ -131,6 +131,21 @@ Four candidates tested and eliminated in the same sitting:
 
 What remains is Windows' scheduling of a hundred short-cycle sleepers, on a box that is 70% idle while it happens. That is where the next measurement has to look, and none of tonight's instruments reaches it.
 
+## General wake latency is not it either
+
+An independent process sleeping 40 ms, measured alone and again while a hundred `cpu-spin` run:
+
+| | Sleep(40 ms) actual | oversleep |
+|---|---|---|
+| alone | 47.5 ms | 1.19× |
+| with 100 sleepers running | 54.6 ms | 1.37× |
+
+**1.15× worse — against the sessions' own 10.7×.** Windows wakes a sleeper essentially on time even with a hundred short-cycle processes running, so the inflation is not the OS failing to schedule wakeups. It is specific to the workload's own loop.
+
+That is the fifth candidate eliminated in this sitting and the last one reachable from outside the workload. **The remaining suspect is `cpu-spin`'s own measurement of `computed`**, which sets the pause: the pause is `computed × (1 − duty)/duty`, so anything that inflates the *measured* compute inflates the pause proportionally — and scheduling delay between waking and running would land inside that measurement rather than beside it.
+
+**That is a hypothesis this record cannot test.** Confirming it needs the workload to record its requested pause against its achieved one, which `cpu-spin` does not do, and adding it is a change to the thing being measured.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
