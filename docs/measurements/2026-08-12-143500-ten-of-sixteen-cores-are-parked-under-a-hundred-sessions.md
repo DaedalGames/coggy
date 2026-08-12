@@ -688,3 +688,11 @@ Four appends above say *this workload cannot unpark this box at any count*, and 
 
 The neighbour section above is affected the same way. *What the neighbour IS* is no longer the sharpest open question left; it is not a question at all, since 27 threads were picked to match `chrome-headless-shell` and reproduce its effect with no browser present.
 
+## 2026-08-13 01:45 — the supersession above is itself withdrawn
+
+The append at 01:10 says four earlier appends are false and this workload can unpark the box. [The arm it rests on did not replicate forty minutes later](2026-08-13-011000-the-box-unparks-for-threads-not-for-processes.md), reading 8 parked cores and 5.83 machine cores where it had read 2 and 9.12, tenant absent from both.
+
+So *this workload cannot unpark this box at any count* goes back to standing, with its scope made explicit rather than restored silently: **it is established for adding PROCESSES, which is the only axis any replicated ladder here has varied.** Whether adding threads does something different is open and is the one live question, not a settled correction to it.
+
+The neighbour's identity returns to being an open question with it.
+
