@@ -272,6 +272,12 @@ That prices the outstanding measurement rather than merely deferring it. The ano
 
 > **2026-08-12 14:45 — this record's central question has an answer, and it is core parking.** `Parking Status` reads **12 of 16 cores parked at idle and 9–10 under a hundred sleepless `--duty 1.0` sessions** with the tenant censused at zero, so the parked count does not respond to load and is a standing property of the machine's current state. **A box pinned at five or six usable cores cannot produce the 15.3–15.5 job cores of 3 and 11 August**, and it produces 3.34–4.81, which is what every hold today produced. [The parking record](2026-08-12-143500-ten-of-sixteen-cores-are-parked-under-a-hundred-sessions.md) holds the measurement. **Still unestablished**: why they are parked, and whether they were unparked on the days that reached 15.5 — no artifact from those days records a parked count, because nothing was reading the counter.
 
+> **2026-08-12 18:05 — ANSWERED, and the cause is the neighbour's ABSENCE.** This box parks cores when `chrome-headless-shell` is not running and unparks when it is: a 2x2 gives **5.09-5.37 machine cores with the tenant absent against 14.47-14.60 with it present**, across a 3.7x range in the sessions' own duty that moves the total by 5%. An idle census of 492 samples finds the box **fully unparked 84% of the time**, with the tenant running for 89% of that window, and a 4.5x split inside it — 2.72 cores while parked against 12.15 while not — measured with no workload at all.
+>
+> **So the 15.3-15.5 job cores of 3 and 11 August were normal, not lucky.** Today's holds are the exception, and what made them exceptional is that the tenant happened to be away. The question this record asks — why every hold today is a third of what the box used to do — has that as its answer, and it is the reverse of what the record assumed: a parked box is not this machine's resting state.
+>
+> [The parking record](2026-08-12-143500-ten-of-sixteen-cores-are-parked-under-a-hundred-sessions.md) holds the measurements, including three withdrawn mechanisms and three instrument defects cleared on the way.
+
 ## The sleep is honest, and the spin is where the time goes
 
 One 30-second window, a hundred sessions at `--duty 0.27`, tenant censused at **0.000 cores**, twelve sessions reporting their own timing into it:
