@@ -66,9 +66,13 @@ So a pre-baseline re-check would be worthless — the gate has just read quiet, 
 
 ## What it changes
 
+**2026-08-12 10:20 — the verdict, computed from the four clean baselines rather than argued.** Subtracting the agent's measured 0.18 leaves the machine alone at **1.18, 1.32, 1.67 and 2.00 cores**. Against the 1.3 guard that is **one pass in four with the observer entirely removed**, and the best reading clears the guard by 0.12 cores while sitting 0.18 *below* the transition it must then cross. The range straddles the 1.36–1.46 interval outright.
+
+**So excluding the agent from `rest` would not rescue the design** — it is worth roughly 0.18 cores against a shortfall of 0.6 or more, and it changes one baseline in four. That closes the cheapest remaining option: the block is the machine's own idle residual, measured without contamination, and no accounting change reaches it.
+
 The rising-limb design should not be retried on this box without something new. Three options, in order of cost:
 
-1. **An abort predicate inside `hold`**, so a spoiled arm ends at its second sample rather than its sixth. It now has two independent claimants and is the only change that serves both arms.
+1. ~~**An abort predicate inside `hold`**~~ — **built (`befe71e`), wired (`5594104`), and it did its job**: spoiled attempts now cost ~5 seconds rather than 30. It bought attempts, not baselines, because the scarce thing was never the cost of an attempt.
 2. **A shorter baseline hold**, which narrows the window in which the tenant can arrive — at the cost of a noisier rate, on a quantity whose spread is [already the binding constraint](2026-08-12-042000-longer-holds-do-not-cut-the-spread-and-they-halve-the-acceptance.md).
 3. **Accept the collapse limb as the instrument.** `-AnyBaseline` pairs run whenever the box allows and were treated as a compromise. If the rising limb is reachable roughly once in eight attempts, that ordering is backwards.
 
