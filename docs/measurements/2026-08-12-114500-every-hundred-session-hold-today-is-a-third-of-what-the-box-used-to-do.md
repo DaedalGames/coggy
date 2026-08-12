@@ -183,6 +183,12 @@ The two arms reach the same ~0.04 cores each by opposite routes. `--duty` **back
 
 **This record does not test it.** `PROCESS_POWER_THROTTLING_EXECUTION_SPEED` can be queried and set per process, and neither has been done.
 
+> **2026-08-12 12:55 — the bare-process control is not equivalent, and two sections below rest on it.** A sweep of `--duty 1.0` with output to `NUL` gives **0.236 cores for a SINGLE process**, where [the archive records 0.99 for a lone duty-1.0 session](2026-08-12-114500-every-hundred-session-hold-today-is-a-third-of-what-the-box-used-to-do.md) under the daemon. One process cannot be throttled to a quarter of a core by anything about concurrency, so the difference is the **output path**: `cpu-spin` writes and flushes a line per unit, so redirected to `NUL` it is syscall-bound rather than CPU-bound, and the sweep measures write throughput.
+>
+> **So "no I/O" was wrong in every section that claimed it**, and the daemon-versus-bare comparison compared two different I/O paths rather than isolating the daemon. What survives: the daemon-hosted numbers, which are all measured the same way as each other; the timing instrument's readings, which are per-unit and path-independent; and the oversleep arithmetic. What does not: the inference that a hundred bare processes reproducing the collapse proves the daemon is uninvolved, and the throttling signature built on a duty-1.0 control taken through `NUL`.
+>
+> The sweep's shape is also uninformative for the same reason — 24%, 31%, 37%, 43%, 24%, 33%, 38% of ideal at 1, 2, 4, 8, 16, 32 and 64 processes has no knee because it is bounded by a syscall rate rather than by cores.
+
 ## A hundred sessions that never sleep still cannot have the machine
 
 `--duty 1.0` has no pause at all — no feedback loop, no inflated `computed`, no oversleep:
