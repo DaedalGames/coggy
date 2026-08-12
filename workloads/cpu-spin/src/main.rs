@@ -162,6 +162,14 @@ fn main() -> std::io::Result<()> {
 
         // The ordinal opens the line so a gap is visible afterwards, and the
         // state is printed so no optimizer can decide the loop was pointless.
+        //
+        // **A `--threads` flag would have to share this counter.** `session.rs`
+        // tracks the largest ordinal any line opened with and reads a gap below
+        // that maximum as dropped output — which is a third of gate M1. Threads
+        // each running `1..=units` would restart from one, and every line below
+        // the running maximum would report as loss on a session that lost
+        // nothing. Any threaded version needs a single `AtomicU64` handing out
+        // ordinals, not a per-thread range.
         writeln!(stdout, "{unit} {state:016x}")?;
         stdout.flush()?;
 
