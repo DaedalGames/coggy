@@ -206,6 +206,27 @@ That is the throttling signature with a control attached: **one is unthrottled a
 
 **What this still does not name**: the mechanism that limits them. `GetProcessInformation` for `ProcessPowerThrottling` returned false on both a child and the caller here, so the per-process throttling state remains unread, and EcoQoS is a hypothesis rather than a finding.
 
+## The state is one number: how much of its own spin a session is descheduled for
+
+For `--duty 0.27` the cycle is `computed_wall × 3.7`, so both the *measured* compute and the *actual* CPU per unit come out of figures every hold already carries.
+
+| hold | cycle | computed (wall) | CPU/unit | descheduled |
+|---|---|---|---|---|
+| tickpair, 08-03 | 95.3 ms | 25.7 ms | 14.79 ms | **43%** |
+| slowstate-ratio, 08-03 | 110.8 | 29.9 | 16.99 | **43%** |
+| statepair2, 08-11 | 132.3 | 35.7 | 20.51 | **43%** |
+| m1-abs-1200, 08-11 | 188.6 | 51.0 | 13.43 | 74% |
+| tenant-100, 08-03 | 289.9 | 78.4 | 21.61 | 72% |
+| resids1, 08-12 | 474.4 | 128.2 | 15.82 | **88%** |
+| resids20, 08-12 | 457.7 | 123.7 | 16.24 | **87%** |
+| obs100, 08-12 | 706.4 | 190.9 | 25.68 | **87%** |
+
+**Three holds across two days sit at exactly 43%, and three sit at 87–88%.** The state is not a rate, a temperature or a tenant — it is how much of its own spin a session gets to run.
+
+At 43% this is simply saturation: a hundred sessions asking for more than sixteen cores, each running 57% of the time it tries to. **At 88% it is not.** The same sessions run 12% of the time they try to while the machine reads five of sixteen cores busy, and CPU-per-unit is constant at 13–20 ms in both, so the work is not getting more expensive — the thread is not being run.
+
+**A pure-arithmetic loop cannot be descheduled 88% of the time on an idle box.** That is the whole question in one number, measured consistently, from artifacts that existed before this was looked for.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
