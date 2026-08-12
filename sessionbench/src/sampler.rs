@@ -39,6 +39,21 @@ const DEFENDER_PROCESS: &str = "MsMpEng.exe";
 /// beside it and any analysis subtracts knowingly.
 const OBSERVER_PROCESS: &str = "claude";
 
+/// The neighbour whose presence sets how many cores this machine offers.
+///
+/// WHY A NAME AND NOT A RESIDUAL. `rest_cores_median` is `machine - job`, so it
+/// is anonymous by construction: it can say ten cores are held elsewhere and
+/// never by what. On 2026-08-12 that mattered more than any other column here.
+/// A hundred sessions get a machine delivering **5.1 cores with this process
+/// absent and 14.5 with it present** — 2.8x — while a 3.7x change in the
+/// sessions' own duty moves that total by 5%. Three holds minutes apart read
+/// 14.53, 5.15 and 14.60 as it came and went. The neighbour keeps cores
+/// unparked and a hundred self-limiting sessions cannot, so an artifact that
+/// does not record whether it was there cannot say which machine it measured.
+///
+/// Matched on a prefix for the same reason as the observer above.
+const TENANT_PROCESS: &str = "chrome-headless-shell";
+
 /// What one tick of the instrument cost.
 ///
 /// A scaling benchmark has to know its own overhead, because the one failure it
@@ -255,6 +270,16 @@ pub struct Sample {
     /// the passing value. A count of 0 says "found nothing" where the percent
     /// alone would say "cost nothing".
     pub observer_processes: usize,
+    /// CPU held by [`TENANT_PROCESS`], sampled in the same tick as
+    /// [`Sample::machine_cpu_percent`] so the two can be read against each
+    /// other. Included in `machine_cpu_percent` and NOT subtracted from it: this
+    /// names part of the residual rather than redefining it.
+    pub tenant_cpu_percent: f32,
+    /// How many matched, so a zero can be told from an absence. A rename or a
+    /// suffix makes the tenant go uncounted and `tenant_cpu_percent` silently
+    /// reads 0.0, which is indistinguishable from a quiet machine — the exact
+    /// confusion this field exists to prevent.
+    pub tenant_processes: usize,
     pub available_memory_bytes: u64,
     pub output_bytes: u64,
     /// Lines the session has written, which is its own count of work done.
@@ -288,6 +313,7 @@ pub struct Sampler {
     defender: Option<Pid>,
     /// The agent's pids, found on a full walk and refreshed by pid after.
     observers: Vec<Pid>,
+    tenants: Vec<Pid>,
     /// Why the sampling thread could not be raised above the sessions, when it
     /// could not. Carried into reports, since a starved sampler produces
     /// numbers that describe the observer.
@@ -309,6 +335,7 @@ impl Sampler {
             logical_cores: 1.0,
             defender: None,
             observers: Vec::new(),
+            tenants: Vec::new(),
             unprioritised_reason: raise_current_thread().err(),
         };
         if let Some(reason) = &sampler.unprioritised_reason {
@@ -359,10 +386,12 @@ impl Sampler {
 
         match (tracked, self.defender) {
             (Some(pids), Some(defender)) => {
-                let mut list = Vec::with_capacity(pids.len() + 1 + self.observers.len());
+                let mut list =
+                    Vec::with_capacity(pids.len() + 1 + self.observers.len() + self.tenants.len());
                 list.extend_from_slice(pids);
                 list.push(defender);
                 list.extend_from_slice(&self.observers);
+                list.extend_from_slice(&self.tenants);
                 self.sys
                     .refresh_processes_specifics(ProcessesToUpdate::Some(&list), true, kind);
                 // Defender restarting changes its pid, and a targeted refresh
@@ -396,6 +425,18 @@ impl Sampler {
                     })
                     .map(|(pid, _)| *pid)
                     .collect();
+                self.tenants = self
+                    .sys
+                    .processes()
+                    .iter()
+                    .filter(|(_, p)| {
+                        p.name()
+                            .to_string_lossy()
+                            .to_ascii_lowercase()
+                            .starts_with(TENANT_PROCESS)
+                    })
+                    .map(|(pid, _)| *pid)
+                    .collect();
             }
         }
     }
@@ -406,6 +447,11 @@ impl Sampler {
         let defender = self.defender.and_then(|pid| self.sys.process(pid));
         let observers: Vec<_> = self
             .observers
+            .iter()
+            .filter_map(|pid| self.sys.process(*pid))
+            .collect();
+        let tenants: Vec<_> = self
+            .tenants
             .iter()
             .filter_map(|pid| self.sys.process(*pid))
             .collect();
@@ -424,6 +470,8 @@ impl Sampler {
             defender_rss_bytes: defender.map(|p| p.memory()),
             observer_cpu_percent: observers.iter().map(|p| p.cpu_usage()).sum(),
             observer_processes: observers.len(),
+            tenant_cpu_percent: tenants.iter().map(|p| p.cpu_usage()).sum(),
+            tenant_processes: tenants.len(),
             available_memory_bytes: self.sys.available_memory(),
             output_bytes: output.total(),
             work_units: output.units(),
