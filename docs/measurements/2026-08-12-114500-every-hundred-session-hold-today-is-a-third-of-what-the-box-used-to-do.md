@@ -270,6 +270,25 @@ That prices the outstanding measurement rather than merely deferring it. The ano
 >
 > **And for that regime the arithmetic closes.** The tenant holds 7.93 of 16, leaving about 8 cores for a hundred processes — **0.08 each**, against **0.062** measured. Ordinary core-sharing predicts the sleepless collapse to within a quarter, so there is no anomaly there to explain. **The open question is narrower than it was**: it belongs to the `--duty 0.27` holds, where the machine really did read 1.97 of 16 busy with the tenant absent.
 
+## The collapse survives a censused-empty machine
+
+Two 25-second hundred-session `--duty 0.27` holds, 38 seconds apart, gated on a **named** census of `chrome-headless-shell` rather than on `doctor` or a residual:
+
+| arm | tenant cores | job cores | machine cores | each | achieved duty |
+|---|---|---|---|---|---|
+| absent | **0.000** | 3.431 | 5.002 | 0.0343 | **12.7%** |
+| after | 0.571 | 3.132 | 4.932 | 0.0313 | 11.6% |
+
+**The tenant is not the mechanism.** At exactly zero tenant cores a hundred sessions reach 12.7% of the duty they ask for, while **eleven of sixteen cores go unused**. Every earlier reading of this shape was taken with a neighbour present and could be dismissed on that ground; this one cannot.
+
+**The two routes agree**: 4.868 cores summed across all processes against 5.002 on the machine counter, 2.7% apart.
+
+**The contrast this run was built for did not happen.** The tenant returned at 0.571 cores rather than the 8–10 it holds when busy, so the second arm is not a tenanted arm and **the 52% pair above remains unmatched**. What the run delivers is the absent arm, which was the harder half to obtain.
+
+**And the residual names the observer.** `machine − job` is **1.571 cores** with the tenant at zero and no other process above 0.6 — almost exactly the 1.58–1.99 the agent holds while working, against 0.04–0.17 idle. The transcript was read seconds before this arm began, which is the documented failure in its own words: a gate clearance announces itself, the announcement summons the observer, and the observer lands inside the hold the clearance just started. **Here it is visible in the artifact rather than inferred**, because the census leaves nothing else it could be.
+
+**That does not rescue the result, it sharpens it.** Even crediting the observer with its full 1.571 cores, the machine is at 5.0 of 16 and the sessions are asking for 27. The unused nine cores are unused whoever is holding the other five.
+
 ## A census during a duty-0.27 hold, and the tenant is in it too
 
 | hundred-session `--duty 0.27` window | machine busy | `chrome-headless-shell` | each session |
