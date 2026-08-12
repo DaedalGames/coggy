@@ -17,6 +17,23 @@
 >
 > **What is still not established**: why the cores are parked, and whether they were unparked on the days that reached 15.5. The policy is hidden in this scheme and cannot be read without changing attributes on the machine, so this is an effect with a named shape and an unread cause.
 
+> **2026-08-12 15:05 — the parked count is not a level, and every figure in this record is a point sample.** Reading it three times twelve seconds apart, within one arm:
+>
+> ```
+> SOLO     sessions=1    parked = 4 / 12 / 11    machine 8.52 cores
+> HUNDRED  sessions=100  parked = 0 /  7 /  9    machine 5.02 cores
+> ```
+>
+> **It swings from 0 to 12 inside seconds, on both arms.** So *12 of 16 parked at idle* and *9-10 under a hundred sleepless sessions* are two and three point readings of a fast-moving quantity, and the words built on them — **a standing state**, **not load-responsive** — are withdrawn. A quantity sampled three times cannot support either.
+>
+> **This is the rule this repository already carries**: a point sample is not a windowed mean, and the failure is reading the nearest instrument rather than the one that decides. The parking counter is instantaneous by construction and was read as a level.
+>
+> **What survives.** The count is frequently high — 4 to 12 of 16 across every reading here — which is qualitatively consistent with a machine offering far fewer cores than it has. And the independent figure is steady where the parked count is not: `machine_cores` reads **5.0** under a hundred sessions across every hold tonight, by a counter that is a windowed mean rather than an instant. **The throughput ceiling is measured; the parked count is the candidate explanation and is not yet measured properly.**
+>
+> **What that costs the conclusions below.** The ceiling record's answer stands on the *ceiling*, which is windowed and reproducible, and on parking only as a mechanism. The ROADMAP correction saying `C` is five or six rather than sixteen rests on the same windowed figure and survives; the sentence quoting *12 of 16 parked* as a level does not, and needs the mean this record does not yet have.
+>
+> **What would measure it**: the parked count sampled at 1 Hz or faster across a full hold, reported as a mean with its spread, on both arms. The 30-second census now running polls too slowly to characterise something moving this fast, and will show the same aliasing.
+
 ## What was measured
 
 | | |
