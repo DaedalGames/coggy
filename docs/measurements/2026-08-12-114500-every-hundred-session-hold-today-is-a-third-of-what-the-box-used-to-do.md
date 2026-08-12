@@ -181,7 +181,9 @@ The two arms reach the same ~0.04 cores each by opposite routes. `--duty` **back
 
 **So the leading candidate is now throttling rather than contention.** Windows applies power throttling — EcoQoS — to background, windowless processes, running them at reduced speed on efficiency cores. That would produce exactly this signature: long wall time, little CPU counted against the process, and a machine that looks idle because the work is being done slowly rather than not at all. Every session in every hold here is started windowless by a background harness.
 
-**This record does not test it.** `PROCESS_POWER_THROTTLING_EXECUTION_SPEED` can be queried and set per process, and neither has been done.
+**Queried, and the specific hypothesis is out.** `GetProcessInformation` with `ProcessPowerThrottling` returns `ControlMask=0x0, StateMask=0x0` for both a windowless `cpu-spin` child and the shell that launched it — **no explicit throttling policy either way**. (It returned false at first because the struct's `Version` must be set to 1 on input; with that it succeeds and `err=0`.)
+
+So nothing is marking these processes as throttled at the API level, and EcoQoS-by-explicit-policy is eliminated. **What the API cannot answer is whether Windows applies it implicitly**: it reports the policy a process has *requested*, not the one the scheduler is *applying*, so an unset mask means the system decides rather than that the system is leaving them alone.
 
 > **2026-08-12 12:55 — the bare-process control is not equivalent, and two sections below rest on it.** A sweep of `--duty 1.0` with output to `NUL` gives **0.236 cores for a SINGLE process**, where [the archive records 0.99 for a lone duty-1.0 session](2026-08-12-114500-every-hundred-session-hold-today-is-a-third-of-what-the-box-used-to-do.md) under the daemon. One process cannot be throttled to a quarter of a core by anything about concurrency, so the difference is the **output path**: `cpu-spin` writes and flushes a line per unit, so redirected to `NUL` it is syscall-bound rather than CPU-bound, and the sweep measures write throughput.
 >
