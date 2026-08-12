@@ -530,6 +530,25 @@
 >
 > **An instrument note worth keeping**: the verdict line of this run crashed on an em-dash, because the console encodes cp949 and cannot represent `—`. The figures printed only because they came first. **Put the numbers before the interpretation in any script that prints both** — a formatting crash after the data is an inconvenience, and before it is a lost run.
 
+> **2026-08-12 22:45 — the whole night in one table: the PARKING BEHAVIOUR changed between 11 and 12 August.** Every quiet hundred-session hold on disk, tenant absent in all six:
+>
+> | day | job | rest | machine |
+> |---|---|---|---|
+> | 08-03 | 15.34 | 0.77 | **16.11** |
+> | 08-11 | 15.51 | 0.49 | **16.00** |
+> | 08-12 | 3.12 | 1.40 | **4.52** |
+> | 08-12 | 4.55 | 0.82 | **5.37** |
+> | 08-12 | 4.59 | 0.73 | **5.33** |
+> | 08-12 | 4.76 | 0.55 | **5.31** |
+>
+> **Same condition, same workload family, and the box delivers 16 cores then and 4.5-5.4 now.**
+>
+> **So tenancy was never the cause — it is the current TRIGGER for a behaviour that switched on between those days.** Today an absent neighbour means a parked box, measured at 97-100% parked across two censuses. On 11 August an absent neighbour meant sixteen cores. The `0.937t + 3.119` law describes today's policy, and on 11 August that policy was not in force, which is why the fit failed by 4.4x against the archive.
+>
+> **Everything measured tonight survives as a description of today** — the dose-response, the arrival and departure lags, the load-not-presence split, that this workload cannot unpark the box at any count, and that `--resident` is inert. All of it was taken after the switch.
+>
+> **And the question is narrower than when this record opened.** Not why a hundred sessions get few cores, but **why this box began parking cores at all between 11 and 12 August** — with every environmental candidate the artifacts record already eliminated: OS build, power plan, Defender engine, core count, elevation, the plug, the thermal sensor, session attrition, and eighteen instrument commits.
+
 ## What was measured
 
 | | |
