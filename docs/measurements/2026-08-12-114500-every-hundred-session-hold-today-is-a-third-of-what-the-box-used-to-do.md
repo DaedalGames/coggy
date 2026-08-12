@@ -36,6 +36,20 @@ So a quiet box today gives 3.3–4.8 cores where a quiet box nine days ago gave 
 
 Every hold in the table runs `cpu-spin --units 100000000 --duty 0.27`, and `--resident` was tested directly across three regimes today — 1 against 20 at `rest` ~9, ~10 and ~2 — agreeing within 3%, 12% and 6%. One hold used `--wait-ms 46` instead of `--duty` and landed at 4.76, inside today's band.
 
+## Both states are flat plateaus, not ramps
+
+Reading the per-sample series rather than the medians:
+
+| hold | job cores, sample by sample |
+|---|---|
+| tickpair, 08-03 | 0.0, 0.1, **15.5, 15.6, 15.5, 15.4, 15.6, 15.5, 15.4, 15.5, 15.5, 15.6, 15.4, 15.6** |
+| slowstate-ratio, 08-03 | 0.0, 0.2, **15.4, 15.2, 15.4, 15.6, 15.4, 15.4, 15.4, 15.1, 15.0, 15.5, 15.6, 15.5** |
+| resids1, 08-12 | 0.0, 0.2, **3.3, 3.3, 3.1, 3.2, 3.6, 3.4, 3.3, 2.4, 3.6, 3.4, 3.7** |
+
+**Each reaches its level by the second sample and holds it.** So this is not a ramp that ran out of time, not a decay under sustained load, and not contention accumulating — the box has **two stable operating points at a hundred sessions, 4.7× apart**, and a hold settles into whichever one is in force within about four seconds.
+
+That rules out the explanations a median cannot distinguish: a short hold catching a rise, a long hold catching a fall, or a mixture of the two states within one hold. Every sample in each hold belongs to one plateau.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
