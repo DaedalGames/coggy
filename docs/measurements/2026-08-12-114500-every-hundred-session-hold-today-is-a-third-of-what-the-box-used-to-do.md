@@ -270,6 +270,8 @@ That prices the outstanding measurement rather than merely deferring it. The ano
 >
 > **And for that regime the arithmetic closes.** The tenant holds 7.93 of 16, leaving about 8 cores for a hundred processes — **0.08 each**, against **0.062** measured. Ordinary core-sharing predicts the sleepless collapse to within a quarter, so there is no anomaly there to explain. **The open question is narrower than it was**: it belongs to the `--duty 0.27` holds, where the machine really did read 1.97 of 16 busy with the tenant absent.
 
+> **2026-08-12 14:45 — this record's central question has an answer, and it is core parking.** `Parking Status` reads **12 of 16 cores parked at idle and 9–10 under a hundred sleepless `--duty 1.0` sessions** with the tenant censused at zero, so the parked count does not respond to load and is a standing property of the machine's current state. **A box pinned at five or six usable cores cannot produce the 15.3–15.5 job cores of 3 and 11 August**, and it produces 3.34–4.81, which is what every hold today produced. [The parking record](2026-08-12-143500-ten-of-sixteen-cores-are-parked-under-a-hundred-sessions.md) holds the measurement. **Still unestablished**: why they are parked, and whether they were unparked on the days that reached 15.5 — no artifact from those days records a parked count, because nothing was reading the counter.
+
 ## The sleep is honest, and the spin is where the time goes
 
 One 30-second window, a hundred sessions at `--duty 0.27`, tenant censused at **0.000 cores**, twelve sessions reporting their own timing into it:

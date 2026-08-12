@@ -2,6 +2,21 @@
 
 **A hundred `cpu-spin --duty 0.27` sessions, tenant censused at zero processes: `Parking Status` reads 10 of 16 cores parked, twice, and per-core utilisation is 96, 96, 0, 0, 3, 3, 7, 3, 96, 96, 40, 46, 12, 4, 1, 0. The sessions were never descheduled off idle cores — eleven of the cores were not available to them. This is the mechanism behind every "on an idle box" reading taken tonight.**
 
+> **2026-08-12 14:45 — the feedback loop below is refuted, and what replaces it is larger.** Parking on this box does not respond to load at all:
+>
+> | state | parked | machine |
+> |---|---|---|
+> | idle, no load | **12 of 16** | — |
+> | 100 sessions at `--duty 1.0`, no sleep, tenant at 0 processes | **9–10 of 16** | **5.01 cores** |
+>
+> A hundred fully CPU-bound sleepless processes cannot unpark this machine. So the loop proposed below — a sleep-heavy load looks underused, the policy parks cores — **is wrong**: the saturating load looks nothing like underused and the cores stay parked anyway. Parking here is a standing state, not a response.
+>
+> **And the earlier reading that a sleepless hundred drove the machine to 92.5% was the tenant.** That window had `chrome-headless-shell` at 7.93 cores; with the tenant censused at zero the same workload reaches 5.01. The sessions never saturated anything.
+>
+> **What this replaces the loop with is the answer to a bigger question.** [The ceiling record](2026-08-12-114500-every-hundred-session-hold-today-is-a-third-of-what-the-box-used-to-do.md) asks why every hundred-session hold today sits at 3.34–4.81 job cores where 3 and 11 August reached 15.3–15.5, and names no cause. **A box pinned at five or six usable cores cannot produce fifteen.** The parked count is not a property of the workload, so it applies to every measurement taken in this state — which is what that record observed and could not explain.
+>
+> **What is still not established**: why the cores are parked, and whether they were unparked on the days that reached 15.5. The policy is hidden in this scheme and cannot be read without changing attributes on the machine, so this is an effect with a named shape and an unread cause.
+
 ## What was measured
 
 | | |
@@ -30,11 +45,11 @@ So the pause was already eliminated — the sessions sleep 2.3% longer than they
 
 **Parking supplies it.** With 10 cores parked, ~27 runnable threads contend for ~6 cores rather than 16 — and the sum of per-core busy, 5.02, matches the machine counter's 4.48–5.00 across every hold tonight. A box that appears 70% idle is a box whose idle-looking cores are switched off.
 
-## The feedback loop this creates
+## The feedback loop this creates — REFUTED, see the append above
 
-Core parking is a power-policy response to low utilisation, and a sleep-heavy workload presents exactly that. The sessions compute briefly, sleep, and leave the box looking underused; the policy parks cores; the remaining cores cannot serve a hundred sessions; each session's spin stretches; utilisation still looks low. **The condition that triggers parking is sustained by parking.**
+*Written before the load comparison and left as a log.* The reasoning was that core parking responds to low utilisation, that a sleep-heavy workload presents exactly that, and that the condition triggering parking is then sustained by parking. **A hundred sleepless sessions at `--duty 1.0` leave 9–10 cores parked**, so the policy is not responding to this machine's load in either direction and the loop does not exist.
 
-That also fits the shape nobody could explain: the box has two stable operating points at a hundred sessions, roughly 4.7× apart, with identical per-core efficiency in both. Identical efficiency with different totals is what a changing *core count* looks like, not a changing core speed.
+What survives is the part that never depended on the mechanism: the box has two stable operating points at a hundred sessions, roughly 4.7× apart, with identical per-core efficiency in both. **Identical efficiency with different totals is what a changing core count looks like, not a changing core speed** — and a parked count that ignores load is exactly such a change.
 
 ## What this costs the project
 
