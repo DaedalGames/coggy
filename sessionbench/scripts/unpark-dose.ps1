@@ -12,7 +12,7 @@
 # count, and the mechanism is about what the neighbour IS rather than what it
 # consumes — which would be the sharpest open question left.
 [CmdletBinding()]
-param([int[]]$Rungs = @(0, 1, 5, 20, 60), [int]$Seconds = 25)
+param([int[]]$Rungs = @(0, 1, 5, 20, 60), [int]$Seconds = 25, [int]$MaxWaitMinutes = 12)
 
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $spin = Join-Path $root 'target\release\cpu-spin.exe'
@@ -47,6 +47,12 @@ try {
     # parked at every load. That reading is Chromium arriving, not sessions
     # unparking. So each rung is REFUSED unless the tenant is quiet during it.
     foreach ($n in $Rungs) {
+        # WAIT FOR QUIET BEFORE EACH RUNG. A precondition checked at launch is
+        # worthless here: attempt 1 started from a verified parked, tenant-free
+        # box and the neighbour was back within a rung. Gate per rung instead.
+        $wait = (Get-Date).AddMinutes($MaxWaitMinutes)
+        while ((Get-Date) -lt $wait -and (TenantCores) -ge 0.5) { Start-Sleep -Seconds 15 }
+        if ((TenantCores) -ge 0.5) { "  sessions {0,3}  SKIPPED: no quiet window" -f $n; continue }
         for ($i = 0; $i -lt $n; $i++) {
             Start-Process $spin -ArgumentList '--units','100000000','--duty','1.0','--resident','1' `
                 -WindowStyle Hidden -RedirectStandardOutput 'NUL' | Out-Null
@@ -54,9 +60,19 @@ try {
         Start-Sleep -Seconds 6
         # Several reads per rung: the parked count is bimodal and one sample of it
         # is a sample of one moment, which cost three withdrawn claims today.
-        $pk = @(); $deadline = (Get-Date).AddSeconds($Seconds)
-        while ((Get-Date) -lt $deadline) { $v = Parked; if ($null -ne $v) { $pk += $v }; Start-Sleep -Seconds 2 }
-        $m = (Get-Counter '\Processor Information(0,_Total)\% Processor Time' -ErrorAction SilentlyContinue).CounterSamples[0].CookedValue
+        # THE MACHINE FIGURE MUST SPAN THE SAME WINDOW AS THE PARKED COUNT.
+        # Attempt 1 sampled parking across 25 s and the machine once at the end,
+        # and rung 0 published `parked median 11` beside `machine 11.40 cores` —
+        # eleven parked leaves five, which cannot deliver 11.4. The two columns
+        # described different moments and their disagreement was arithmetic.
+        $pk = @(); $mc = @(); $deadline = (Get-Date).AddSeconds($Seconds)
+        while ((Get-Date) -lt $deadline) {
+            $v = Parked; if ($null -ne $v) { $pk += $v }
+            $mv = (Get-Counter '\Processor Information(0,_Total)\% Processor Time' -ErrorAction SilentlyContinue).CounterSamples[0].CookedValue
+            if ($null -ne $mv) { $mc += ($mv * 16 / 100) }
+            Start-Sleep -Seconds 1
+        }
+        $m = if ($mc.Count) { (($mc | Measure-Object -Average).Average) * 100 / 16 } else { 0 }
         $tc = TenantCores
         $alive = @(Get-Process cpu-spin -ErrorAction SilentlyContinue).Count
         $hi = @($pk | Where-Object { $_ -ge 8 }).Count
