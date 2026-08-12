@@ -509,6 +509,27 @@
 >
 > **What is still real and unaffected**: parking follows the neighbour's load, the dose-response, the arrival and departure lags, and that this workload cannot unpark the box at any count — all measured within today at fixed `--resident 1`.
 
+> **2026-08-12 22:38 — the `--resident` correction is WITHDRAWN. It does nothing today, and the day difference is real.** The argv that produced 15.5 job cores on 11 August, run now on a quiet box:
+>
+> ```
+> job 3.631   rest 2.148   tenant 0.000   machine 5.779
+> units/session/s 1.379   peak_rss 2.36 GiB   fewest_running 100
+> ```
+>
+> | | job cores |
+> |---|---|
+> | archive `--resident 20` (08-03, 08-11) | **15.34, 15.51** |
+> | **today `--resident 20`** | **3.63** |
+> | today `--resident 1` | 3.12 - 4.76 |
+>
+> **`--resident` makes no difference today.** 3.63 sits inside the band `--resident 1` already occupies, so the archive's resident split was itself confounded by day — every `--resident 20` hold on disk was taken on 3 or 11 August, and every `--resident 1` hold today. **The mirror of the confound it was raised to fix**, flagged before this ran and fired anyway.
+>
+> **So the original reading stands: the ceiling collapsed between 11 and 12 August, and it is the machine rather than the workload.** Three reversals on this axis in one evening — `--resident` matters, then it does not, then it does, then it does not — each correcting the last on evidence that could not separate the variables. What finally separated them was holding the day fixed and varying the flag, which is the only design here that ever could.
+>
+> **What this restores**: every parking finding, which was always measured within today at a fixed flag; the observation that today's box caps a hundred sessions near 5 cores whatever they ask for; and the open question of what changed between 11 and 12 August, which is where this record started and is still where it stands.
+>
+> **An instrument note worth keeping**: the verdict line of this run crashed on an em-dash, because the console encodes cp949 and cannot represent `—`. The figures printed only because they came first. **Put the numbers before the interpretation in any script that prints both** — a formatting crash after the data is an inconvenience, and before it is a lost run.
+
 ## What was measured
 
 | | |
