@@ -233,6 +233,17 @@ At 43% this is simply saturation: a hundred sessions asking for more than sixtee
 
 **The clean version is one run away**: `--report-timing` on a session inside a daemon-hosted hold, which measures `computed` in the regime the table is about. Nothing here does that.
 
+> **2026-08-12 13:12 — measured, and the derivation holds.** `computed` covers only the spin, so the I/O path never enters it and a **bare probe running alongside a daemon-hosted hundred** measures the same quantity. Same process, same run, minutes apart:
+>
+> | | computed | asked | slept | oversleep |
+> |---|---|---|---|---|
+> | before the hold saturates | **25.5 ms** | 68.8 | 70.3 | 1.02× |
+> | during it | **136.5 ms** | 369.0 | 375.2 | **1.02×** |
+>
+> **A 5.4× inflation of measured compute with the sleep still accurate to 2%**, against the table's derived 128.2 ms for the same session count. The before-line is the control the earlier probes lacked: one process, one run, so no I/O path, machine state or day varies between the two readings. **The write cost flagged above does not account for it**, and the 43%-versus-88% split is a property of what the sessions experience.
+
+> Instrumenting through the daemon remains impossible for a different reason, now measured: `coggyd` drains stdout and stderr into one scrollback, which nothing exports, and counts both — so the flag inside a hold biases the unit rate by about 2% and produces nothing readable.
+
 ## What it costs, retroactively
 
 **Every measurement taken today was taken in this state.** That includes:
