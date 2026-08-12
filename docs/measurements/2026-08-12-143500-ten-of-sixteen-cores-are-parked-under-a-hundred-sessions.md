@@ -118,6 +118,24 @@
 >
 > **What it establishes and what it does not.** Established: a sleepless hundred unparks this box, in the archive's own metric, with the observer at 0.09 cores and therefore not a factor. Not established: that the ceiling record's 15.3-15.5 job cores are recoverable, since no run tonight has had a sleepless load AND an absent tenant at the same time. That pairing is the outstanding measurement, and it needs the named census gate in front of it.
 
+> **2026-08-12 15:56 — the gate cleared and the tenant came back inside the hold, for the third time tonight.** A hundred sessions at `--duty 1.0` behind a named census gate:
+>
+> | | |
+> |---|---|
+> | gate cleared | 15:55:00, tenant under 0.5 cores |
+> | `rest_cores_median` **during** the hold | **9.603** |
+> | job `median_cores` | 4.852 |
+> | machine total | **14.455** |
+> | work rate | 1.963 units/session/s |
+>
+> **The machine figure is the strongest unparking evidence yet** — 14.455 cores against about 5 in every `--duty 0.27` hold today. Parking is settled as the ceiling on what this box *offers*.
+>
+> **The job figure measures the tenant again.** 9.603 cores went elsewhere, so the sleepless-and-quiet pairing is still unobtained after three attempts, and **no run tonight has held a sleepless hundred on a genuinely empty box.**
+>
+> **A pre-hold gate cannot fix this, by construction**: it tests an instant and the hold needs a minute, and this tenant returns within seconds. That is [the same conclusion the idle-floor record reached](2026-08-12-064500-the-idle-floor-sits-on-top-of-the-transition-it-is-measured-across.md) about a pre-baseline recheck, reached again from the other side.
+>
+> **The instrument for it already exists and was not used here.** `--abort-rest-above` makes a hold refuse itself mid-flight when the residual climbs, which turns an invaded window into a discarded run rather than a published number. Building a guard and then running without it is the more useful half of this entry: the three confounded holds above are all runs that could have refused themselves.
+
 ## What was measured
 
 | | |

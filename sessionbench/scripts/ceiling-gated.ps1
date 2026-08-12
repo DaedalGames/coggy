@@ -16,7 +16,7 @@
 # 3.34-4.81. If they stay near 5 with the tenant absent AND the box unparked,
 # neither parking nor tenancy explains the ceiling and it is something else.
 [CmdletBinding()]
-param([int]$Sessions = 100, [int]$Seconds = 60, [int]$MaxWaitMinutes = 40)
+param([int]$Sessions = 100, [int]$Seconds = 60, [int]$MaxWaitMinutes = 40, [int]$MaxAttempts = 4, [double]$AbortRestAbove = 2.0)
 
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $bench = Join-Path $root 'target\release\sessionbench.exe'
@@ -49,10 +49,27 @@ try {
     }
     if (-not $quiet) { "gave up: tenant never fell below 0.5 cores"; return }
 
-    "CLEARED at {0} - holding {1} sessions at duty 1.0 for {2}s" -f (Get-Date -Format 'HH:mm:ss'), $Sessions, $Seconds
-    & $bench hold --label 'ceiling-gated' --sessions $Sessions --interval 5 --duration $Seconds -- `
-        $spin --units 100000000 --duty 1.0 --resident 1
-    "sessionbench exit = $LASTEXITCODE"
+    # A PRE-HOLD GATE TESTS AN INSTANT AND THE HOLD NEEDS A MINUTE. On 2026-08-12
+    # this gate cleared at 15:55:00 with the tenant under 0.5 cores and the hold
+    # that followed recorded rest 9.603 — the third time that night a clearance
+    # was invaded inside the window it opened. So the hold has to refuse ITSELF:
+    # `--abort-rest-above` ends it mid-flight when the residual climbs, and the
+    # attempt is retried rather than published.
+    for ($try = 1; $try -le $MaxAttempts; $try++) {
+        "ATTEMPT {0}/{1} - cleared at {2}, holding {3} sessions at duty 1.0 for {4}s" -f `
+            $try, $MaxAttempts, (Get-Date -Format 'HH:mm:ss'), $Sessions, $Seconds
+        & $bench hold --label "ceiling-gated-$try" --sessions $Sessions --interval 5 --duration $Seconds `
+            --abort-rest-above $AbortRestAbove -- `
+            $spin --units 100000000 --duty 1.0 --resident 1
+        "  sessionbench exit = $LASTEXITCODE"
+        # Re-wait for quiet before the next attempt rather than launching into a
+        # box the previous attempt just told us is busy.
+        if ($try -lt $MaxAttempts) {
+            $t = Tenant-Cores
+            while ($t -ge 0.5 -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 20; $t = Tenant-Cores }
+            if ((Get-Date) -ge $deadline) { "out of time after attempt $try"; break }
+        }
+    }
 }
 finally {
     Start-Sleep -Seconds 3
