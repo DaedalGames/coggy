@@ -36,6 +36,14 @@ serde_json = "1"
 sysinfo = "0.37"
 portable-pty = "0.9"
 win32job = "2"
+# Core parking, read through WMI. MIT. The counter that says how many cores this
+# box is actually offering is `Win32_PerfFormattedData_Counters_ProcessorInformation`
+# -> `ParkingStatus`, and PDH would need `unsafe`, which the workspace forbids.
+# Reached for through a crate rather than through FFI for the same reason
+# `win32job` is, and verified before adding: the class exposes the property on
+# this machine, and WMI reported 12 of 16 parked against the perf counter's 11
+# seconds apart, which is agreement for a count that swings 0-12 within seconds.
+wmi = "0.18"
 # Placeholder expansion for a session's argv. MIT OR Apache-2.0. Braces-only
 # on purpose: the better-known `subst` escapes with a backslash, which is the
 # Windows path separator, so the paths this exists to build cannot be written.

@@ -14,6 +14,7 @@ pub mod format;
 pub mod host;
 pub mod machine;
 pub mod observe;
+pub mod parking;
 pub mod provenance;
 pub mod ramp;
 pub mod redline;

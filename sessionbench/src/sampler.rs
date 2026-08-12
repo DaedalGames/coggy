@@ -15,6 +15,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
+use crate::parking::Parking;
 use crate::session::Output;
 use crate::tree::{Attribution, ProcessSample, SessionTree};
 
@@ -306,6 +307,21 @@ pub struct Sample {
     /// reads 0.0, which is indistinguishable from a quiet machine — the exact
     /// confusion this field exists to prevent.
     pub tenant_processes: usize,
+    /// Cores parked at this tick, or `None` when the counter cannot be read.
+    ///
+    /// **What the machine was WILLING to give, beside what it gave.**
+    /// `machine_cpu_percent` shows the consequence and cannot show the cause:
+    /// on 2026-08-12 this box began parking cores after an update, and six
+    /// quiet hundred-session holds read **16.11 and 16.00 machine cores on 3
+    /// and 11 August against 4.52-5.37 on the 12th** with no artifact able to
+    /// tell the two machines apart.
+    ///
+    /// `None` rather than `0`: an unreadable counter and a fully unparked
+    /// machine are opposite facts, and a zero makes the first read as the
+    /// second. **Read the distribution, never a mean** — idle, this is bimodal
+    /// at 0 for 39% of samples and 12 for 27%, so an average describes no state
+    /// the machine is ever in.
+    pub parked_cores: Option<u32>,
     pub available_memory_bytes: u64,
     pub output_bytes: u64,
     /// Lines the session has written, which is its own count of work done.
@@ -339,6 +355,16 @@ pub struct Sampler {
     defender: Option<Pid>,
     /// The agent's pids, found on a full walk and refreshed by pid after.
     observers: Vec<Pid>,
+    /// Reads how many cores this box is actually offering.
+    ///
+    /// **The column that says which machine a hold ran on.** On 2026-08-12 this
+    /// box began parking cores after an update whose notes state that "sleep,
+    /// display, and power setting changes now apply correctly across all power
+    /// plans" — and six quiet hundred-session holds gave **16.11 and 16.00
+    /// machine cores on 3 and 11 August against 4.52-5.37 on the 12th**, with
+    /// nothing in any artifact able to say why. The machine column shows the
+    /// consequence; this shows the cause.
+    parking: Parking,
     tenants: Vec<Pid>,
     /// Ticks since the last full walk, which is what re-finds a neighbour that
     /// started after the sampler did.
@@ -374,6 +400,7 @@ impl Sampler {
             logical_cores: 1.0,
             defender: None,
             observers: Vec::new(),
+            parking: Parking::connect(),
             tenants: Vec::new(),
             ticks_since_walk: 0,
             unprioritised_reason: raise_current_thread().err(),
@@ -532,6 +559,7 @@ impl Sampler {
             observer_processes: observers.len(),
             tenant_cpu_percent: tenants.iter().map(|p| p.cpu_usage()).sum(),
             tenant_processes: tenants.len(),
+            parked_cores: self.parking.parked_cores(),
             available_memory_bytes: self.sys.available_memory(),
             output_bytes: output.total(),
             work_units: output.units(),

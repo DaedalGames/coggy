@@ -519,6 +519,7 @@ mod tests {
             observer_processes: 0,
             tenant_cpu_percent: 0.0,
             tenant_processes: 0,
+            parked_cores: None,
             defender_cpu_percent,
             defender_rss_bytes: None,
             available_memory_bytes: 0,
